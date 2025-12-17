@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface CriarAlimentoProps {
   onClose: () => void;
@@ -17,18 +18,24 @@ export default function CriarAlimento({ onClose, onSuccess }: CriarAlimentoProps
 
     setLoading(true);
     try {
-      const res = await fetch("/api/referencias", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome,
-          fenil_mg_por_100g: parseFloat(fenil),
-        }),
-      });
+      // pega o usuário logado
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("Usuário não autenticado");
 
-      if (res.ok) {
-        onSuccess();
-      }
+      const res = await supabase
+        .from("referencias")
+        .insert([
+          {
+            nome,
+            fenil_mg_por_100g: parseFloat(fenil),
+            criado_por: user.id, // aqui preenchemos o campo
+            is_global: false
+          }
+        ]);
+
+      if (res.error) throw res.error;
+
+      onSuccess();
     } catch (error) {
       console.error("Erro ao criar alimento:", error);
     } finally {
@@ -41,9 +48,7 @@ export default function CriarAlimento({ onClose, onSuccess }: CriarAlimentoProps
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Criar Novo Alimento
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900">Criar Novo Alimento</h2>
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
@@ -80,9 +85,6 @@ export default function CriarAlimento({ onClose, onSuccess }: CriarAlimentoProps
                 placeholder="Ex: 25.50"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Quantidade de fenilalanina em miligramas a cada 100 gramas do alimento
-              </p>
             </div>
 
             <div className="flex gap-3 pt-2">

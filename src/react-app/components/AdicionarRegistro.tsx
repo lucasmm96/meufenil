@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { X, Search, Plus } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface Referencia {
-  id: number;
+  id: string;
   nome: string;
   fenil_mg_por_100g: number;
-  is_global: boolean;
 }
 
 interface AdicionarRegistroProps {
@@ -19,100 +19,114 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
   const [selectedReferencia, setSelectedReferencia] = useState<Referencia | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [pesoG, setPesoG] = useState("");
-  const [data, setData] = useState(new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [loading, setLoading] = useState(false);
   const [showNovaReferencia, setShowNovaReferencia] = useState(false);
   const [novaRefNome, setNovaRefNome] = useState("");
   const [novaRefFenil, setNovaRefFenil] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
 
+  // Carregar usuário logado
   useEffect(() => {
-    loadReferencias("");
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    }
+    loadUser();
   }, []);
 
+  // Carregar referências após ter userId
   useEffect(() => {
-    if (search) {
-      const timer = setTimeout(() => {
-        loadReferencias(search);
-        setShowDropdown(true);
-      }, 300);
-      return () => clearTimeout(timer);
-    } else {
+    if (userId) loadReferencias("");
+  }, [userId]);
+
+  // Busca com debounce
+  useEffect(() => {
+    if (!search) {
       setShowDropdown(false);
+      return;
     }
-  }, [search]);
 
-  const loadReferencias = async (searchTerm: string) => {
-    try {
-      const res = await fetch(`/api/referencias?search=${encodeURIComponent(searchTerm)}`);
-      const data: Referencia[] = await res.json(); // ✅ tipando explicitamente
-      setReferencias(data);
-    } catch (error) {
+    const t = setTimeout(() => {
+      if (userId) loadReferencias(search);
+      setShowDropdown(true);
+    }, 300);
+
+    return () => clearTimeout(t);
+  }, [search, userId]);
+
+  async function loadReferencias(searchTerm: string) {
+    if (!userId) return;
+
+    // o termo de busca pode estar vazio
+    const filter = searchTerm ? `%${searchTerm}%` : `%`;
+
+    const { data, error } = await supabase
+      .from("referencias")
+      .select("id, nome, fenil_mg_por_100g")
+      .or(`is_global.eq.true,criado_por.eq.${userId}`)
+      .ilike("nome", filter)
+      .order("nome");
+
+    if (error) {
       console.error("Erro ao carregar referências:", error);
+      return;
     }
-  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    if (data) setReferencias(data);
+  }
+
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedReferencia || !pesoG) return;
+    if (!selectedReferencia || !pesoG || !userId) return;
 
     setLoading(true);
-    try {
-      const res = await fetch("/api/registros", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data,
-          referencia_id: selectedReferencia.id,
-          peso_g: parseFloat(pesoG),
-        }),
-      });
 
-      if (res.ok) {
-        onSuccess();
-      }
-    } catch (error) {
-      console.error("Erro ao adicionar registro:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fenil_mg = (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
 
-  const handleNovaReferencia = async (e: React.FormEvent) => {
+    const { error } = await supabase.from("registros").insert({
+      data,
+      usuario_id: userId,
+      referencia_id: selectedReferencia.id,
+      peso_g: Number(pesoG),
+      fenil_mg,
+    });
+
+    setLoading(false);
+    if (!error) onSuccess();
+    else console.error("Erro ao salvar registro:", error);
+  }
+
+  async function handleNovaReferencia(e: React.FormEvent) {
     e.preventDefault();
-    if (!novaRefNome || !novaRefFenil) return;
+    if (!novaRefNome || !novaRefFenil || !userId) return;
 
     setLoading(true);
-    try {
-      const res = await fetch("/api/referencias", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome: novaRefNome,
-          fenil_mg_por_100g: parseFloat(novaRefFenil),
-        }),
-      });
 
-      if (res.ok) {
-        const data: { id: number } = await res.json();
-        setShowNovaReferencia(false);
-        setNovaRefNome("");
-        setNovaRefFenil("");
-        loadReferencias(search);
-        // Selecionar automaticamente a nova referência
-        const novaRefRes = await fetch(`/api/referencias?search=${encodeURIComponent(novaRefNome)}`);
-        const refs: Referencia[] = await novaRefRes.json();
-        const criada = refs.find((r) => r.id === data.id);
-        if (criada) setSelectedReferencia(criada);
-      }
-    } catch (error) {
-      console.error("Erro ao criar referência:", error);
-    } finally {
-      setLoading(false);
+    const { data, error } = await supabase
+      .from("referencias")
+      .insert({
+        nome: novaRefNome,
+        fenil_mg_por_100g: Number(novaRefFenil),
+        criado_por: userId,
+        is_global: false,
+      })
+      .select()
+      .single();
+
+    setLoading(false);
+
+    if (!error && data) {
+      setSelectedReferencia(data);
+      setSearch(data.nome);
+      setShowNovaReferencia(false);
+      loadReferencias("");
     }
-  };
+  }
 
   const fenilCalculada = selectedReferencia && pesoG
-    ? (Number(selectedReferencia.fenil_mg_por_100g) * Number(pesoG)) / 100
+    ? (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100
     : 0;
 
   return (
@@ -120,9 +134,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Adicionar Registro
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900">Adicionar Registro</h2>
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
@@ -134,9 +146,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
           {showNovaReferencia ? (
             <form onSubmit={handleNovaReferencia} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome do Alimento
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Alimento</label>
                 <input
                   type="text"
                   value={novaRefNome}
@@ -148,9 +158,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fenilalanina (mg por 100g)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fenilalanina (mg por 100g)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -182,9 +190,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Data
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Data</label>
                 <input
                   type="date"
                   value={data}
@@ -195,9 +201,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Alimento
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Alimento</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -235,9 +239,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
                 {selectedReferencia && (
                   <div className="mt-2 p-3 bg-indigo-50 rounded-xl">
                     <p className="text-sm text-indigo-900">
-                      <span className="font-semibold">{selectedReferencia.nome}</span>
-                      {" - "}
-                      {selectedReferencia.fenil_mg_por_100g.toFixed(1)} mg de fenilalanina por 100g
+                      <span className="font-semibold">{selectedReferencia.nome}</span> - {selectedReferencia.fenil_mg_por_100g.toFixed(1)} mg de fenilalanina por 100g
                     </p>
                   </div>
                 )}
@@ -253,9 +255,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Peso consumido (gramas)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Peso consumido (gramas)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -270,9 +270,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
               {fenilCalculada > 0 && (
                 <div className="p-4 bg-purple-50 rounded-xl">
                   <p className="text-sm text-gray-600">Fenilalanina calculada:</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {fenilCalculada.toFixed(1)} mg
-                  </p>
+                  <p className="text-2xl font-bold text-purple-600">{fenilCalculada.toFixed(1)} mg</p>
                 </div>
               )}
 

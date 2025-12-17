@@ -1,11 +1,11 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@getmocha/users-service/react";
-import { 
-  LayoutDashboard, 
-  History, 
-  BarChart3, 
-  User, 
+import { supabase } from "@/lib/supabase";
+import {
+  LayoutDashboard,
+  History,
+  BarChart3,
+  User,
   LogOut,
   Shield,
   Heart,
@@ -13,7 +13,7 @@ import {
   Mail,
   Stethoscope,
   Info,
-  Vegan
+  Vegan,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -22,37 +22,62 @@ interface LayoutProps {
 
 interface Perfil {
   role: string;
+  nome?: string;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
-  type UserWithUsuario = {
-    usuario?: {
-      nome?: string;
-    };
-  };
+
+  const [user, setUser] = useState<any>(null);
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  /* ================= AUTH ================= */
 
   useEffect(() => {
-    if (user) {
-      fetch("/api/usuarios/perfil")
-        .then(res => res.json())
-        .then((data) => {
-          const perfil = data as Perfil;
-          setIsAdmin(perfil.role === "admin");
-        })
-        .catch(() => setIsAdmin(false));
-    }
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  /* ================= PERFIL ================= */
+
+  useEffect(() => {
+    if (!user) return;
+
+    supabase
+      .from("usuarios")
+      .select("role, nome")
+      .eq("id", user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setPerfil(data);
+        }
+      });
   }, [user]);
 
+  /* ================= LOGOUT ================= */
+
   const handleLogout = async () => {
-    await logout();
-    navigate("/");
+    await supabase.auth.signOut();
+    navigate("/", { replace: true });
   };
 
+  /* ================= NAV ================= */
+
   const isActive = (path: string) => location.pathname === path;
+  const isAdmin = perfil?.role === "admin";
 
   const navItems = [
     { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -63,6 +88,18 @@ export default function Layout({ children }: LayoutProps) {
     { path: "/perfil", icon: User, label: "Perfil" },
     ...(isAdmin ? [{ path: "/admin", icon: Shield, label: "Admin" }] : []),
   ];
+
+  /* ================= LOADING ================= */
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
+
+  /* ================= UI ================= */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -80,16 +117,15 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
 
             <div className="flex items-center gap-4">
-              <span className="text-xs text-gray-600 xs:inline">
-                {/* {user?.usuario.nome} */}
-                {(user as UserWithUsuario | null)?.usuario?.nome}
+              <span className="text-xs text-gray-600 hidden sm:inline">
+                {perfil?.nome ?? user?.email}
               </span>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <LogOut className="w-4 h-4" />
-                <span className="text-sm sm:inline">Sair</span>
+                <span className="text-sm">Sair</span>
               </button>
             </div>
           </div>
@@ -99,10 +135,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Navigation */}
       <nav className="bg-white/60 backdrop-blur-md border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide" style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}>
+          <div className="flex gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
@@ -116,8 +149,8 @@ export default function Layout({ children }: LayoutProps) {
                       : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="hidden sm:inline md:inline">{item.label}</span>
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               );
             })}
@@ -125,7 +158,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </nav>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
@@ -134,32 +167,34 @@ export default function Layout({ children }: LayoutProps) {
       <footer className="bg-white/60 backdrop-blur-md border-t border-gray-200/50 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-wrap items-center justify-center gap-1.5 text-gray-700 text-center px-4">
+            <div className="flex items-center gap-1.5 text-gray-700 text-center">
               <span className="text-xs sm:text-sm">Feito com</span>
-              <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse flex-shrink-0" />
-              <span className="text-xs sm:text-sm">para todos os pacientes fenil do Brasil</span>
+              <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
+              <span className="text-xs sm:text-sm">
+                para pacientes fenil do Brasil
+              </span>
             </div>
-            
+
             <div className="flex items-center gap-6">
               <a
                 href="https://www.linkedin.com/in/lucas-martins-menezes/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-2 text-gray-600 hover:text-indigo-600"
               >
                 <Linkedin className="w-5 h-5" />
                 <span className="text-sm hidden sm:inline">LinkedIn</span>
               </a>
-              
+
               <a
                 href="mailto:lucasmartinsmenezes@gmail.com"
-                className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-2 text-gray-600 hover:text-indigo-600"
               >
                 <Mail className="w-5 h-5" />
                 <span className="text-sm hidden sm:inline">Email</span>
               </a>
             </div>
-            
+
             <p className="text-xs text-gray-500">
               © {new Date().getFullYear()} MeuFenil. Todos os direitos reservados.
             </p>
