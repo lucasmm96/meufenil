@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@getmocha/users-service/react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Activity, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -39,7 +39,7 @@ export default function ExamesPage() {
   const loadExames = async () => {
     try {
       const res = await fetch("/api/exames-pku");
-      const data = await res.json();
+      const data = (await res.json()) as ExamePKU[];
       setExames(data);
     } catch (error) {
       console.error("Erro ao carregar exames:", error);

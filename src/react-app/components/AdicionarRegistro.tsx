@@ -44,7 +44,7 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
   const loadReferencias = async (searchTerm: string) => {
     try {
       const res = await fetch(`/api/referencias?search=${encodeURIComponent(searchTerm)}`);
-      const data = await res.json();
+      const data: Referencia[] = await res.json(); // ✅ tipando explicitamente
       setReferencias(data);
     } catch (error) {
       console.error("Erro ao carregar referências:", error);
@@ -93,15 +93,15 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data: { id: number } = await res.json();
         setShowNovaReferencia(false);
         setNovaRefNome("");
         setNovaRefFenil("");
         loadReferencias(search);
         // Selecionar automaticamente a nova referência
-        const novaRef = await fetch(`/api/referencias?search=${encodeURIComponent(novaRefNome)}`);
-        const refs = await novaRef.json();
-        const criada = refs.find((r: Referencia) => r.id === data.id);
+        const novaRefRes = await fetch(`/api/referencias?search=${encodeURIComponent(novaRefNome)}`);
+        const refs: Referencia[] = await novaRefRes.json();
+        const criada = refs.find((r) => r.id === data.id);
         if (criada) setSelectedReferencia(criada);
       }
     } catch (error) {

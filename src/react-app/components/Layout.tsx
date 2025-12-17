@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@getmocha/users-service/react";
 import { 
   LayoutDashboard, 
@@ -8,7 +8,6 @@ import {
   User, 
   LogOut,
   Shield,
-  Activity,
   Heart,
   Linkedin,
   Mail,
@@ -21,17 +20,27 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+interface Perfil {
+  role: string;
+}
+
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  type UserWithUsuario = {
+    usuario?: {
+      nome?: string;
+    };
+  };
 
   useEffect(() => {
     if (user) {
       fetch("/api/usuarios/perfil")
         .then(res => res.json())
-        .then(perfil => {
+        .then((data) => {
+          const perfil = data as Perfil;
           setIsAdmin(perfil.role === "admin");
         })
         .catch(() => setIsAdmin(false));
@@ -72,7 +81,8 @@ export default function Layout({ children }: LayoutProps) {
 
             <div className="flex items-center gap-4">
               <span className="text-xs text-gray-600 xs:inline">
-                {user?.usuario.nome}
+                {/* {user?.usuario.nome} */}
+                {(user as UserWithUsuario | null)?.usuario?.nome}
               </span>
               <button
                 onClick={handleLogout}

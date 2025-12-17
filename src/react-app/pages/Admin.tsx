@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@getmocha/users-service/react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Shield, Users, Database, AlertCircle, Upload, Download, FileText, HardDrive, Package } from "lucide-react";
 
@@ -43,6 +43,10 @@ export default function AdminPage() {
     total: number;
   } | null>(null);
 
+  type UserWithEmail = {
+    email?: string;
+  };
+
   useEffect(() => {
     if (!isPending && !user) {
       navigate("/");
@@ -58,8 +62,17 @@ export default function AdminPage() {
   const loadAdmin = async () => {
     try {
       // Verificar se é admin
+      interface Perfil {
+        id: number;
+        nome: string;
+        email: string;
+        role: string;
+        limite_diario_mg: number;
+        created_at: string;
+      }
+
       const perfilRes = await fetch("/api/usuarios/perfil");
-      const perfil = await perfilRes.json();
+      const perfil: Perfil = await perfilRes.json();
       setPerfilUsuario(perfil);
 
       if (perfil.role !== "admin") {
@@ -67,13 +80,16 @@ export default function AdminPage() {
         return;
       }
 
+
       const usuariosRes = await fetch("/api/admin/usuarios");
-      const usuariosData = await usuariosRes.json();
+      const usuariosData: UsuarioAdmin[] = await usuariosRes.json();
       setUsuarios(usuariosData);
 
+
       const estatisticasRes = await fetch("/api/admin/estatisticas-db");
-      const estatisticasData = await estatisticasRes.json();
+      const estatisticasData: EstatisticasDB = await estatisticasRes.json();
       setEstatisticasDB(estatisticasData);
+
     } catch (error) {
       console.error("Erro ao carregar dados admin:", error);
       navigate("/dashboard");
@@ -120,7 +136,7 @@ export default function AdminPage() {
         body: JSON.stringify({ csv: csvText }),
       });
 
-      const data = await res.json();
+      const data: { importados: number; erros: string[]; total: number } = await res.json();
       setResultadoImportacao(data);
       
       if (data.importados > 0) {
@@ -387,7 +403,7 @@ export default function AdminPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
                         onClick={() => handleToggleRole(usuario.id, usuario.role)}
-                        disabled={usuario.email === user?.email}
+                        disabled={usuario.email === (user as UserWithEmail | null)?.email}
                         className={`font-medium ${
                           usuario.email === user?.email
                             ? "text-gray-400 cursor-not-allowed"

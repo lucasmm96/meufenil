@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@getmocha/users-service/react";
 import { useNavigate } from "react-router";
 import Layout from "@/react-app/components/Layout";
 import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
@@ -7,8 +6,9 @@ import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
 import CriarAlimento from "@/react-app/components/CriarAlimento";
 import { Activity, TrendingUp, AlertCircle, Plus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/lib/supabase";
 
 // Função helper para parsear datas sem problema de fuso horário
 const parseLocalDate = (dateString: string) => {
@@ -34,7 +34,6 @@ interface GraficoData {
 }
 
 export default function DashboardPage() {
-  const { user, isPending } = useAuth();
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [hoje, setHoje] = useState<DashboardHoje | null>(null);
@@ -42,18 +41,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    if (!isPending && !user) {
-      navigate("/");
-    }
-  }, [user, isPending, navigate]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
 
-  useEffect(() => {
-    if (user) {
-      loadDashboard();
-    }
-  }, [user]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   const loadDashboard = async () => {
     try {
@@ -63,9 +61,9 @@ export default function DashboardPage() {
         fetch("/api/dashboard/ultimos-dias?dias=7"),
       ]);
 
-      const perfilData = await perfilRes.json();
-      const hojeData = await hojeRes.json();
-      const graficoData = await graficoRes.json();
+      const perfilData = (await perfilRes.json()) as Usuario;
+      const hojeData = (await hojeRes.json()) as DashboardHoje;
+      const graficoData = (await graficoRes.json()) as GraficoData[];
 
       setUsuario(perfilData);
       setHoje(hojeData);
@@ -95,7 +93,7 @@ export default function DashboardPage() {
     setShowCriarModal(false);
   };
 
-  if (isPending || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -103,8 +101,17 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user || !usuario || !hoje) {
+  if (!user) {
+    navigate("/", { replace: true });
     return null;
+  }
+
+  if (!usuario || !hoje) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Erro ao carregar os dados. Tente recarregar a página.</p>
+      </div>
+    );
   }
 
   const percentual = (hoje.total / hoje.limite) * 100;

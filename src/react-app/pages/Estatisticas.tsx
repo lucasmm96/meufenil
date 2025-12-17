@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@getmocha/users-service/react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Download, TrendingUp, Calendar } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
 
 // Função helper para parsear datas sem problema de fuso horário
 const parseLocalDate = (dateString: string) => {
@@ -15,7 +16,7 @@ const parseLocalDate = (dateString: string) => {
 
 interface Registro {
   data: string;
-  fenil_mg: number;
+  total: number;
 }
 
 export default function EstatisticasPage() {
@@ -42,7 +43,7 @@ export default function EstatisticasPage() {
     try {
       const dias = periodo === "semana" ? 7 : 30;
       const res = await fetch(`/api/dashboard/ultimos-dias?dias=${dias}`);
-      const data = await res.json();
+      const data = (await res.json()) as Registro[];
       setRegistros(data);
     } catch (error) {
       console.error("Erro ao carregar estatísticas:", error);

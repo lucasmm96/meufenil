@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@getmocha/users-service/react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { User, Save, Shield, Download, Trash2 } from "lucide-react";
 
@@ -37,7 +37,7 @@ export default function PerfilPage() {
   const loadPerfil = async () => {
     try {
       const res = await fetch("/api/usuarios/perfil");
-      const data = await res.json();
+      const data = (await res.json()) as Usuario;
       setUsuario(data);
       setNome(data.nome);
       setLimiteDiario(data.limite_diario_mg.toString());

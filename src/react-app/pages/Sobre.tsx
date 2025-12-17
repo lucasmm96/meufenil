@@ -1,5 +1,5 @@
 import { useAuth } from "@getmocha/users-service/react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { Heart, CheckCircle, Lightbulb, Info } from "lucide-react";
 import Layout from "@/react-app/components/Layout";
 import { useEffect } from "react";

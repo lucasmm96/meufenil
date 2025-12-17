@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@getmocha/users-service/react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Trash2, Calendar, Filter } from "lucide-react";
 import { format } from "date-fns";
@@ -45,7 +45,7 @@ export default function HistoricoPage() {
       if (params.toString()) url += `?${params.toString()}`;
 
       const res = await fetch(url);
-      const data = await res.json();
+      const data = (await res.json()) as Registro[];
       setRegistros(data);
     } catch (error) {
       console.error("Erro ao carregar registros:", error);

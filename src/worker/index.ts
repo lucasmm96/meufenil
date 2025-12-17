@@ -520,7 +520,7 @@ app.post("/api/admin/referencias/importar-csv", authMiddleware, async (c) => {
     const line = lines[i].trim();
     if (!line) continue;
 
-    const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+    const parts = line.split(',').map((p: string) => p.trim().replace(/^["']|["']$/g, ''));
     
     if (parts.length < 2) {
       erros.push(`Linha ${i + 1}: Formato inválido`);
@@ -706,10 +706,10 @@ app.get("/api/admin/estatisticas-db", authMiddleware, async (c) => {
   // - usuarios: ~150 bytes
   // - referencias: ~100 bytes
   // - registros: ~80 bytes
-  const tamanhoEstimadoBytes = 
-    (totalUsuarios?.count || 0) * 150 +
-    (totalReferencias?.count || 0) * 100 +
-    (totalRegistros?.count || 0) * 80;
+  const tamanhoEstimadoBytes =
+    (Number(totalUsuarios?.count) || 0) * 150 +
+    (Number(totalReferencias?.count) || 0) * 100 +
+    (Number(totalRegistros?.count) || 0) * 80;
 
   const tamanhoEstimadoMB = tamanhoEstimadoBytes / (1024 * 1024);
   const limiteGratuitoMB = 500;
