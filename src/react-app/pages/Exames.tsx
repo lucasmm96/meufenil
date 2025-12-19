@@ -1,48 +1,61 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@getmocha/users-service/react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Activity, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@/hooks/useUser";
 
 interface ExamePKU {
-  id: number;
+  id: string;
+  usuario_id: string;
   data_exame: string;
   resultado_mg_dl: number;
   created_at: string;
 }
 
 export default function ExamesPage() {
-  const { user, isPending } = useAuth();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useUser();
   const [exames, setExames] = useState<ExamePKU[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [dataExame, setDataExame] = useState(new Date().toISOString().split('T')[0]);
+  const [dataExame, setDataExame] = useState(
+    new Date().toISOString().split("T")[0]
+  );
   const [resultadoMgDl, setResultadoMgDl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isPending && !user) {
+    if (!authLoading && !user) {
       navigate("/");
     }
-  }, [user, isPending, navigate]);
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
-    if (user) {
-      loadExames();
-    }
+    if (!user) return;
+    loadExames();
   }, [user]);
 
   const loadExames = async () => {
+    setLoading(true);
+
     try {
-      const res = await fetch("/api/exames-pku");
-      const data = (await res.json()) as ExamePKU[];
-      setExames(data);
-    } catch (error) {
-      console.error("Erro ao carregar exames:", error);
+      const { data, error } = await supabase
+        .from("exames_pku")
+        .select("*")
+        .eq("usuario_id", user!.id)
+        .order("data_exame", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao carregar exames:", error);
+        setExames([]);
+        return;
+      }
+
+      setExames(data ?? []);
     } finally {
       setLoading(false);
     }
@@ -53,43 +66,43 @@ export default function ExamesPage() {
     if (!dataExame || !resultadoMgDl) return;
 
     setSubmitting(true);
+
     try {
-      const res = await fetch("/api/exames-pku", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data_exame: dataExame,
-          resultado_mg_dl: parseFloat(resultadoMgDl),
-        }),
+      const { error } = await supabase.from("exames_pku").insert({
+        usuario_id: user!.id,
+        data_exame: dataExame,
+        resultado_mg_dl: parseFloat(resultadoMgDl),
       });
 
-      if (res.ok) {
-        setShowModal(false);
-        setDataExame(new Date().toISOString().split('T')[0]);
-        setResultadoMgDl("");
-        loadExames();
+      if (error) {
+        console.error("Erro ao adicionar exame:", error);
+        return;
       }
-    } catch (error) {
-      console.error("Erro ao adicionar exame:", error);
+
+      setShowModal(false);
+      setDataExame(new Date().toISOString().split("T")[0]);
+      setResultadoMgDl("");
+      loadExames();
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este exame?")) return;
 
-    try {
-      const res = await fetch(`/api/exames-pku/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        loadExames();
-      }
-    } catch (error) {
-      console.error("Erro ao excluir exame:", error);
+    const { error } = await supabase
+      .from("exames_pku")
+      .delete()
+      .eq("id", id)
+      .eq("usuario_id", user!.id);
+
+    if (!error) {
+      loadExames();
     }
   };
 
-  if (isPending || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -98,12 +111,15 @@ export default function ExamesPage() {
   }
 
   const graficoData = [...exames].reverse();
-  
+
   const ultimoExame = exames[0];
   const penultimoExame = exames[1];
-  const tendencia = ultimoExame && penultimoExame 
-    ? ultimoExame.resultado_mg_dl - penultimoExame.resultado_mg_dl 
-    : 0;
+
+  const tendencia =
+    ultimoExame && penultimoExame
+      ? ultimoExame.resultado_mg_dl -
+      penultimoExame.resultado_mg_dl
+      : 0;
 
   return (
     <Layout>
@@ -123,21 +139,23 @@ export default function ExamesPage() {
 
         {exames.length > 0 && (
           <>
-            {/* Cards de Resumo */}
             <div className="grid md:grid-cols-3 gap-6">
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
                     <Activity className="w-6 h-6 text-indigo-600" />
                   </div>
-                  <span className="text-sm font-medium text-gray-500">Último Exame</span>
+                  <span className="text-sm text-gray-500">Último Exame</span>
                 </div>
                 <div className="space-y-2">
                   <p className="text-3xl font-bold text-gray-900">
                     {ultimoExame.resultado_mg_dl.toFixed(1)} mg/dL
                   </p>
                   <p className="text-sm text-gray-600">
-                    {format(parseISO(ultimoExame.data_exame), "dd/MM/yyyy")}
+                    {format(
+                      parseISO(ultimoExame.data_exame),
+                      "dd/MM/yyyy"
+                    )}
                   </p>
                 </div>
               </div>
@@ -146,9 +164,8 @@ export default function ExamesPage() {
                 <>
                   <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        tendencia <= 0 ? 'bg-green-100' : 'bg-orange-100'
-                      }`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tendencia <= 0 ? 'bg-green-100' : 'bg-orange-100'
+                        }`}>
                         {tendencia <= 0 ? (
                           <TrendingDown className="w-6 h-6 text-green-600" />
                         ) : (
@@ -157,16 +174,15 @@ export default function ExamesPage() {
                       </div>
                       <span className="text-sm font-medium text-gray-500">Variação</span>
                     </div>
-                    <div className="space-y-2">
-                      <p className={`text-3xl font-bold ${
-                        tendencia <= 0 ? 'text-green-600' : 'text-orange-600'
-                      }`}>
-                        {tendencia > 0 ? '+' : ''}{tendencia.toFixed(1)} mg/dL
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        vs exame anterior
-                      </p>
-                    </div>
+                    <p
+                      className={`text-3xl font-bold ${tendencia <= 0
+                        ? "text-green-600"
+                        : "text-orange-600"
+                        }`}
+                    >
+                      {tendencia > 0 ? "+" : ""}
+                      {tendencia.toFixed(1)} mg/dL
+                    </p>
                   </div>
 
                   <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
@@ -199,38 +215,35 @@ export default function ExamesPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={graficoData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis 
-                        dataKey="data_exame" 
-                        stroke="#6b7280"
-                        tickFormatter={(value) => format(parseISO(value), "dd/MM", { locale: ptBR })}
+                      <XAxis
+                        dataKey="data_exame"
+                        tickFormatter={(v) =>
+                          format(parseISO(v), "dd/MM", {
+                            locale: ptBR,
+                          })
+                        }
                       />
                       <YAxis stroke="#6b7280" />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: "rgba(255, 255, 255, 0.95)",
-                          border: "none",
-                          borderRadius: "12px",
-                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                        }}
-                        labelFormatter={(value) => 
-                          format(parseISO(value), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                        labelFormatter={(v) =>
+                          format(
+                            parseISO(v),
+                            "dd 'de' MMMM 'de' yyyy",
+                            { locale: ptBR }
+                          )
                         }
-                        formatter={(value: number) => [`${value.toFixed(1)} mg/dL`, "PKU"]}
+                        formatter={(v: number) => [
+                          `${v.toFixed(1)} mg/dL`,
+                          "PKU",
+                        ]}
                       />
                       <Line
                         type="monotone"
                         dataKey="resultado_mg_dl"
-                        stroke="url(#colorGradient)"
+                        stroke="#6366f1"
                         strokeWidth={3}
-                        dot={{ fill: "#6366f1", r: 4 }}
-                        activeDot={{ r: 6 }}
+                        dot={{ r: 4 }}
                       />
-                      <defs>
-                        <linearGradient id="colorGradient" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#6366f1" />
-                          <stop offset="100%" stopColor="#9333ea" />
-                        </linearGradient>
-                      </defs>
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -239,11 +252,11 @@ export default function ExamesPage() {
           </>
         )}
 
-        {/* Lista de Exames */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-900">Histórico de Exames</h2>
           </div>
+
           {exames.length === 0 ? (
             <div className="p-12 text-center">
               <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -275,26 +288,33 @@ export default function ExamesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {exames.map((exame) => (
-                    <tr key={exame.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                  {exames.map((e) => (
+                    <tr key={e.id} className="border-t">
+                      <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {format(parseISO(exame.data_exame), "dd/MM/yyyy")}
+                          {format(
+                            parseISO(e.data_exame),
+                            "dd/MM/yyyy"
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-indigo-600">
-                          {exame.resultado_mg_dl.toFixed(1)} mg/dL
+                          {e.resultado_mg_dl.toFixed(1)} mg/dL
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 text-sm text-gray-500">
                         <div className="text-sm text-gray-500">
-                          {format(parseISO(exame.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          {format(
+                            parseISO(e.created_at),
+                            "dd/MM/yyyy 'às' HH:mm",
+                            { locale: ptBR }
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
-                          onClick={() => handleDelete(exame.id)}
+                          onClick={() => handleDelete(e.id)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -315,7 +335,7 @@ export default function ExamesPage() {
             <div>
               <h3 className="font-semibold text-blue-900">Sobre o exame PKU</h3>
               <p className="text-sm text-blue-700 mt-1">
-                O exame de fenilcetonúria mede a concentração de fenilalanina no sangue. 
+                O exame de fenilcetonúria mede a concentração de fenilalanina no sangue.
                 O valor em mg/dL é calculado dividindo o valor PHE (µmol/L) por 60,6.
                 Registre aqui apenas o resultado final em mg/dL.
               </p>
@@ -324,7 +344,6 @@ export default function ExamesPage() {
         </div>
       </div>
 
-      {/* Modal Adicionar Exame */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
@@ -333,8 +352,7 @@ export default function ExamesPage() {
                 <h2 className="text-2xl font-bold text-gray-900">
                   Registrar Exame
                 </h2>
-                <button
-                  onClick={() => setShowModal(false)}
+                <button onClick={() => setShowModal(false)}
                   className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
                 >
                   <Plus className="w-5 h-5 text-gray-500 rotate-45" />
@@ -349,7 +367,9 @@ export default function ExamesPage() {
                   <input
                     type="date"
                     value={dataExame}
-                    onChange={(e) => setDataExame(e.target.value)}
+                    onChange={(e) =>
+                      setDataExame(e.target.value)
+                    }
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                   />
@@ -363,7 +383,9 @@ export default function ExamesPage() {
                     type="number"
                     step="0.1"
                     value={resultadoMgDl}
-                    onChange={(e) => setResultadoMgDl(e.target.value)}
+                    onChange={(e) =>
+                      setResultadoMgDl(e.target.value)
+                    }
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="Ex: 2.5"
                     required
