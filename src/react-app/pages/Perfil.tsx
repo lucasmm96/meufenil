@@ -1,138 +1,250 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@getmocha/users-service/react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { User, Save, Shield, Download, Trash2 } from "lucide-react";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { useUser } from "@/hooks/useUser";
+
+/* =========================
+   Supabase Client (front)
+========================= */
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+
+/* =========================
+   Tipos
+========================= */
 
 interface Usuario {
-  id: number;
-  nome: string;
-  email: string;
-  limite_diario_mg: number;
+  id: string;
+  nome: string | null;
+  email: string | null;
   role: string;
+  limite_diario_mg: number;
+  timezone: string;
   consentimento_lgpd_em: string | null;
 }
 
+interface DeleteAccountResponse {
+  success?: boolean;
+  error?: string;
+}
+
+/* =========================
+   Página
+========================= */
+
 export default function PerfilPage() {
-  const { user, isPending, logout } = useAuth();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useUser();
+
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [nome, setNome] = useState("");
   const [limiteDiario, setLimiteDiario] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  /* Proteção de rota */
   useEffect(() => {
-    if (!isPending && !user) {
+    if (!authLoading && !user) {
       navigate("/");
     }
-  }, [user, isPending, navigate]);
+  }, [authLoading, user, navigate]);
 
+  /* Carregar perfil */
   useEffect(() => {
-    if (user) {
-      loadPerfil();
-    }
+    if (!user) return;
+    loadPerfil();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadPerfil = async () => {
+    setLoading(true);
+
     try {
-      const res = await fetch("/api/usuarios/perfil");
-      const data = (await res.json()) as Usuario;
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select(`
+          id,
+          nome,
+          email,
+          role,
+          limite_diario_mg,
+          timezone,
+          consentimento_lgpd_em
+        `)
+        .eq("id", user!.id)
+        .single();
+
+      if (error) {
+        console.error("Erro ao carregar perfil:", error);
+        return;
+      }
+
       setUsuario(data);
-      setNome(data.nome);
+      setNome(data.nome ?? "");
       setLimiteDiario(data.limite_diario_mg.toString());
-    } catch (error) {
-      console.error("Erro ao carregar perfil:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  /* Salvar alterações */
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      const res = await fetch("/api/usuarios/perfil", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome,
-          limite_diario_mg: parseFloat(limiteDiario),
-        }),
-      });
 
-      if (res.ok) {
-        alert("Perfil atualizado com sucesso!");
-        loadPerfil();
+    try {
+      const { error } = await supabase
+        .from("usuarios")
+        .update({
+          nome,
+          limite_diario_mg: Number(limiteDiario),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user!.id);
+
+      if (error) {
+        console.error("Erro ao salvar perfil:", error);
+        alert("Erro ao salvar perfil");
+        return;
       }
-    } catch (error) {
-      console.error("Erro ao salvar perfil:", error);
-      alert("Erro ao salvar perfil");
+
+      alert("Perfil atualizado com sucesso!");
+      loadPerfil();
     } finally {
       setSaving(false);
     }
   };
 
+  /* Exportar dados */
   const handleExportarTudo = async () => {
     try {
-      const res = await fetch("/api/exportar/json");
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        alert("Usuário não autenticado");
+        return;
+      }
+
+      const userId = sessionData.session.user.id;
+
+      // Buscar perfil
+      const { data: perfil, error: perfilError } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (perfilError) throw perfilError;
+
+      // Buscar registros
+      const { data: registros, error: registrosError } = await supabase
+        .from("registros")
+        .select(`
+          id,
+          data,
+          peso_g,
+          fenil_mg,
+          created_at,
+          referencias ( nome )
+        `)
+        .order("data", { ascending: false });
+
+      if (registrosError) throw registrosError;
+
+      const exportData = {
+        usuario: perfil,
+        registros,
+        exportado_em: new Date().toISOString(),
+        versao: "1.0",
+      };
+
+      const blob = new Blob(
+        [JSON.stringify(exportData, null, 2)],
+        { type: "application/json" }
+      );
+
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+
       a.href = url;
-      a.download = `meufenil-dados-completos-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `meufenil-dados-${new Date().toISOString().split("T")[0]}.json`;
+
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+
+      URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
-      console.error("Erro ao exportar dados:", error);
-      alert("Erro ao exportar dados");
+    } catch (err: any) {
+      console.error("Erro ao exportar dados:", err);
+      alert("Erro ao exportar dados: " + (err?.message ?? err));
     }
   };
 
+  /* Excluir conta usando Edge Function */
   const handleExcluirConta = async () => {
-    if (!confirm(
-      "ATENÇÃO: Esta ação é irreversível!\n\n" +
-      "Ao excluir sua conta:\n" +
-      "- Todos os seus registros serão permanentemente deletados\n" +
-      "- Suas referências pessoais serão removidas\n" +
-      "- Você não poderá recuperar esses dados\n\n" +
-      "Recomendamos exportar seus dados antes de continuar.\n\n" +
-      "Deseja realmente excluir sua conta?"
-    )) return;
+    if (!confirm("Deseja realmente excluir sua conta?")) return;
 
-    const confirmacao = prompt(
-      'Digite "EXCLUIR" (em maiúsculas) para confirmar a exclusão da conta:'
-    );
-
+    const confirmacao = prompt('Digite "EXCLUIR" para confirmar:');
     if (confirmacao !== "EXCLUIR") {
       alert("Exclusão cancelada");
       return;
     }
 
     try {
-      // Exportar dados antes de excluir
-      await handleExportarTudo();
-      
-      // Aguardar um pouco para garantir o download
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 1️⃣ pegar sessão atual
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
 
-      // Aqui você implementaria a rota de exclusão no backend
-      // Por enquanto, apenas fazemos logout
-      alert("Seus dados foram exportados. Entre em contato com o suporte para concluir a exclusão da conta.");
-      await logout();
+      if (sessionError || !sessionData.session) {
+        alert("Usuário não autenticado");
+        return;
+      }
+
+      const accessToken = sessionData.session.access_token;
+
+      // 2️⃣ chamar Edge Function COM Authorization
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`, // ✅ OBRIGATÓRIO
+          },
+        }
+      );
+
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        console.error("Erro ao excluir conta:", data);
+        alert("Erro ao excluir conta: " + (data.error ?? "Erro desconhecido"));
+        return;
+      }
+
+      alert("Conta excluída com sucesso!");
+
+      // 3️⃣ logout local
+      await supabase.auth.signOut();
       navigate("/");
-    } catch (error) {
-      console.error("Erro ao excluir conta:", error);
+
+    } catch (err) {
+      console.error("Erro ao excluir conta:", err);
       alert("Erro ao excluir conta");
     }
   };
 
-  if (isPending || loading) {
+  /* Loading */
+  if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
   }
@@ -143,123 +255,94 @@ export default function PerfilPage() {
     <Layout>
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Perfil</h1>
-          <p className="text-gray-600 mt-1">Gerencie suas informações pessoais</p>
+          <h1 className="text-3xl font-bold">Perfil</h1>
+          <p className="text-gray-600">Gerencie suas informações pessoais</p>
         </div>
 
-        {/* Informações do Perfil */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+        {/* Informações pessoais */}
+        <div className="bg-white rounded-2xl p-6 shadow">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <User className="w-6 h-6 text-indigo-600" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900">Informações Pessoais</h2>
+            <User className="w-6 h-6 text-indigo-600" />
+            <h2 className="text-xl font-bold">Informações Pessoais</h2>
           </div>
 
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome
-              </label>
+              <label className="block text-sm font-medium mb-1">Nome</label>
               <input
-                type="text"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-3 rounded-xl border"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                E-mail
-              </label>
+              <label className="block text-sm font-medium mb-1">E-mail</label>
               <input
-                type="email"
-                value={usuario.email}
+                value={usuario.email ?? ""}
                 disabled
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-gray-50 text-gray-500"
+                className="w-full px-4 py-3 rounded-xl border bg-gray-100"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                O e-mail não pode ser alterado
-              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Limite Diário de Fenilalanina (mg)
+              <label className="block text-sm font-medium mb-1">
+                Limite diário de fenilalanina (mg)
               </label>
               <input
                 type="number"
                 step="0.01"
                 value={limiteDiario}
                 onChange={(e) => setLimiteDiario(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-3 rounded-xl border"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Consulte seu médico ou nutricionista para definir o valor adequado
-              </p>
             </div>
 
             <button
               type="submit"
               disabled={saving}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
             >
-              <Save className="w-5 h-5" />
-              {saving ? "Salvando..." : "Salvar Alterações"}
+              <Save className="inline w-4 h-4 mr-2" />
+              {saving ? "Salvando..." : "Salvar alterações"}
             </button>
           </form>
         </div>
 
-        {/* LGPD */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <Shield className="w-6 h-6 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900">Privacidade e Dados</h2>
+        {/* Privacidade */}
+        <div className="bg-white rounded-2xl p-6 shadow">
+          <div className="flex items-center gap-3 mb-4">
+            <Shield className="w-6 h-6 text-green-600" />
+            <h2 className="text-xl font-bold">Privacidade e Dados</h2>
           </div>
 
-          <div className="space-y-4">
-            {usuario.consentimento_lgpd_em && (
-              <div className="p-4 bg-green-50 rounded-xl">
-                <p className="text-sm text-green-900">
-                  ✓ Consentimento LGPD fornecido em{" "}
-                  {new Date(usuario.consentimento_lgpd_em).toLocaleDateString("pt-BR")}
-                </p>
-              </div>
-            )}
+          {usuario.consentimento_lgpd_em && (
+            <p className="text-sm text-green-700 mb-4">
+              ✓ Consentimento LGPD em{" "}
+              {new Date(usuario.consentimento_lgpd_em).toLocaleDateString(
+                "pt-BR"
+              )}
+            </p>
+          )}
 
-            <div className="space-y-3">
-              <button
-                onClick={handleExportarTudo}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
-              >
-                <Download className="w-5 h-5" />
-                Exportar Todos os Meus Dados
-              </button>
+          <div className="space-y-3">
+            <button
+              onClick={handleExportarTudo}
+              className="w-full flex items-center justify-center gap-2 border rounded-xl py-3"
+            >
+              <Download className="w-5 h-5" />
+              Exportar meus dados
+            </button>
 
-              <button
-                onClick={handleExcluirConta}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-50 border border-red-300 text-red-700 rounded-xl font-semibold hover:bg-red-100 transition-colors"
-              >
-                <Trash2 className="w-5 h-5" />
-                Excluir Minha Conta
-              </button>
-            </div>
-
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <h3 className="font-semibold text-gray-900 mb-2">Seus Direitos</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Acessar todos os seus dados a qualquer momento</li>
-                <li>• Exportar seus dados em formato legível</li>
-                <li>• Solicitar a correção de dados incorretos</li>
-                <li>• Solicitar a exclusão completa de sua conta</li>
-                <li>• Revogar consentimento para processamento de dados</li>
-              </ul>
-            </div>
+            <button
+              onClick={handleExcluirConta}
+              className="w-full flex items-center justify-center gap-2 border border-red-300 text-red-700 rounded-xl py-3"
+            >
+              <Trash2 className="w-5 h-5" />
+              Excluir minha conta
+            </button>
           </div>
         </div>
       </div>
