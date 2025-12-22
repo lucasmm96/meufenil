@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@getmocha/users-service/react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Shield, Users, Database, AlertCircle, Upload, Download, FileText, HardDrive, Package } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@/hooks/useUser";
 
 interface UsuarioAdmin {
   id: number;
   nome: string;
   email: string;
-  role: string;
+  role: "user" | "admin";
   limite_diario_mg: number;
   created_at: string;
 }
@@ -28,13 +29,28 @@ interface EstatisticasDB {
   };
 }
 
+type EstatisticasAdminRPC = {
+  tamanho_db_mb: number;
+  registros_totais: number;
+  referencias_total: number;
+  referencias_globais: number;
+  referencias_personalizadas: number;
+};
+
+type UserWithEmail = {
+  email?: string;
+};
+
 export default function AdminPage() {
-  const { user, isPending } = useAuth();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useUser();
+
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
+  const [perfilUsuario, setPerfilUsuario] = useState<UsuarioAdmin | null>(null);
+  const [estatisticasDB, setEstatisticasDB] =
+    useState<EstatisticasDB | null>(null);
+
   const [loading, setLoading] = useState(true);
-  const [perfilUsuario, setPerfilUsuario] = useState<any>(null);
-  const [estatisticasDB, setEstatisticasDB] = useState<EstatisticasDB | null>(null);
   const [csvText, setCsvText] = useState("");
   const [importando, setImportando] = useState(false);
   const [resultadoImportacao, setResultadoImportacao] = useState<{
@@ -43,36 +59,34 @@ export default function AdminPage() {
     total: number;
   } | null>(null);
 
-  type UserWithEmail = {
-    email?: string;
-  };
 
   useEffect(() => {
-    if (!isPending && !user) {
+    if (authLoading) return;
+
+    if (!user) {
       navigate("/");
+      return;
     }
-  }, [user, isPending, navigate]);
 
-  useEffect(() => {
-    if (user) {
-      loadAdmin();
-    }
-  }, [user]);
+    carregarAdmin();
+  }, [authLoading, user]);
 
-  const loadAdmin = async () => {
+  async function carregarAdmin() {
     try {
-      // Verificar se é admin
-      interface Perfil {
-        id: number;
-        nome: string;
-        email: string;
-        role: string;
-        limite_diario_mg: number;
-        created_at: string;
+      setLoading(true);
+
+      /* Perfil */
+      const { data: perfil, error: perfilError } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("id", user!.id)
+        .single();
+
+      if (perfilError || !perfil) {
+        navigate("/dashboard");
+        return;
       }
 
-      const perfilRes = await fetch("/api/usuarios/perfil");
-      const perfil: Perfil = await perfilRes.json();
       setPerfilUsuario(perfil);
 
       if (perfil.role !== "admin") {
@@ -80,97 +94,217 @@ export default function AdminPage() {
         return;
       }
 
+      const { data: usuariosData } = await supabase
+        .from("usuarios")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      const usuariosRes = await fetch("/api/admin/usuarios");
-      const usuariosData: UsuarioAdmin[] = await usuariosRes.json();
-      setUsuarios(usuariosData);
+      setUsuarios(usuariosData || []);
 
+      const { data: stats, error: statsError } = await supabase
+        .rpc("get_estatisticas_admin")
+        .single<EstatisticasAdminRPC>();
 
-      const estatisticasRes = await fetch("/api/admin/estatisticas-db");
-      const estatisticasData: EstatisticasDB = await estatisticasRes.json();
-      setEstatisticasDB(estatisticasData);
+      if (statsError || !stats) return;
 
-    } catch (error) {
-      console.error("Erro ao carregar dados admin:", error);
-      navigate("/dashboard");
+      const LIMITE_MB = 500;
+      const percentual = Math.min(
+        (stats.tamanho_db_mb / LIMITE_MB) * 100,
+        100
+      );
+
+      setEstatisticasDB({
+        usuarios: usuariosData?.length || 0,
+        registros: stats.registros_totais,
+        referencias: {
+          total: stats.referencias_total,
+          globais: stats.referencias_globais,
+          personalizadas: stats.referencias_personalizadas,
+        },
+        armazenamento: {
+          estimado_mb: stats.tamanho_db_mb,
+          limite_gratuito_mb: LIMITE_MB,
+          percentual_usado: percentual,
+        },
+      });
     } finally {
       setLoading(false);
     }
+  }
+
+
+  const handleToggleRole = async (id: number, role: string) => {
+    const novoRole = role === "admin" ? "user" : "admin";
+
+    if (!confirm(`Alterar papel para ${novoRole}?`)) return;
+
+    await supabase.from("usuarios").update({ role: novoRole }).eq("id", id);
+    carregarAdmin();
   };
 
-  const handleToggleRole = async (id: number, currentRole: string) => {
-    const newRole = currentRole === "admin" ? "user" : "admin";
-    
-    if (!confirm(
-      `Tem certeza que deseja alterar o papel deste usuário para ${newRole}?`
-    )) return;
-
-    try {
-      const res = await fetch(`/api/admin/usuarios/${id}/role`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
-      });
-
-      if (res.ok) {
-        loadAdmin();
-      }
-    } catch (error) {
-      console.error("Erro ao alterar role:", error);
-    }
-  };
+  const [houveAtualizacoes, setHouveAtualizacoes] = useState(false);
 
   const handleImportarCsv = async () => {
-    if (!csvText.trim()) {
-      alert("Por favor, cole o conteúdo CSV antes de importar.");
-      return;
-    }
+    if (!csvText.trim()) return;
 
     setImportando(true);
     setResultadoImportacao(null);
+    setHouveAtualizacoes(false);
+
+    const erros: string[] = [];
+    let importados = 0;
 
     try {
-      const res = await fetch("/api/admin/referencias/importar-csv", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv: csvText }),
+      // Remove BOM e normaliza
+      const texto = csvText.replace(/^\uFEFF/, "").trim();
+
+      const linhas = texto.split(/\r?\n/).filter(l => l.trim());
+      if (linhas.length === 0) {
+        setResultadoImportacao({ importados: 0, erros: ["CSV vazio"], total: 0 });
+        return;
+      }
+
+      // Detecta separador automaticamente
+      const separador = linhas[0].includes(";") ? ";" : ",";
+
+      // Remove cabeçalho se existir
+      const inicio = linhas[0].toLowerCase().includes("nome")
+        ? 1
+        : 0;
+
+      const registros: {
+        nome: string;
+        fenil_mg_por_100g: number;
+        is_global: boolean;
+        nome_normalizado?: string;
+      }[] = [];
+
+      for (let i = inicio; i < linhas.length; i++) {
+        const linha = linhas[i];
+        const [nomeRaw, fenilRaw] = linha.split(separador);
+
+        if (!nomeRaw || !fenilRaw) {
+          erros.push(`Linha ${i + 1}: formato inválido`);
+          continue;
+        }
+
+        const nome = nomeRaw.trim();
+        const fenil = Number(fenilRaw.replace(",", "."));
+
+        if (!nome) {
+          erros.push(`Linha ${i + 1}: nome vazio`);
+          continue;
+        }
+
+        if (isNaN(fenil) || fenil < 0) {
+          erros.push(`Linha ${i + 1}: valor de fenilalanina inválido`);
+          continue;
+        }
+
+        registros.push({
+          nome,
+          fenil_mg_por_100g: fenil,
+          is_global: true,
+          nome_normalizado: nome
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim(),
+        });
+      }
+
+      if (registros.length === 0) {
+        setResultadoImportacao({
+          importados: 0,
+          erros,
+          total: linhas.length - inicio,
+        });
+        return;
+      }
+
+      /**
+       * 🔍 DETECTA SE JÁ EXISTEM REGISTROS
+       */
+      const nomesNormalizados = registros.map(r => r.nome_normalizado!);
+
+      const { data: existentes, error: erroConsulta } = await supabase
+        .from("referencias")
+        .select("nome_normalizado")
+        .in("nome_normalizado", nomesNormalizados);
+
+      if (erroConsulta) {
+        throw erroConsulta;
+      }
+
+      if (existentes && existentes.length > 0) {
+        setHouveAtualizacoes(true);
+      }
+
+      /**
+       * UPSERT
+       */
+      const { error } = await supabase
+        .from("referencias")
+        .upsert(registros, {
+          onConflict: "nome_normalizado",
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      importados = registros.length;
+
+      setResultadoImportacao({
+        importados,
+        erros,
+        total: linhas.length - inicio,
       });
 
-      const data: { importados: number; erros: string[]; total: number } = await res.json();
-      setResultadoImportacao(data);
-      
-      if (data.importados > 0) {
+      if (importados > 0) {
         setCsvText("");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao importar CSV:", error);
-      alert("Erro ao importar CSV. Tente novamente.");
+      erros.push("Erro inesperado ao importar CSV");
+      setResultadoImportacao({
+        importados: 0,
+        erros,
+        total: 0,
+      });
     } finally {
       setImportando(false);
     }
   };
 
-  const handleBaixarModelo = async () => {
-    try {
-      const res = await fetch("/api/admin/referencias/modelo-csv");
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "modelo-referencias.csv";
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Erro ao baixar modelo:", error);
-    }
+  const handleBaixarModelo = () => {
+    const csvContent =
+      "\uFEFF" +
+      "nome;fenil_mg_por_100g\n" +
+      "Arroz branco cozido;80\n" +
+      "Feijão preto cozido;140\n" +
+      "Peito de frango;850\n";
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "modelo-referencias.csv";
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  if (isPending || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
   }
@@ -196,8 +330,8 @@ export default function AdminPage() {
   }
 
   const totalUsuarios = usuarios.length;
-  const totalAdmins = usuarios.filter(u => u.role === "admin").length;
-  const totalUsers = usuarios.filter(u => u.role === "user").length;
+  const totalAdmins = usuarios.filter((u) => u.role === "admin").length;
+  const totalUsers = usuarios.filter((u) => u.role === "user").length;
 
   return (
     <Layout>
@@ -270,13 +404,12 @@ export default function AdminPage() {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${
-                        estatisticasDB.armazenamento.percentual_usado > 80
-                          ? "bg-red-500"
-                          : estatisticasDB.armazenamento.percentual_usado > 60
+                      className={`h-full rounded-full transition-all ${estatisticasDB.armazenamento.percentual_usado > 80
+                        ? "bg-red-500"
+                        : estatisticasDB.armazenamento.percentual_usado > 60
                           ? "bg-yellow-500"
                           : "bg-green-500"
-                      }`}
+                        }`}
                       style={{ width: `${Math.min(estatisticasDB.armazenamento.percentual_usado, 100)}%` }}
                     />
                   </div>
@@ -328,14 +461,19 @@ export default function AdminPage() {
                 <div className="flex items-start gap-3">
                   <Database className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-blue-900 mb-2">Limites do Plano Gratuito</h3>
+                    <h3 className="font-semibold text-blue-900 mb-2">
+                      Limites do Plano Gratuito (Supabase)
+                    </h3>
+
                     <ul className="text-sm text-blue-700 space-y-1">
-                      <li>• Armazenamento: 500 MB</li>
-                      <li>• Leituras: 25 milhões/dia</li>
-                      <li>• Escritas: 100 mil/dia</li>
+                      <li>• Banco de dados: 500 MB</li>
+                      <li>• Storage de arquivos: 1 GB</li>
+                      <li>• Autenticação: até ~50.000 usuários ativos/mês</li>
                     </ul>
+
                     <p className="text-xs text-blue-600 mt-3">
-                      Estimativa aproximada baseada no tamanho médio das linhas.
+                      Os limites de leitura e escrita não são fixos e variam conforme o uso
+                      e a infraestrutura do Supabase.
                     </p>
                   </div>
                 </div>
@@ -388,11 +526,10 @@ export default function AdminPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          usuario.role === "admin"
-                            ? "bg-purple-100 text-purple-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
+                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${usuario.role === "admin"
+                          ? "bg-purple-100 text-purple-800"
+                          : "bg-green-100 text-green-800"
+                          }`}
                       >
                         {usuario.role === "admin" ? "Admin" : "Usuário"}
                       </span>
@@ -404,11 +541,10 @@ export default function AdminPage() {
                       <button
                         onClick={() => handleToggleRole(usuario.id, usuario.role)}
                         disabled={usuario.email === (user as UserWithEmail | null)?.email}
-                        className={`font-medium ${
-                          usuario.email === user?.email
-                            ? "text-gray-400 cursor-not-allowed"
-                            : "text-indigo-600 hover:text-indigo-900"
-                        }`}
+                        className={`font-medium ${usuario.email === user?.email
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-indigo-600 hover:text-indigo-900"
+                          }`}
                       >
                         {usuario.role === "admin" ? "Remover Admin" : "Tornar Admin"}
                       </button>
@@ -478,35 +614,45 @@ export default function AdminPage() {
             </button>
 
             {resultadoImportacao && (
-              <div className={`p-4 rounded-xl ${
-                resultadoImportacao.erros.length === 0
-                  ? "bg-green-50 border-l-4 border-green-500"
-                  : "bg-yellow-50 border-l-4 border-yellow-500"
-              }`}>
+              <div className={`p-4 rounded-xl ${resultadoImportacao.erros.length === 0
+                ? "bg-green-50 border-l-4 border-green-500"
+                : "bg-yellow-50 border-l-4 border-yellow-500"
+                }`}>
                 <div className="flex items-start gap-3">
-                  <FileText className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                    resultadoImportacao.erros.length === 0
-                      ? "text-green-600"
-                      : "text-yellow-600"
-                  }`} />
+                  <FileText className={`w-5 h-5 flex-shrink-0 mt-0.5 ${resultadoImportacao.erros.length === 0
+                    ? "text-green-600"
+                    : "text-yellow-600"
+                    }`} />
                   <div className="flex-1">
-                    <h3 className={`font-semibold ${
-                      resultadoImportacao.erros.length === 0
-                        ? "text-green-900"
-                        : "text-yellow-900"
-                    }`}>
+                    <h3
+                      className={`font-semibold ${resultadoImportacao.erros.length === 0
+                          ? "text-green-900"
+                          : "text-yellow-900"
+                        }`}
+                    >
                       Importação Concluída
                     </h3>
-                    <p className={`text-sm mt-1 ${
-                      resultadoImportacao.erros.length === 0
-                        ? "text-green-700"
-                        : "text-yellow-700"
-                    }`}>
+
+                    <p
+                      className={`text-sm mt-1 ${resultadoImportacao.erros.length === 0
+                          ? "text-green-700"
+                          : "text-yellow-700"
+                        }`}
+                    >
                       {resultadoImportacao.importados} de {resultadoImportacao.total} referências importadas com sucesso
                     </p>
+
+                    {houveAtualizacoes && resultadoImportacao.erros.length === 0 && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Algumas referências já existentes foram atualizadas com os novos valores.
+                      </p>
+                    )}
+
                     {resultadoImportacao.erros.length > 0 && (
                       <div className="mt-3">
-                        <p className="text-sm font-medium text-yellow-900">Erros encontrados:</p>
+                        <p className="text-sm font-medium text-yellow-900">
+                          Erros encontrados:
+                        </p>
                         <ul className="text-xs text-yellow-700 mt-1 space-y-1 max-h-32 overflow-y-auto">
                           {resultadoImportacao.erros.map((erro, idx) => (
                             <li key={idx}>• {erro}</li>
