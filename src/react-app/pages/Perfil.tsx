@@ -182,7 +182,6 @@ export default function PerfilPage() {
     }
   };
 
-  /* Excluir conta usando Edge Function */
   const handleExcluirConta = async () => {
     if (!confirm("Deseja realmente excluir sua conta?")) return;
 
@@ -193,7 +192,6 @@ export default function PerfilPage() {
     }
 
     try {
-      // 1️⃣ pegar sessão atual
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
 
@@ -204,14 +202,13 @@ export default function PerfilPage() {
 
       const accessToken = sessionData.session.access_token;
 
-      // 2️⃣ chamar Edge Function COM Authorization
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`, // ✅ OBRIGATÓRIO
+            "Authorization": `Bearer ${accessToken}`,
           },
         }
       );
@@ -229,8 +226,7 @@ export default function PerfilPage() {
 
       alert("Conta excluída com sucesso!");
 
-      // 3️⃣ logout local
-      await supabase.auth.signOut();
+      await supabase.auth.signOut().catch(() => {});
       navigate("/");
 
     } catch (err) {
@@ -239,7 +235,6 @@ export default function PerfilPage() {
     }
   };
 
-  /* Loading */
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

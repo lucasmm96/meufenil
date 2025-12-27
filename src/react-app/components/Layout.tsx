@@ -1,6 +1,8 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/react-app/context/AuthContext";
+
 import {
   LayoutDashboard,
   History,
@@ -29,52 +31,29 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState<any>(null);
+  const { authUser, loadingAuth } = useAuth();
+
   const [perfil, setPerfil] = useState<Perfil | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  /* ================= AUTH ================= */
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  /* ================= PERFIL ================= */
-
-  useEffect(() => {
-    if (!user) return;
+    if (!authUser) return;
 
     supabase
       .from("usuarios")
       .select("role, nome")
-      .eq("id", user.id)
+      .eq("id", authUser.id)
       .single()
       .then(({ data, error }) => {
         if (!error && data) {
           setPerfil(data);
         }
       });
-  }, [user]);
+  }, [authUser]);
 
-  /* ================= LOGOUT ================= */
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  async function handleLogout() {
+    await supabase.auth.signOut().catch(() => {});
     navigate("/", { replace: true });
-  };
-
-  /* ================= NAV ================= */
+  }
 
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = perfil?.role === "admin";
@@ -89,17 +68,13 @@ export default function Layout({ children }: LayoutProps) {
     ...(isAdmin ? [{ path: "/admin", icon: Shield, label: "Admin" }] : []),
   ];
 
-  /* ================= LOADING ================= */
-
-  if (loading) {
+  if (loadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin h-12 w-12 rounded-full border-b-2 border-indigo-600" />
       </div>
     );
   }
-
-  /* ================= UI ================= */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -118,8 +93,9 @@ export default function Layout({ children }: LayoutProps) {
 
             <div className="flex items-center gap-4">
               <span className="text-xs text-gray-600 hidden sm:inline">
-                {perfil?.nome ?? user?.email}
+                {perfil?.nome ?? authUser?.email}
               </span>
+
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -132,13 +108,13 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      {/* Navigation */}
       <nav className="bg-white/60 backdrop-blur-md border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
           <div className="flex gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
+
               return (
                 <Link
                   key={item.path}

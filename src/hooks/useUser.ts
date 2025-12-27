@@ -30,7 +30,7 @@ export function useUser() {
         .from("usuarios")
         .select("id, role, email")
         .eq("id", authUser.id)
-        .single();
+        .maybeSingle();
 
       if (!mounted) return;
 
@@ -38,7 +38,7 @@ export function useUser() {
         console.error("Erro ao carregar usuário:", error);
         setUser(null);
       } else {
-        setUser(data);
+        setUser(data ?? null);
       }
 
       setLoading(false);

@@ -1,47 +1,51 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 interface CriarAlimentoProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function CriarAlimento({ onClose, onSuccess }: CriarAlimentoProps) {
+export default function CriarAlimento({
+  onClose,
+  onSuccess,
+}: CriarAlimentoProps) {
+  const { authUser, loadingAuth } = useAuth();
+
   const [loading, setLoading] = useState(false);
   const [nome, setNome] = useState("");
   const [fenil, setFenil] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const userId = authUser?.id ?? null;
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!nome || !fenil) return;
+    if (!nome || !fenil || !userId) return;
 
     setLoading(true);
+
     try {
-      // pega o usuário logado
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error("Usuário não autenticado");
+      const { error } = await supabase.from("referencias").insert({
+        nome,
+        fenil_mg_por_100g: parseFloat(fenil),
+        criado_por: userId,
+        is_global: false,
+      });
 
-      const res = await supabase
-        .from("referencias")
-        .insert([
-          {
-            nome,
-            fenil_mg_por_100g: parseFloat(fenil),
-            criado_por: user.id, // aqui preenchemos o campo
-            is_global: false
-          }
-        ]);
-
-      if (res.error) throw res.error;
+      if (error) {
+        console.error("Erro ao criar alimento:", error);
+        return;
+      }
 
       onSuccess();
-    } catch (error) {
-      console.error("Erro ao criar alimento:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  if (loadingAuth) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -97,7 +101,7 @@ export default function CriarAlimento({ onClose, onSuccess }: CriarAlimentoProps
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !userId}
                 className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {loading ? "Criando..." : "Criar Alimento"}
