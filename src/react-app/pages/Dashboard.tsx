@@ -9,6 +9,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
@@ -34,6 +35,8 @@ interface GraficoData {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { authUser, loadingAuth } = useAuth();
+
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [hoje, setHoje] = useState<DashboardHoje | null>(null);
   const [grafico, setGrafico] = useState<GraficoData[]>([]);
@@ -42,53 +45,48 @@ export default function DashboardPage() {
   const [showCriarModal, setShowCriarModal] = useState(false);
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    if (loadingAuth) return;
 
-  const loadDashboard = async () => {
-    setLoading(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!authUser) {
       navigate("/", { replace: true });
       return;
     }
 
-    // ───── perfil ─────
-    const { data: perfil, error: perfilError } = await supabase
+    loadDashboard(authUser.id);
+  }, [loadingAuth, authUser]);
+
+  const loadDashboard = async (userId: string) => {
+    setLoading(true);
+
+    const { data: perfil, error } = await supabase
       .from("usuarios")
       .select("id, limite_diario_mg, consentimento_lgpd_em")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
-    if (perfilError || !perfil) {
-      console.error(perfilError);
+    if (error || !perfil) {
+      console.error(error);
       setLoading(false);
       return;
     }
 
-    // ───── hoje ─────
     const hojeStr = format(new Date(), "yyyy-MM-dd");
 
     const { data: registrosHoje } = await supabase
       .from("registros")
       .select("fenil_mg")
-      .eq("usuario_id", user.id)
+      .eq("usuario_id", userId)
       .eq("data", hojeStr);
 
     const totalHoje =
       registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
 
-    // ───── últimos 7 dias ─────
     const inicio = format(subDays(new Date(), 6), "yyyy-MM-dd");
 
     const { data: registrosGrafico } = await supabase
       .from("registros")
       .select("data, fenil_mg")
-      .eq("usuario_id", user.id)
+      .eq("usuario_id", userId)
       .gte("data", inicio);
 
     const mapa: Record<string, number> = {};
@@ -97,7 +95,7 @@ export default function DashboardPage() {
       mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
     });
 
-    const graficoData: GraficoData[] = Object.keys(mapa)
+    const graficoData = Object.keys(mapa)
       .sort()
       .map((data) => ({
         data,
@@ -122,7 +120,7 @@ export default function DashboardPage() {
       .update({ consentimento_lgpd_em: new Date().toISOString() })
       .eq("id", usuario.id);
 
-    loadDashboard();
+    loadDashboard(usuario.id);
   };
 
   if (loading || !usuario || !hoje) {
@@ -145,7 +143,7 @@ export default function DashboardPage() {
       {showAddModal && (
         <AdicionarRegistro
           onClose={() => setShowAddModal(false)}
-          onSuccess={loadDashboard}
+          onSuccess={() => loadDashboard(usuario.id)}
         />
       )}
 

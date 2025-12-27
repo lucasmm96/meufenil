@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
@@ -19,25 +20,25 @@ interface Registro {
 
 export default function EstatisticasPage() {
   const navigate = useNavigate();
+  const { authUser, loadingAuth } = useAuth();
+
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [periodo, setPeriodo] = useState<"semana" | "mes">("semana");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadEstatisticas();
-  }, [periodo]);
+    if (loadingAuth) return;
 
-  const loadEstatisticas = async () => {
-    setLoading(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!authUser) {
       navigate("/", { replace: true });
       return;
     }
+
+    loadEstatisticas(authUser.id);
+  }, [loadingAuth, authUser, periodo]);
+
+  const loadEstatisticas = async (userId: string) => {
+    setLoading(true);
 
     const dias = periodo === "semana" ? 7 : 30;
     const inicio = format(subDays(new Date(), dias - 1), "yyyy-MM-dd");
@@ -45,7 +46,7 @@ export default function EstatisticasPage() {
     const { data: registrosDB, error } = await supabase
       .from("registros")
       .select("data, fenil_mg")
-      .eq("usuario_id", user.id)
+      .eq("usuario_id", userId)
       .gte("data", inicio);
 
     if (error) {
@@ -70,6 +71,7 @@ export default function EstatisticasPage() {
     setRegistros(resultado);
     setLoading(false);
   };
+
   const downloadFile = (content: string, filename: string, type: string) => {
     const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);
@@ -121,7 +123,6 @@ export default function EstatisticasPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* HEADER */}
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Estatísticas</h1>
@@ -152,21 +153,19 @@ export default function EstatisticasPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setPeriodo("semana")}
-              className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${
-                periodo === "semana"
+              className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${periodo === "semana"
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                }`}
             >
               Última Semana
             </button>
             <button
               onClick={() => setPeriodo("mes")}
-              className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${
-                periodo === "mes"
+              className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${periodo === "mes"
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                }`}
             >
               Último Mês
             </button>

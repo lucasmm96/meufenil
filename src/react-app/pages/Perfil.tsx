@@ -119,7 +119,6 @@ export default function PerfilPage() {
     }
   };
 
-  /* Exportar dados */
   const handleExportarTudo = async () => {
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();

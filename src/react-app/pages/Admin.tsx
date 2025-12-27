@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useUser";
 
 interface UsuarioAdmin {
-  id: number;
+  id: string;
   nome: string;
   email: string;
   role: "user" | "admin";
@@ -64,14 +64,14 @@ export default function AdminPage() {
     if (authLoading) return;
 
     if (!user) {
-      navigate("/");
+      navigate("/", { replace: true });
       return;
     }
 
-    carregarAdmin();
+    carregarAdmin(user.id);
   }, [authLoading, user]);
 
-  async function carregarAdmin() {
+  async function carregarAdmin(userId: string) {
     try {
       setLoading(true);
 
@@ -79,18 +79,18 @@ export default function AdminPage() {
       const { data: perfil, error: perfilError } = await supabase
         .from("usuarios")
         .select("*")
-        .eq("id", user!.id)
+        .eq("id", userId)
         .single();
 
       if (perfilError || !perfil) {
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
         return;
       }
 
       setPerfilUsuario(perfil);
 
       if (perfil.role !== "admin") {
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
         return;
       }
 
@@ -132,14 +132,19 @@ export default function AdminPage() {
     }
   }
 
-
-  const handleToggleRole = async (id: number, role: string) => {
+  const handleToggleRole = async (id: string, role: string) => {
     const novoRole = role === "admin" ? "user" : "admin";
 
     if (!confirm(`Alterar papel para ${novoRole}?`)) return;
 
-    await supabase.from("usuarios").update({ role: novoRole }).eq("id", id);
-    carregarAdmin();
+    await supabase
+      .from("usuarios")
+      .update({ role: novoRole })
+      .eq("id", id);
+
+    if (user) {
+      carregarAdmin(user.id);
+    }
   };
 
   const [houveAtualizacoes, setHouveAtualizacoes] = useState(false);
@@ -626,8 +631,8 @@ export default function AdminPage() {
                   <div className="flex-1">
                     <h3
                       className={`font-semibold ${resultadoImportacao.erros.length === 0
-                          ? "text-green-900"
-                          : "text-yellow-900"
+                        ? "text-green-900"
+                        : "text-yellow-900"
                         }`}
                     >
                       Importação Concluída
@@ -635,8 +640,8 @@ export default function AdminPage() {
 
                     <p
                       className={`text-sm mt-1 ${resultadoImportacao.erros.length === 0
-                          ? "text-green-700"
-                          : "text-yellow-700"
+                        ? "text-green-700"
+                        : "text-yellow-700"
                         }`}
                     >
                       {resultadoImportacao.importados} de {resultadoImportacao.total} referências importadas com sucesso

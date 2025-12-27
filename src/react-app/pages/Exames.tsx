@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/hooks/useUser";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 interface ExamePKU {
   id: string;
@@ -18,7 +18,8 @@ interface ExamePKU {
 
 export default function ExamesPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useUser();
+  const { authUser, loadingAuth } = useAuth();
+
   const [exames, setExames] = useState<ExamePKU[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -29,25 +30,25 @@ export default function ExamesPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/");
+    if (loadingAuth) return;
+
+    if (!authUser) {
+      navigate("/", { replace: true });
+      return;
     }
-  }, [authLoading, user, navigate]);
 
-  useEffect(() => {
-    if (!user) return;
-    loadExames();
-  }, [user]);
+    loadExames(authUser.id);
+  }, [loadingAuth, authUser]);
 
-  const loadExames = async () => {
+  const loadExames = async (userId: string) => {
     setLoading(true);
 
     try {
       const { data, error } = await supabase
         .from("exames_pku")
         .select("*")
-        .eq("usuario_id", user!.id)
-        .order("data_exame", { ascending: true });
+        .eq("usuario_id", userId)
+        .order("data_exame", { ascending: false });
 
       if (error) {
         console.error("Erro ao carregar exames:", error);
@@ -63,13 +64,13 @@ export default function ExamesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dataExame || !resultadoMgDl) return;
+    if (!dataExame || !resultadoMgDl || !authUser) return;
 
     setSubmitting(true);
 
     try {
       const { error } = await supabase.from("exames_pku").insert({
-        usuario_id: user!.id,
+        usuario_id: authUser.id,
         data_exame: dataExame,
         resultado_mg_dl: parseFloat(resultadoMgDl),
       });
@@ -82,30 +83,31 @@ export default function ExamesPage() {
       setShowModal(false);
       setDataExame(new Date().toISOString().split("T")[0]);
       setResultadoMgDl("");
-      loadExames();
+      loadExames(authUser.id);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!authUser) return;
     if (!confirm("Tem certeza que deseja excluir este exame?")) return;
 
     const { error } = await supabase
       .from("exames_pku")
       .delete()
       .eq("id", id)
-      .eq("usuario_id", user!.id);
+      .eq("usuario_id", authUser.id);
 
     if (!error) {
-      loadExames();
+      loadExames(authUser.id);
     }
   };
 
-  if (authLoading || loading) {
+  if (loadingAuth || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
   }

@@ -11,6 +11,7 @@ import {
   Mail,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useUser } from "@/hooks/useUser";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -27,23 +28,17 @@ export default function HomePage() {
     }
   };
 
-  /* ================= AUTH ================= */
+  const { user, loading: userLoading } = useUser();
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        navigate("/dashboard", { replace: true });
-      } else {
-        setLoading(false);
-      }
-    });
+    if (!userLoading && user) {
+      navigate("/dashboard", { replace: true });
+    }
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  /* ================= LOADING ================= */
+    if (!userLoading && !user) {
+      setLoading(false);
+    }
+  }, [user, userLoading, navigate]);
 
   if (loading) {
     return (
@@ -52,8 +47,6 @@ export default function HomePage() {
       </div>
     );
   }
-
-  /* ================= UI ================= */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -80,7 +73,6 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Features */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           <Feature
             icon={<Activity className="w-6 h-6 text-indigo-600" />}
@@ -99,7 +91,6 @@ export default function HomePage() {
           />
         </div>
 
-        {/* LGPD */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg max-w-2xl mx-auto">
           <div className="flex gap-4">
             <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
@@ -118,7 +109,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="bg-white/60 border-t mt-16">
         <div className="max-w-7xl mx-auto py-8 text-center space-y-4">
           <div className="flex justify-center items-center gap-2 text-gray-700">
@@ -152,8 +142,6 @@ export default function HomePage() {
     </div>
   );
 }
-
-/* ================= Helper ================= */
 
 function Feature({
   icon,

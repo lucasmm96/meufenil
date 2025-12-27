@@ -4,8 +4,10 @@ import Layout from "@/react-app/components/Layout";
 import { Trash2, Calendar, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useUser";
+import { useAuth } from "../context/AuthContext";
 
 interface Registro {
   id: string;
@@ -18,27 +20,17 @@ interface Registro {
 
 export default function HistoricoPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useUser();
+  const { authUser, loadingAuth } = useAuth();
 
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/");
-    }
-  }, [authLoading, user, navigate]);
+  const loadRegistros = useCallback(async () => {
+    if (!authUser) return;
 
-  useEffect(() => {
-    if (!user) return;
-    loadRegistros();
-  }, [user, dataInicio, dataFim]);
-
-  const loadRegistros = async () => {
     setLoading(true);
-
     try {
       let query = supabase
         .from("registros")
@@ -48,47 +40,31 @@ export default function HistoricoPage() {
           peso_g,
           fenil_mg,
           created_at,
-          referencias!inner (
-            nome
-          )
+          referencias!inner ( nome )
         `)
-        .eq("usuario_id", user!.id)
+        .eq("usuario_id", authUser.id)
         .order("data", { ascending: false });
 
       if (dataInicio) query = query.gte("data", dataInicio);
       if (dataFim) query = query.lte("data", dataFim);
 
-      const { data: registrosData, error } = await query;
+      const { data, error } = await query;
+      if (error) throw error;
 
-      console.log("RAW DATA FROM SUPABASE:", registrosData);
-
-      if (error) {
-        console.error("Erro ao carregar registros:", error);
-        setRegistros([]);
-        return;
-      }
-
-      const normalizados: Registro[] = (registrosData ?? []).map((r: any) => {
-        const referencia =
-          Array.isArray(r.referencias)
-            ? r.referencias[0]
-            : r.referencias;
-
-        return {
+      setRegistros(
+        (data ?? []).map((r: any) => ({
           id: r.id,
           data: r.data,
           peso_g: r.peso_g,
           fenil_mg: r.fenil_mg,
           created_at: r.created_at,
-          nome_alimento: referencia?.nome ?? "Alimento removido",
-        };
-      });
-
-      setRegistros(normalizados);
+          nome_alimento: r.referencias?.[0]?.nome ?? "Alimento removido",
+        }))
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [authUser, dataInicio, dataFim]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este registro?")) return;
@@ -103,6 +79,19 @@ export default function HistoricoPage() {
     }
   };
 
+  useEffect(() => {
+    if (loadingAuth) return;
+
+    if (!authUser) {
+      navigate("/", { replace: true });
+    }
+  }, [loadingAuth, authUser, navigate]);
+
+  useEffect(() => {
+    if (loadingAuth || !authUser) return;
+    loadRegistros();
+  }, [loadingAuth, authUser, loadRegistros]);
+
   const agrupadosPorData = useMemo(() => {
     return registros.reduce<Record<string, Registro[]>>((acc, r) => {
       if (!acc[r.data]) acc[r.data] = [];
@@ -111,10 +100,10 @@ export default function HistoricoPage() {
     }, {});
   }, [registros]);
 
-  if (authLoading || loading) {
+  if (loadingAuth) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
   }
