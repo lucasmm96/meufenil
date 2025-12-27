@@ -51,7 +51,7 @@ export default function Layout({ children }: LayoutProps) {
   }, [authUser]);
 
   async function handleLogout() {
-    await supabase.auth.signOut().catch(() => {});
+    await supabase.auth.signOut().catch(() => { });
     navigate("/", { replace: true });
   }
 
@@ -64,7 +64,6 @@ export default function Layout({ children }: LayoutProps) {
     { path: "/estatisticas", icon: BarChart3, label: "Estatísticas" },
     { path: "/exames", icon: Stethoscope, label: "Exames PKU" },
     { path: "/sobre", icon: Info, label: "Sobre" },
-    { path: "/perfil", icon: User, label: "Perfil" },
     ...(isAdmin ? [{ path: "/admin", icon: Shield, label: "Admin" }] : []),
   ];
 
@@ -90,18 +89,14 @@ export default function Layout({ children }: LayoutProps) {
                 MeuFenil
               </span>
             </Link>
-
             <div className="flex items-center gap-4">
-              <span className="text-xs text-gray-600 hidden sm:inline">
-                {perfil?.nome ?? authUser?.email}
-              </span>
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              >
+              <Link to="/perfil" className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-indigo-600 rounded-lg transition-colors">
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline">Perfil</span>
+              </Link>
+              <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                 <LogOut className="w-4 h-4" />
-                <span className="text-sm">Sair</span>
+                <span className="hidden sm:inline text-sm">Sair</span>
               </button>
             </div>
           </div>
@@ -119,11 +114,10 @@ export default function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                    active
-                      ? "text-indigo-600 border-b-2 border-indigo-600"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${active
+                    ? "text-indigo-600 border-b-2 border-indigo-600"
+                    : "text-gray-600 hover:text-gray-900"
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{item.label}</span>
