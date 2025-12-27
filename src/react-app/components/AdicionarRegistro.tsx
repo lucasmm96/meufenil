@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Search, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { formatInTimeZone } from "date-fns-tz";
 
 interface Referencia {
   id: string;
@@ -19,28 +20,54 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
   const [selectedReferencia, setSelectedReferencia] = useState<Referencia | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [pesoG, setPesoG] = useState("");
-  const [data, setData] = useState(new Date().toISOString().split("T")[0]);
+  const [data, setData] = useState("");
   const [loading, setLoading] = useState(false);
   const [showNovaReferencia, setShowNovaReferencia] = useState(false);
   const [novaRefNome, setNovaRefNome] = useState("");
   const [novaRefFenil, setNovaRefFenil] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [userTimezone, setUserTimezone] = useState<string>("UTC");
 
-  // Carregar usuário logado
   useEffect(() => {
     async function loadUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      setUserId(user.id);
+
+      const { data: perfil } = await supabase
+        .from("usuarios")
+        .select("timezone")
+        .eq("id", user.id)
+        .single();
+
+      if (perfil?.timezone) {
+        setUserTimezone(perfil.timezone);
+      }
     }
+
     loadUser();
   }, []);
 
-  // Carregar referências após ter userId
+  useEffect(() => {
+    if (!userTimezone) return;
+
+    const hoje = formatInTimeZone(
+      new Date(),
+      userTimezone,
+      "yyyy-MM-dd"
+    );
+
+    setData(hoje);
+  }, [userTimezone]);
+
   useEffect(() => {
     if (userId) loadReferencias("");
   }, [userId]);
 
-  // Busca com debounce
   useEffect(() => {
     if (!search) {
       setShowDropdown(false);
@@ -58,7 +85,6 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
   async function loadReferencias(searchTerm: string) {
     if (!userId) return;
 
-    // o termo de busca pode estar vazio
     const filter = searchTerm ? `%${searchTerm}%` : `%`;
 
     const { data, error } = await supabase
@@ -76,14 +102,14 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
     if (data) setReferencias(data);
   }
 
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedReferencia || !pesoG || !userId) return;
+    if (!selectedReferencia || !pesoG || !userId || !data) return;
 
     setLoading(true);
 
-    const fenil_mg = (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
+    const fenil_mg =
+      (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
 
     const { error } = await supabase.from("registros").insert({
       data,
@@ -94,8 +120,12 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
     });
 
     setLoading(false);
-    if (!error) onSuccess();
-    else console.error("Erro ao salvar registro:", error);
+
+    if (!error) {
+      onSuccess();
+    } else {
+      console.error("Erro ao salvar registro:", error);
+    }
   }
 
   async function handleNovaReferencia(e: React.FormEvent) {
@@ -125,9 +155,10 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
     }
   }
 
-  const fenilCalculada = selectedReferencia && pesoG
-    ? (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100
-    : 0;
+  const fenilCalculada =
+    selectedReferencia && pesoG
+      ? (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100
+      : 0;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
