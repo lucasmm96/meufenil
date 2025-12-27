@@ -52,14 +52,21 @@ export default function HistoricoPage() {
       if (error) throw error;
 
       setRegistros(
-        (data ?? []).map((r: any) => ({
-          id: r.id,
-          data: r.data,
-          peso_g: r.peso_g,
-          fenil_mg: r.fenil_mg,
-          created_at: r.created_at,
-          nome_alimento: r.referencias?.[0]?.nome ?? "Alimento removido",
-        }))
+        (data ?? []).map((r: any) => {
+          const referencia =
+            Array.isArray(r.referencias)
+              ? r.referencias[0]
+              : r.referencias;
+
+          return {
+            id: r.id,
+            data: r.data,
+            peso_g: r.peso_g,
+            fenil_mg: r.fenil_mg,
+            created_at: r.created_at,
+            nome_alimento: referencia?.nome ?? "Alimento removido",
+          };
+        })
       );
     } finally {
       setLoading(false);
