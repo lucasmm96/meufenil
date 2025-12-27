@@ -10,6 +10,7 @@ import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
+import { formatInTimeZone } from "date-fns-tz";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
@@ -20,6 +21,7 @@ interface Usuario {
   id: string;
   limite_diario_mg: number;
   consentimento_lgpd_em: string | null;
+  timezone: string;
 }
 
 interface DashboardHoje {
@@ -58,11 +60,11 @@ export default function DashboardPage() {
   const loadDashboard = async (userId: string) => {
     setLoading(true);
 
-    const { data: perfil, error } = await supabase
-      .from("usuarios")
-      .select("id, limite_diario_mg, consentimento_lgpd_em")
-      .eq("id", userId)
-      .single();
+  const { data: perfil, error } = await supabase
+    .from("usuarios")
+    .select("id, limite_diario_mg, consentimento_lgpd_em, timezone")
+    .eq("id", userId)
+    .single();
 
     if (error || !perfil) {
       console.error(error);
@@ -70,7 +72,11 @@ export default function DashboardPage() {
       return;
     }
 
-    const hojeStr = format(new Date(), "yyyy-MM-dd");
+    const hojeStr = formatInTimeZone(
+      new Date(),
+      perfil.timezone,
+      "yyyy-MM-dd"
+    );
 
     const { data: registrosHoje } = await supabase
       .from("registros")
@@ -81,7 +87,11 @@ export default function DashboardPage() {
     const totalHoje =
       registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
 
-    const inicio = format(subDays(new Date(), 6), "yyyy-MM-dd");
+    const inicio = formatInTimeZone(
+      subDays(new Date(), 6),
+      perfil.timezone,
+      "yyyy-MM-dd"
+    );
 
     const { data: registrosGrafico } = await supabase
       .from("registros")
@@ -159,7 +169,13 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600 mt-1">
-              {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              {formatInTimeZone(
+                new Date(),
+                usuario.timezone,
+                "EEEE, d 'de' MMMM 'de' yyyy",
+                { locale: ptBR }
+              )}
+
             </p>
           </div>
 

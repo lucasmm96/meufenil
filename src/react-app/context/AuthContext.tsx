@@ -5,35 +5,62 @@ import { supabase } from "@/lib/supabase";
 type AuthContextType = {
   authUser: User | null;
   loadingAuth: boolean;
+  timezone: string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = useState<User | null>(null);
+  const [timezone, setTimezone] = useState<string>("UTC");
   const [loadingAuth, setLoadingAuth] = useState(true);
   const initializedRef = useRef(false);
+
+  const loadUserExtras = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("timezone")
+      .eq("id", userId)
+      .single();
+
+    if (!error && data?.timezone) {
+      setTimezone(data.timezone);
+    } else {
+      setTimezone("UTC");
+    }
+  };
 
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
     // carga inicial
-    supabase.auth.getUser().then(({ data }) => {
-      setAuthUser(data.user ?? null);
+    supabase.auth.getUser().then(async ({ data }) => {
+      const user = data.user ?? null;
+      setAuthUser(user);
+
+      if (user) {
+        await loadUserExtras(user.id);
+      }
+
       setLoadingAuth(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      // ⚠️ reagir APENAS a eventos reais
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN") {
-        setAuthUser(session?.user ?? null);
+        const user = session?.user ?? null;
+        setAuthUser(user);
+
+        if (user) {
+          await loadUserExtras(user.id);
+        }
       }
 
       if (event === "SIGNED_OUT") {
         setAuthUser(null);
+        setTimezone("UTC");
       }
 
       // IGNORAR:
@@ -47,7 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ authUser, loadingAuth }}>
+    <AuthContext.Provider
+      value={{
+        authUser,
+        loadingAuth,
+        timezone,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

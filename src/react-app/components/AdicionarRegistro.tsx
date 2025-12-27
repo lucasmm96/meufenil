@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Search, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { formatInTimeZone } from "date-fns-tz";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 interface Referencia {
   id: string;
@@ -14,10 +15,16 @@ interface AdicionarRegistroProps {
   onSuccess: () => void;
 }
 
-export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegistroProps) {
+export default function AdicionarRegistro({
+  onClose,
+  onSuccess,
+}: AdicionarRegistroProps) {
+  const { authUser, loadingAuth, timezone } = useAuth();
+
   const [referencias, setReferencias] = useState<Referencia[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedReferencia, setSelectedReferencia] = useState<Referencia | null>(null);
+  const [selectedReferencia, setSelectedReferencia] =
+    useState<Referencia | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [pesoG, setPesoG] = useState("");
   const [data, setData] = useState("");
@@ -25,44 +32,15 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
   const [showNovaReferencia, setShowNovaReferencia] = useState(false);
   const [novaRefNome, setNovaRefNome] = useState("");
   const [novaRefFenil, setNovaRefFenil] = useState("");
-  const [userId, setUserId] = useState<string | null>(null);
-  const [userTimezone, setUserTimezone] = useState<string>("UTC");
+
+  const userId = authUser?.id ?? null;
 
   useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    if (!timezone) return;
 
-      if (!user) return;
-
-      setUserId(user.id);
-
-      const { data: perfil } = await supabase
-        .from("usuarios")
-        .select("timezone")
-        .eq("id", user.id)
-        .single();
-
-      if (perfil?.timezone) {
-        setUserTimezone(perfil.timezone);
-      }
-    }
-
-    loadUser();
-  }, []);
-
-  useEffect(() => {
-    if (!userTimezone) return;
-
-    const hoje = formatInTimeZone(
-      new Date(),
-      userTimezone,
-      "yyyy-MM-dd"
-    );
-
+    const hoje = formatInTimeZone(new Date(), timezone, "yyyy-MM-dd");
     setData(hoje);
-  }, [userTimezone]);
+  }, [timezone]);
 
   useEffect(() => {
     if (userId) loadReferencias("");
@@ -104,27 +82,35 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedReferencia || !pesoG || !userId || !data) return;
+    if (!selectedReferencia || !pesoG || !userId || !data || !timezone) return;
 
     setLoading(true);
 
-    const fenil_mg =
-      (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
+    try {
+      const fenil_mg =
+        (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
 
-    const { error } = await supabase.from("registros").insert({
-      data,
-      usuario_id: userId,
-      referencia_id: selectedReferencia.id,
-      peso_g: Number(pesoG),
-      fenil_mg,
-    });
+      const dataTimestamp = formatInTimeZone(
+        new Date(`${data}T00:00:00`),
+        timezone,
+        "yyyy-MM-dd'T'HH:mm:ssXXX"
+      );
 
-    setLoading(false);
+      const { error } = await supabase.from("registros").insert({
+        data: dataTimestamp,
+        usuario_id: userId,
+        referencia_id: selectedReferencia.id,
+        peso_g: Number(pesoG),
+        fenil_mg,
+      });
 
-    if (!error) {
-      onSuccess();
-    } else {
-      console.error("Erro ao salvar registro:", error);
+      if (!error) {
+        onSuccess();
+      } else {
+        console.error("Erro ao salvar registro:", error);
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -159,6 +145,8 @@ export default function AdicionarRegistro({ onClose, onSuccess }: AdicionarRegis
     selectedReferencia && pesoG
       ? (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100
       : 0;
+
+  if (loadingAuth) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">

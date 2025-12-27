@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
+import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 
 interface ExamePKU {
   id: string;
@@ -23,11 +24,13 @@ export default function ExamesPage() {
   const [exames, setExames] = useState<ExamePKU[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [dataExame, setDataExame] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [dataExame, setDataExame] = useState("");
   const [resultadoMgDl, setResultadoMgDl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [perfilUsuario, setPerfilUsuario] = useState<{
+    timezone: string;
+  } | null>(null);
 
   useEffect(() => {
     if (loadingAuth) return;
@@ -37,8 +40,40 @@ export default function ExamesPage() {
       return;
     }
 
+    carregarPerfil(authUser.id);
     loadExames(authUser.id);
   }, [loadingAuth, authUser]);
+
+  const carregarPerfil = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("timezone")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("Erro ao carregar timezone:", error);
+      return;
+    }
+
+    setPerfilUsuario(data);
+  };
+
+  const userTimezone = perfilUsuario?.timezone ?? "America/Sao_Paulo";
+
+  useEffect(() => {
+    if (!showModal) return;
+    if (!userTimezone) return;
+
+    const hojeNoFusoDoUsuario = formatInTimeZone(
+      new Date(),
+      userTimezone,
+      "yyyy-MM-dd"
+    );
+
+    setDataExame(hojeNoFusoDoUsuario);
+  }, [showModal, userTimezone]);
+
 
   const loadExames = async (userId: string) => {
     setLoading(true);
@@ -64,19 +99,29 @@ export default function ExamesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!dataExame || !resultadoMgDl || !authUser) return;
+
+    const valor = Number(resultadoMgDl);
+    if (Number.isNaN(valor)) return;
 
     setSubmitting(true);
 
     try {
+      const utcDate = zonedTimeToUtc(
+        `${dataExame}T00:00:00`,
+        userTimezone
+      );
+
       const { error } = await supabase.from("exames_pku").insert({
         usuario_id: authUser.id,
-        data_exame: dataExame,
-        resultado_mg_dl: parseFloat(resultadoMgDl),
+        data_exame: utcDate.toISOString(),
+        resultado_mg_dl: valor,
       });
 
       if (error) {
         console.error("Erro ao adicionar exame:", error);
+        alert("Erro ao salvar exame");
         return;
       }
 
@@ -112,16 +157,33 @@ export default function ExamesPage() {
     );
   }
 
-  const graficoData = [...exames].reverse();
+  const examesOrdenados = [...exames].sort(
+    (a, b) => new Date(a.data_exame).getTime() - new Date(b.data_exame).getTime()
+  );
 
-  const ultimoExame = exames[0];
-  const penultimoExame = exames[1];
+  const ultimoExame = examesOrdenados.at(-1);
+  const penultimoExame = examesOrdenados.at(-2);
 
   const tendencia =
     ultimoExame && penultimoExame
       ? ultimoExame.resultado_mg_dl -
       penultimoExame.resultado_mg_dl
       : 0;
+
+  if (exames.length === 0 || !ultimoExame) {
+    return (
+      <Layout>
+        <div className="p-12 text-center">
+          <p className="text-gray-600">Nenhum exame registrado ainda</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  const graficoData = examesOrdenados.map((e) => ({
+    data_exame: e.data_exame,
+    resultado_mg_dl: e.resultado_mg_dl,
+  }));
 
   return (
     <Layout>
