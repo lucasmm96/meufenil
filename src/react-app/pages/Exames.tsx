@@ -161,24 +161,14 @@ export default function ExamesPage() {
     (a, b) => new Date(a.data_exame).getTime() - new Date(b.data_exame).getTime()
   );
 
-  const ultimoExame = examesOrdenados.at(-1);
+  const ultimoExame = exames[0];
   const penultimoExame = examesOrdenados.at(-2);
 
   const tendencia =
-    ultimoExame && penultimoExame
-      ? ultimoExame.resultado_mg_dl -
-      penultimoExame.resultado_mg_dl
-      : 0;
-
-  if (exames.length === 0 || !ultimoExame) {
-    return (
-      <Layout>
-        <div className="p-12 text-center">
-          <p className="text-gray-600">Nenhum exame registrado ainda</p>
-        </div>
-      </Layout>
-    );
-  }
+    ultimoExame && penultimoExame 
+    ? ultimoExame.resultado_mg_dl - 
+    penultimoExame.resultado_mg_dl 
+    : 0;
 
   const graficoData = examesOrdenados.map((e) => ({
     data_exame: e.data_exame,
@@ -209,16 +199,17 @@ export default function ExamesPage() {
                   <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
                     <Activity className="w-6 h-6 text-indigo-600" />
                   </div>
-                  <span className="text-sm text-gray-500">Último Exame</span>
+                  <span className="text-sm font-medium text-gray-500">Último Exame</span>
                 </div>
                 <div className="space-y-2">
                   <p className="text-3xl font-bold text-gray-900">
                     {ultimoExame.resultado_mg_dl.toFixed(1)} mg/dL
                   </p>
                   <p className="text-sm text-gray-600">
-                    {format(
-                      parseISO(ultimoExame.data_exame),
-                      "dd/MM/yyyy"
+                    {ultimoExame && (
+                      <span>
+                        {format(parseISO(ultimoExame.data_exame), "dd/MM/yyyy")}
+                      </span>
                     )}
                   </p>
                 </div>
@@ -238,15 +229,19 @@ export default function ExamesPage() {
                       </div>
                       <span className="text-sm font-medium text-gray-500">Variação</span>
                     </div>
-                    <p
-                      className={`text-3xl font-bold ${tendencia <= 0
-                        ? "text-green-600"
-                        : "text-orange-600"
+                    <div className="space-y-2">
+                      <p className={`text-3xl font-bold ${tendencia <= 0 
+                        ? 'text-green-600' 
+                        : 'text-orange-600'
                         }`}
-                    >
-                      {tendencia > 0 ? "+" : ""}
-                      {tendencia.toFixed(1)} mg/dL
-                    </p>
+                        >
+                        {tendencia > 0 ? '+' : ''}
+                        {tendencia.toFixed(1)} mg/dL
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        vs exame anterior
+                      </p>
+                    </div>
                   </div>
 
                   <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
@@ -281,32 +276,29 @@ export default function ExamesPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis
                         dataKey="data_exame"
-                        tickFormatter={(v) =>
-                          format(parseISO(v), "dd/MM", {
-                            locale: ptBR,
-                          })
-                        }
+                        stroke="#6b7280"
+                        tickFormatter={(v) => format(parseISO(v), "dd/MM", { locale: ptBR })}
                       />
                       <YAxis stroke="#6b7280" />
                       <Tooltip
+                        contentStyle={{
+                          backgroundColor: "rgba(255, 255, 255, 0.95)",
+                          border: "none",
+                          borderRadius: "12px",
+                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                        }}
                         labelFormatter={(v) =>
-                          format(
-                            parseISO(v),
-                            "dd 'de' MMMM 'de' yyyy",
-                            { locale: ptBR }
-                          )
+                          format(parseISO(v), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
                         }
-                        formatter={(v: number) => [
-                          `${v.toFixed(1)} mg/dL`,
-                          "PKU",
-                        ]}
+                        formatter={(v: number) => [`${v.toFixed(1)} mg/dL`, "PKU"]}
                       />
                       <Line
                         type="monotone"
                         dataKey="resultado_mg_dl"
                         stroke="#6366f1"
                         strokeWidth={3}
-                        dot={{ r: 4 }}
+                        dot={{ fill: "#6366f1", r: 4 }}
+                        activeDot={{ r: 6 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -353,13 +345,10 @@ export default function ExamesPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {exames.map((e) => (
-                    <tr key={e.id} className="border-t">
-                      <td className="px-6 py-4">
+                    <tr key={e.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {format(
-                            parseISO(e.data_exame),
-                            "dd/MM/yyyy"
-                          )}
+                          {format(parseISO(e.data_exame), "dd/MM/yyyy")}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -367,13 +356,9 @@ export default function ExamesPage() {
                           {e.resultado_mg_dl.toFixed(1)} mg/dL
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500">
-                          {format(
-                            parseISO(e.created_at),
-                            "dd/MM/yyyy 'às' HH:mm",
-                            { locale: ptBR }
-                          )}
+                          {format(parseISO(e.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -392,7 +377,6 @@ export default function ExamesPage() {
           )}
         </div>
 
-        {/* Informação sobre o exame */}
         <div className="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <Activity className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -431,9 +415,7 @@ export default function ExamesPage() {
                   <input
                     type="date"
                     value={dataExame}
-                    onChange={(e) =>
-                      setDataExame(e.target.value)
-                    }
+                    onChange={(e) => setDataExame(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                   />
@@ -447,9 +429,7 @@ export default function ExamesPage() {
                     type="number"
                     step="0.1"
                     value={resultadoMgDl}
-                    onChange={(e) =>
-                      setResultadoMgDl(e.target.value)
-                    }
+                    onChange={(e) => setResultadoMgDl(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     placeholder="Ex: 2.5"
                     required
