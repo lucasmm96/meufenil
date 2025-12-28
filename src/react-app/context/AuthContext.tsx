@@ -40,8 +40,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const user = session?.user ?? null;
 
-      // INITIAL_SESSION roda na primeira carga
+      // 🚨 Proteção absoluta contra reexecução
       if (event === "INITIAL_SESSION") {
+        if (initializedRef.current) return;
+        initializedRef.current = true;
+
         setAuthUser(user);
 
         if (user) {
@@ -54,19 +57,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // LOGIN
       if (event === "SIGNED_IN") {
         setAuthUser(user);
         if (user) {
           await loadUserExtras(user.id);
         }
+        return;
       }
 
+      // LOGOUT
       if (event === "SIGNED_OUT") {
         setAuthUser(null);
         setTimezone("UTC");
+        return;
       }
 
-      // TOKEN_REFRESHED → NÃO FAZER NADA
+      // 🔕 TOKEN_REFRESHED, USER_UPDATED, etc → IGNORAR
     });
 
     return () => {
@@ -74,7 +81,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
-
 
   return (
     <AuthContext.Provider
