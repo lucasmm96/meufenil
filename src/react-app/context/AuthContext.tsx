@@ -34,9 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    // carga inicial
-    supabase.auth.getUser().then(async ({ data }) => {
-      const user = data.user ?? null;
+    supabase.auth.getSession().then(async ({ data }) => {
+      const user = data.session?.user ?? null;
       setAuthUser(user);
 
       if (user) {
@@ -45,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setLoadingAuth(false);
     });
+
 
     const {
       data: { subscription },

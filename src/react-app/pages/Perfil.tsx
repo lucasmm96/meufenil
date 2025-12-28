@@ -2,20 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { User, Save, Shield, Download, Trash2 } from "lucide-react";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { useUser } from "@/hooks/useUser";
-
-/* =========================
-   Supabase Client (front)
-========================= */
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-
-/* =========================
-   Tipos
-========================= */
+import { supabase } from "@/lib/supabase";
 
 interface Usuario {
   id: string;
@@ -32,10 +20,6 @@ interface DeleteAccountResponse {
   error?: string;
 }
 
-/* =========================
-   Página
-========================= */
-
 export default function PerfilPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useUser();
@@ -46,18 +30,15 @@ export default function PerfilPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  /* Proteção de rota */
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/");
     }
   }, [authLoading, user, navigate]);
 
-  /* Carregar perfil */
   useEffect(() => {
     if (!user) return;
     loadPerfil();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadPerfil = async () => {
@@ -91,7 +72,6 @@ export default function PerfilPage() {
     }
   };
 
-  /* Salvar alterações */
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -138,7 +118,6 @@ export default function PerfilPage() {
 
       if (perfilError) throw perfilError;
 
-      // Buscar registros
       const { data: registros, error: registrosError } = await supabase
         .from("registros")
         .select(`
@@ -226,7 +205,7 @@ export default function PerfilPage() {
 
       alert("Conta excluída com sucesso!");
 
-      await supabase.auth.signOut().catch(() => {});
+      await supabase.auth.signOut().catch(() => { });
       navigate("/");
 
     } catch (err) {
@@ -253,7 +232,6 @@ export default function PerfilPage() {
           <p className="text-gray-600">Gerencie suas informações pessoais</p>
         </div>
 
-        {/* Informações pessoais */}
         <div className="bg-white rounded-2xl p-6 shadow">
           <div className="flex items-center gap-3 mb-6">
             <User className="w-6 h-6 text-indigo-600" />
@@ -305,7 +283,6 @@ export default function PerfilPage() {
           </form>
         </div>
 
-        {/* Privacidade */}
         <div className="bg-white rounded-2xl p-6 shadow">
           <div className="flex items-center gap-3 mb-4">
             <Shield className="w-6 h-6 text-green-600" />
