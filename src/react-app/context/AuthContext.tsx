@@ -31,28 +31,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    supabase.auth.getSession().then(async ({ data }) => {
-      const user = data.session?.user ?? null;
-      setAuthUser(user);
-
-      if (user) {
-        await loadUserExtras(user.id);
-      }
-
-      setLoadingAuth(false);
-    });
-
+    let mounted = true;
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN") {
-        const user = session?.user ?? null;
+      if (!mounted) return;
+
+      const user = session?.user ?? null;
+
+      // INITIAL_SESSION roda na primeira carga
+      if (event === "INITIAL_SESSION") {
         setAuthUser(user);
 
+        if (user) {
+          await loadUserExtras(user.id);
+        } else {
+          setTimezone("UTC");
+        }
+
+        setLoadingAuth(false);
+        return;
+      }
+
+      if (event === "SIGNED_IN") {
+        setAuthUser(user);
         if (user) {
           await loadUserExtras(user.id);
         }
@@ -63,15 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTimezone("UTC");
       }
 
-      // IGNORAR:
-      // TOKEN_REFRESHED
-      // USER_UPDATED
+      // TOKEN_REFRESHED → NÃO FAZER NADA
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
+
 
   return (
     <AuthContext.Provider
