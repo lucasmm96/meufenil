@@ -36,7 +36,13 @@ export default function Layout({ children }: LayoutProps) {
   const [perfil, setPerfil] = useState<Perfil | null>(null);
 
   useEffect(() => {
-    if (!authUser) return;
+    if (loadingAuth) return;
+    if (!authUser) {
+      setPerfil(null);
+      return;
+    }
+
+    let cancelled = false;
 
     supabase
       .from("usuarios")
@@ -44,11 +50,26 @@ export default function Layout({ children }: LayoutProps) {
       .eq("id", authUser.id)
       .single()
       .then(({ data, error }) => {
+        if (cancelled) return;
+
         if (!error && data) {
-          setPerfil(data);
+          setPerfil((prev) => {
+            // evita re-render desnecessário
+            if (
+              prev?.role === data.role &&
+              prev?.nome === data.nome
+            ) {
+              return prev;
+            }
+            return data;
+          });
         }
       });
-  }, [authUser]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser, loadingAuth]);
 
   async function handleLogout() {
     await supabase.auth.signOut().catch(() => { });
