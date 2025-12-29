@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import Layout from "@/react-app/components/Layout";
 import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
@@ -11,6 +11,7 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { formatInTimeZone } from "date-fns-tz";
+const loadedRef = useRef(false);
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
@@ -54,17 +55,23 @@ export default function DashboardPage() {
       return;
     }
 
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+
     loadDashboard(authUser.id);
-  }, [loadingAuth, authUser]);
+  }, [loadingAuth, authUser?.id]);
 
   const loadDashboard = async (userId: string) => {
+    let cancelled = false;
     setLoading(true);
 
-  const { data: perfil, error } = await supabase
-    .from("usuarios")
-    .select("id, limite_diario_mg, consentimento_lgpd_em, timezone")
-    .eq("id", userId)
-    .single();
+    const { data: perfil, error } = await supabase
+      .from("usuarios")
+      .select("id, limite_diario_mg, consentimento_lgpd_em, timezone")
+      .eq("id", userId)
+      .single();
+
+    if (cancelled) return;
 
     if (error || !perfil) {
       console.error(error);
@@ -112,14 +119,16 @@ export default function DashboardPage() {
         total: mapa[data],
       }));
 
-    setUsuario(perfil);
-    setHoje({
-      total: totalHoje,
-      limite: perfil.limite_diario_mg,
-      data: hojeStr,
-    });
-    setGrafico(graficoData);
-    setLoading(false);
+    if (!cancelled) {
+      setUsuario(perfil);
+      setHoje({
+        total: totalHoje,
+        limite: perfil.limite_diario_mg,
+        data: hojeStr,
+      });
+      setGrafico(graficoData);
+      setLoading(false);
+    }
   };
 
   const handleConsentimento = async () => {
@@ -217,11 +226,11 @@ export default function DashboardPage() {
           {/* Percentual */}
           <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg ${
             ultrapassou ? 'ring-2 ring-red-500' : ''
-          }`}>
+            }`}>
             <div className="flex items-center justify-between mb-4">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                 ultrapassou ? 'bg-red-100' : 'bg-green-100'
-              }`}>
+                }`}>
                 {ultrapassou ? (
                   <AlertCircle className="w-6 h-6 text-red-600" />
                 ) : (
@@ -233,16 +242,16 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <p className={`text-3xl font-bold ${
                 ultrapassou ? 'text-red-600' : 'text-green-600'
-              }`}>
+                }`}>
                 {percentual.toFixed(1)}%
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
-                    ultrapassou 
-                      ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                      : 'bg-gradient-to-r from-green-500 to-green-600'
-                  }`}
+                    ultrapassou
+                    ? 'bg-gradient-to-r from-red-500 to-red-600'
+                    : 'bg-gradient-to-r from-green-500 to-green-600'
+                    }`}
                   style={{ width: `${Math.min(percentual, 100)}%` }}
                 />
               </div>
@@ -275,8 +284,8 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={grafico}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="data" 
+                <XAxis
+                  dataKey="data"
                   stroke="#6b7280"
                   tickFormatter={(value) => format(parseLocalDate(value), "dd/MM", { locale: ptBR })}
                 />
@@ -288,7 +297,7 @@ export default function DashboardPage() {
                     borderRadius: "12px",
                     boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                   }}
-                  labelFormatter={(value) => 
+                  labelFormatter={(value) =>
                     format(parseLocalDate(value), "dd 'de' MMMM", { locale: ptBR })
                   }
                   formatter={(value: number) => [`${value.toFixed(1)} mg`, "Fenilalanina"]}
