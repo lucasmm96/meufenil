@@ -12,84 +12,62 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = useState<User | null>(null);
-  const [timezone, setTimezone] = useState<string>("UTC");
+  const [timezone, setTimezone] = useState("UTC");
   const [loadingAuth, setLoadingAuth] = useState(true);
+
   const initializedRef = useRef(false);
 
   const loadUserExtras = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("usuarios")
       .select("timezone")
       .eq("id", userId)
       .single();
 
-    if (!error && data?.timezone) {
-      setTimezone(data.timezone);
-    } else {
-      setTimezone("UTC");
-    }
+    setTimezone(data?.timezone ?? "UTC");
   };
 
   useEffect(() => {
-    let mounted = true;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    supabase.auth.getSession().then(async ({ data }) => {
+      const user = data.session?.user ?? null;
+
+      setAuthUser(user);
+
+      if (user) {
+        await loadUserExtras(user.id);
+      } else {
+        setTimezone("UTC");
+      }
+
+      setLoadingAuth(false);
+    });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
       const user = session?.user ?? null;
 
-      // 🚨 Proteção absoluta contra reexecução
-      if (event === "INITIAL_SESSION") {
-        if (initializedRef.current) return;
-        initializedRef.current = true;
-
-        setAuthUser(user);
-
-        if (user) {
-          await loadUserExtras(user.id);
-        } else {
-          setTimezone("UTC");
-        }
-
-        setLoadingAuth(false);
-        return;
-      }
-
-      // LOGIN
       if (event === "SIGNED_IN") {
         setAuthUser(user);
-        if (user) {
-          await loadUserExtras(user.id);
-        }
-        return;
+        if (user) await loadUserExtras(user.id);
       }
 
-      // LOGOUT
       if (event === "SIGNED_OUT") {
         setAuthUser(null);
         setTimezone("UTC");
-        return;
       }
-
-      // 🔕 TOKEN_REFRESHED, USER_UPDATED, etc → IGNORAR
     });
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{
-        authUser,
-        loadingAuth,
-        timezone,
-      }}
-    >
+    <AuthContext.Provider value={{ authUser, loadingAuth, timezone }}>
       {children}
     </AuthContext.Provider>
   );
