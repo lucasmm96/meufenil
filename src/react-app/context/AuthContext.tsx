@@ -28,11 +28,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      const user = data.session?.user ?? null;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+
+      const user = session?.user ?? null;
 
       setAuthUser(user);
 
@@ -45,23 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoadingAuth(false);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const user = session?.user ?? null;
-
-      if (event === "SIGNED_IN") {
-        setAuthUser(user);
-        if (user) await loadUserExtras(user.id);
-      }
-
-      if (event === "SIGNED_OUT") {
-        setAuthUser(null);
-        setTimezone("UTC");
-      }
-    });
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
