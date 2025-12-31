@@ -12,9 +12,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+  const session = supabase.auth.getSession().then(({ data }) => data.session)
   const [authUser, setAuthUser] = useState<User | null>(null)
   const [loadingAuth, setLoadingAuth] = useState(true)
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   useEffect(() => {
     let mounted = true
@@ -27,11 +29,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (!mounted) return
-        setAuthUser(session?.user ?? null)
-        setLoadingAuth(false)
-      }
-    )
+      if (!mounted) return
+      setAuthUser(session?.user ?? null)
+      setLoadingAuth(false)
+    }
+  )
 
     return () => {
       mounted = false
