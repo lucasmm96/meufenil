@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Layout from "@/react-app/components/Layout";
 import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
 import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
@@ -35,7 +35,7 @@ interface GraficoData {
 }
 
 export default function DashboardPage() {
-  const { authReady, session } = useAuth();
+  const { authUser, loadingAuth } = useAuth();
 
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [hoje, setHoje] = useState<DashboardHoje | null>(null);
@@ -45,15 +45,14 @@ export default function DashboardPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
 
-  const loadedRef = useRef(false);
+  useEffect(() => {
+    if (!loadingAuth && !authUser) window.location.href = "/";
+  }, [loadingAuth, authUser]);
 
   useEffect(() => {
-    if (!authReady) return;
-    if (!session) return;
-    if (loadedRef.current) return;
-
-    loadDashboard(session.user.id);
-  }, [authReady, session]);
+    if (!authUser) return;
+    loadDashboard(authUser.id);
+  }, [authUser]);
 
   const loadDashboard = async (userId: string) => {
     setLoading(true);
@@ -70,11 +69,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const hojeStr = formatInTimeZone(
-        new Date(),
-        perfil.timezone,
-        "yyyy-MM-dd"
-      );
+      const hojeStr = formatInTimeZone(new Date(), perfil.timezone, "yyyy-MM-dd");
 
       const { data: registrosHoje } = await supabase
         .from("registros")
@@ -82,14 +77,9 @@ export default function DashboardPage() {
         .eq("usuario_id", userId)
         .eq("data", hojeStr);
 
-      const totalHoje =
-        registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
+      const totalHoje = registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
 
-      const inicio = formatInTimeZone(
-        subDays(new Date(), 6),
-        perfil.timezone,
-        "yyyy-MM-dd"
-      );
+      const inicio = formatInTimeZone(subDays(new Date(), 6), perfil.timezone, "yyyy-MM-dd");
 
       const { data: registrosGrafico } = await supabase
         .from("registros")
@@ -98,7 +88,6 @@ export default function DashboardPage() {
         .gte("data", inicio);
 
       const mapa: Record<string, number> = {};
-
       registrosGrafico?.forEach((r) => {
         mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
       });
@@ -117,8 +106,6 @@ export default function DashboardPage() {
         data: hojeStr,
       });
       setGrafico(graficoData);
-
-      loadedRef.current = true;
     } finally {
       setLoading(false);
     }
@@ -132,11 +119,10 @@ export default function DashboardPage() {
       .update({ consentimento_lgpd_em: new Date().toISOString() })
       .eq("id", usuario.id);
 
-    loadedRef.current = false;
     loadDashboard(usuario.id);
   };
 
-  if (loading || !usuario || !hoje) {
+  if (loading || !usuario || !hoje || loadingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
@@ -149,15 +135,12 @@ export default function DashboardPage() {
 
   return (
     <Layout>
-      {!usuario.consentimento_lgpd_em && (
-        <ConsentimentoLGPD onAccept={handleConsentimento} />
-      )}
+      {!usuario.consentimento_lgpd_em && <ConsentimentoLGPD onAccept={handleConsentimento} />}
 
       {showAddModal && (
         <AdicionarRegistro
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
-            loadedRef.current = false;
             loadDashboard(usuario.id);
             setShowAddModal(false);
           }}
@@ -182,7 +165,6 @@ export default function DashboardPage() {
                 "EEEE, d 'de' MMMM 'de' yyyy",
                 { locale: ptBR }
               )}
-
             </p>
           </div>
 
@@ -212,23 +194,14 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-500">Hoje</span>
             </div>
             <div className="space-y-2">
-              <p className="text-3xl font-bold text-gray-900">
-                {hoje.total.toFixed(1)} mg
-              </p>
-              <p className="text-sm text-gray-600">
-                de {hoje.limite.toFixed(0)} mg
-              </p>
+              <p className="text-3xl font-bold text-gray-900">{hoje.total.toFixed(1)} mg</p>
+              <p className="text-sm text-gray-600">de {hoje.limite.toFixed(0)} mg</p>
             </div>
           </div>
 
-          {/* Percentual */}
-          <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg ${
-            ultrapassou ? 'ring-2 ring-red-500' : ''
-          }`}>
+          <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg ${ultrapassou ? "ring-2 ring-red-500" : ""}`}>
             <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                ultrapassou ? 'bg-red-100' : 'bg-green-100'
-              }`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${ultrapassou ? "bg-red-100" : "bg-green-100"}`}>
                 {ultrapassou ? (
                   <AlertCircle className="w-6 h-6 text-red-600" />
                 ) : (
@@ -238,18 +211,12 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-500">Percentual</span>
             </div>
             <div className="space-y-2">
-              <p className={`text-3xl font-bold ${
-                ultrapassou ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <p className={`text-3xl font-bold ${ultrapassou ? "text-red-600" : "text-green-600"}`}>
                 {percentual.toFixed(1)}%
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className={`h-2 rounded-full transition-all ${
-                    ultrapassou 
-                      ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                      : 'bg-gradient-to-r from-green-500 to-green-600'
-                  }`}
+                  className={`h-2 rounded-full transition-all ${ultrapassou ? "bg-gradient-to-r from-red-500 to-red-600" : "bg-gradient-to-r from-green-500 to-green-600"}`}
                   style={{ width: `${Math.min(percentual, 100)}%` }}
                 />
               </div>
@@ -264,26 +231,20 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-500">Restante</span>
             </div>
             <div className="space-y-2">
-              <p className="text-3xl font-bold text-gray-900">
-                {Math.max(0, hoje.limite - hoje.total).toFixed(1)} mg
-              </p>
-              <p className="text-sm text-gray-600">
-                disponível hoje
-              </p>
+              <p className="text-3xl font-bold text-gray-900">{Math.max(0, hoje.limite - hoje.total).toFixed(1)} mg</p>
+              <p className="text-sm text-gray-600">disponível hoje</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">
-            Últimos 7 dias
-          </h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Últimos 7 dias</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={grafico}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="data" 
+                <XAxis
+                  dataKey="data"
                   stroke="#6b7280"
                   tickFormatter={(value) => format(parseLocalDate(value), "dd/MM", { locale: ptBR })}
                 />
@@ -295,9 +256,7 @@ export default function DashboardPage() {
                     borderRadius: "12px",
                     boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                   }}
-                  labelFormatter={(value) => 
-                    format(parseLocalDate(value), "dd 'de' MMMM", { locale: ptBR })
-                  }
+                  labelFormatter={(value) => format(parseLocalDate(value), "dd 'de' MMMM", { locale: ptBR })}
                   formatter={(value: number) => [`${value.toFixed(1)} mg`, "Fenilalanina"]}
                 />
                 <Line
