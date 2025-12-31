@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState, useRef } from "react";
 import Layout from "@/react-app/components/Layout";
 import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
 import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
@@ -36,90 +35,93 @@ interface GraficoData {
 }
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
-  const { authUser, loadingAuth } = useAuth();
+  const { authReady, session } = useAuth();
 
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [hoje, setHoje] = useState<DashboardHoje | null>(null);
   const [grafico, setGrafico] = useState<GraficoData[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
 
+  const loadedRef = useRef(false);
+
   useEffect(() => {
-    if (loadingAuth) return;
+    if (!authReady) return;
+    if (!session) return;
+    if (loadedRef.current) return;
 
-    if (!authUser) {
-      navigate("/", { replace: true });
-      return;
-    }
-
-    loadDashboard(authUser.id);
-  }, [loadingAuth, authUser]);
+    loadDashboard(session.user.id);
+  }, [authReady, session]);
 
   const loadDashboard = async (userId: string) => {
     setLoading(true);
 
-  const { data: perfil, error } = await supabase
-    .from("usuarios")
-    .select("id, limite_diario_mg, consentimento_lgpd_em, timezone")
-    .eq("id", userId)
-    .single();
+    try {
+      const { data: perfil, error } = await supabase
+        .from("usuarios")
+        .select("id, limite_diario_mg, consentimento_lgpd_em, timezone")
+        .eq("id", userId)
+        .single();
 
-    if (error || !perfil) {
-      console.error(error);
+      if (error || !perfil) {
+        console.error("[Dashboard] erro perfil", error);
+        return;
+      }
+
+      const hojeStr = formatInTimeZone(
+        new Date(),
+        perfil.timezone,
+        "yyyy-MM-dd"
+      );
+
+      const { data: registrosHoje } = await supabase
+        .from("registros")
+        .select("fenil_mg")
+        .eq("usuario_id", userId)
+        .eq("data", hojeStr);
+
+      const totalHoje =
+        registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
+
+      const inicio = formatInTimeZone(
+        subDays(new Date(), 6),
+        perfil.timezone,
+        "yyyy-MM-dd"
+      );
+
+      const { data: registrosGrafico } = await supabase
+        .from("registros")
+        .select("data, fenil_mg")
+        .eq("usuario_id", userId)
+        .gte("data", inicio);
+
+      const mapa: Record<string, number> = {};
+
+      registrosGrafico?.forEach((r) => {
+        mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
+      });
+
+      const graficoData = Object.keys(mapa)
+        .sort()
+        .map((data) => ({
+          data,
+          total: mapa[data],
+        }));
+
+      setUsuario(perfil);
+      setHoje({
+        total: totalHoje,
+        limite: perfil.limite_diario_mg,
+        data: hojeStr,
+      });
+      setGrafico(graficoData);
+
+      loadedRef.current = true;
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const hojeStr = formatInTimeZone(
-      new Date(),
-      perfil.timezone,
-      "yyyy-MM-dd"
-    );
-
-    const { data: registrosHoje } = await supabase
-      .from("registros")
-      .select("fenil_mg")
-      .eq("usuario_id", userId)
-      .eq("data", hojeStr);
-
-    const totalHoje =
-      registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
-
-    const inicio = formatInTimeZone(
-      subDays(new Date(), 6),
-      perfil.timezone,
-      "yyyy-MM-dd"
-    );
-
-    const { data: registrosGrafico } = await supabase
-      .from("registros")
-      .select("data, fenil_mg")
-      .eq("usuario_id", userId)
-      .gte("data", inicio);
-
-    const mapa: Record<string, number> = {};
-
-    registrosGrafico?.forEach((r) => {
-      mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
-    });
-
-    const graficoData = Object.keys(mapa)
-      .sort()
-      .map((data) => ({
-        data,
-        total: mapa[data],
-      }));
-
-    setUsuario(perfil);
-    setHoje({
-      total: totalHoje,
-      limite: perfil.limite_diario_mg,
-      data: hojeStr,
-    });
-    setGrafico(graficoData);
-    setLoading(false);
   };
 
   const handleConsentimento = async () => {
@@ -130,13 +132,14 @@ export default function DashboardPage() {
       .update({ consentimento_lgpd_em: new Date().toISOString() })
       .eq("id", usuario.id);
 
+    loadedRef.current = false;
     loadDashboard(usuario.id);
   };
 
   if (loading || !usuario || !hoje) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
   }
@@ -153,7 +156,11 @@ export default function DashboardPage() {
       {showAddModal && (
         <AdicionarRegistro
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => loadDashboard(usuario.id)}
+          onSuccess={() => {
+            loadedRef.current = false;
+            loadDashboard(usuario.id);
+            setShowAddModal(false);
+          }}
         />
       )}
 

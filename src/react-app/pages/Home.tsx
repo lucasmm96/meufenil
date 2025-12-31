@@ -21,6 +21,9 @@ export default function HomePage() {
   const loginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
     });
 
     if (error) {
@@ -31,14 +34,9 @@ export default function HomePage() {
   const { user, loading: userLoading } = useUser();
 
   useEffect(() => {
-    if (!userLoading && user) {
-      navigate("/dashboard", { replace: true });
-    }
-
-    if (!userLoading && !user) {
-      setLoading(false);
-    }
-  }, [user, userLoading, navigate]);
+    if (userLoading) return;
+    if (!user) setLoading(false);
+  }, [user, userLoading]);
 
   if (loading) {
     return (
