@@ -13,13 +13,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-
-  const session = supabase.auth.getSession().then(({ data }) => data.session)
   const [authUser, setAuthUser] = useState<User | null>(null)
   const [loadingAuth, setLoadingAuth] = useState(true)
 
   useEffect(() => {
     let mounted = true
+
+    localStorage.removeItem('supabase.auth.token')
 
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
@@ -29,11 +29,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-      if (!mounted) return
-      setAuthUser(session?.user ?? null)
-      setLoadingAuth(false)
-    }
-  )
+        if (!mounted) return
+        setAuthUser(session?.user ?? null)
+        setLoadingAuth(false)
+      }
+    )
 
     return () => {
       mounted = false
@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut()
     setAuthUser(null)
+    localStorage.removeItem('supabase.auth.token')
   }
 
   return (
