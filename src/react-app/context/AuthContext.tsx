@@ -12,20 +12,45 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const [authUser, setAuthUser] = useState<User | null>(null)
   const [loadingAuth, setLoadingAuth] = useState(true)
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   useEffect(() => {
     let mounted = true
 
-    localStorage.removeItem('supabase.auth.token')
+    async function initAuth() {
+      try {
+        const { data, error } = await supabase.auth.getSession()
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setAuthUser(data.session?.user ?? null)
-      setLoadingAuth(false)
-    })
+        // sessão inválida ou erro → limpa tudo
+        if (error || !data.session) {
+          await supabase.auth.signOut()
+          localStorage.removeItem('supabase.auth.token')
+
+          if (!mounted) return
+          setAuthUser(null)
+          setLoadingAuth(false)
+          return
+        }
+
+        // sessão válida
+        if (!mounted) return
+        setAuthUser(data.session.user)
+        setLoadingAuth(false)
+
+      } catch {
+        // qualquer erro inesperado → fallback seguro
+        await supabase.auth.signOut()
+        localStorage.removeItem('supabase.auth.token')
+
+        if (!mounted) return
+        setAuthUser(null)
+        setLoadingAuth(false)
+      }
+    }
+
+    initAuth()
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -43,8 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut()
-    setAuthUser(null)
     localStorage.removeItem('supabase.auth.token')
+    setAuthUser(null)
   }
 
   return (
