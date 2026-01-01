@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from '@/lib/supabase'
 import { User } from '@supabase/supabase-js'
+import { log } from "console";
 
 interface AuthContextType {
   authUser: User | null
@@ -23,6 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data, error } = await supabase.auth.getSession()
 
+        console.log(data);
+        console.log(error);
+        
         // sessão inválida ou erro → limpa tudo
         if (error || !data.session) {
           await supabase.auth.signOut()
