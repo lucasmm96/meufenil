@@ -23,9 +23,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function initAuth() {
       try {
         const { data, error } = await supabase.auth.getSession()
-
-        console.log(data);
-        console.log(error);
         
         // sessão inválida ou erro → limpa tudo
         if (error || !data.session) {
