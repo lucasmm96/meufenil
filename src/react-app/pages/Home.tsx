@@ -35,8 +35,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user) setLoading(false);
-  }, [user, userLoading]);
+
+    if (user) {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    setLoading(false);
+  }, [user, userLoading, navigate]);
 
   if (loading) {
     return (
