@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { User, Save, Shield, Download, Trash2 } from "lucide-react";
-import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 interface Usuario {
   id: string;
@@ -15,14 +15,9 @@ interface Usuario {
   consentimento_lgpd_em: string | null;
 }
 
-interface DeleteAccountResponse {
-  success?: boolean;
-  error?: string;
-}
-
 export default function PerfilPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useUser();
+  const { authUser, loadingAuth } = useAuth();
 
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [nome, setNome] = useState("");
@@ -31,17 +26,17 @@ export default function PerfilPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/");
+    if (!loadingAuth && !authUser) {
+      navigate("/", { replace: true });
     }
-  }, [authLoading, user, navigate]);
+  }, [loadingAuth, authUser, navigate]);
 
   useEffect(() => {
-    if (!user) return;
-    loadPerfil();
-  }, [user]);
+    if (!authUser) return;
+    loadPerfil(authUser.id);
+  }, [authUser]);
 
-  const loadPerfil = async () => {
+  const loadPerfil = async (userId: string) => {
     setLoading(true);
 
     try {
@@ -56,10 +51,10 @@ export default function PerfilPage() {
           timezone,
           consentimento_lgpd_em
         `)
-        .eq("id", user!.id)
+        .eq("id", userId)
         .single();
 
-      if (error) {
+      if (error || !data) {
         console.error("Erro ao carregar perfil:", error);
         return;
       }
@@ -74,6 +69,8 @@ export default function PerfilPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!authUser) return;
+
     setSaving(true);
 
     try {
@@ -84,7 +81,7 @@ export default function PerfilPage() {
           limite_diario_mg: Number(limiteDiario),
           updated_at: new Date().toISOString(),
         })
-        .eq("id", user!.id);
+        .eq("id", authUser.id);
 
       if (error) {
         console.error("Erro ao salvar perfil:", error);
@@ -93,27 +90,23 @@ export default function PerfilPage() {
       }
 
       alert("Perfil atualizado com sucesso!");
-      loadPerfil();
+      loadPerfil(authUser.id);
     } finally {
       setSaving(false);
     }
   };
 
   const handleExportarTudo = async () => {
+    if (!authUser) {
+      alert("Usuário não autenticado");
+      return;
+    }
+
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) {
-        alert("Usuário não autenticado");
-        return;
-      }
-
-      const userId = sessionData.session.user.id;
-
-      // Buscar perfil
       const { data: perfil, error: perfilError } = await supabase
         .from("usuarios")
         .select("*")
-        .eq("id", userId)
+        .eq("id", authUser.id)
         .single();
 
       if (perfilError) throw perfilError;
@@ -128,6 +121,7 @@ export default function PerfilPage() {
           created_at,
           referencias ( nome )
         `)
+        .eq("usuario_id", authUser.id)
         .order("data", { ascending: false });
 
       if (registrosError) throw registrosError;
@@ -142,7 +136,7 @@ export default function PerfilPage() {
       const blob = new Blob(
         [JSON.stringify(exportData, null, 2)],
         { type: "application/json" }
-      );
+    );
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -153,8 +147,8 @@ export default function PerfilPage() {
       document.body.appendChild(a);
       a.click();
 
-      URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Erro ao exportar dados:", err);
       alert("Erro ao exportar dados: " + (err?.message ?? err));
@@ -162,6 +156,8 @@ export default function PerfilPage() {
   };
 
   const handleExcluirConta = async () => {
+    if (!authUser) return;
+
     if (!confirm("Deseja realmente excluir sua conta?")) return;
 
     const confirmacao = prompt('Digite "EXCLUIR" para confirmar:');
@@ -204,17 +200,15 @@ export default function PerfilPage() {
       }
 
       alert("Conta excluída com sucesso!");
-
-      await supabase.auth.signOut().catch(() => { });
-      navigate("/");
-
+      await supabase.auth.signOut().catch(() => {});
+      navigate("/", { replace: true });
     } catch (err) {
       console.error("Erro ao excluir conta:", err);
       alert("Erro ao excluir conta");
     }
   };
 
-  if (authLoading || loading) {
+  if (loadingAuth || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
@@ -294,7 +288,7 @@ export default function PerfilPage() {
               ✓ Consentimento LGPD em{" "}
               {new Date(usuario.consentimento_lgpd_em).toLocaleDateString(
                 "pt-BR"
-              )}
+                )}
             </p>
           )}
 

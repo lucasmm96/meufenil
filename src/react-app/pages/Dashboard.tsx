@@ -46,7 +46,8 @@ export default function DashboardPage() {
   const [showCriarModal, setShowCriarModal] = useState(false);
 
   useEffect(() => {
-    if (!loadingAuth && !authUser) window.location.href = "/";
+    if (loadingAuth) return;
+    if (!authUser) window.location.href = "/";
   }, [loadingAuth, authUser]);
 
   useEffect(() => {
@@ -71,21 +72,31 @@ export default function DashboardPage() {
 
       const hojeStr = formatInTimeZone(new Date(), perfil.timezone, "yyyy-MM-dd");
 
-      const { data: registrosHoje } = await supabase
+      const { data: registrosHoje, error: erroHoje } = await supabase
         .from("registros")
         .select("fenil_mg")
         .eq("usuario_id", userId)
         .eq("data", hojeStr);
 
+      if (erroHoje) {
+        console.error("[Dashboard] erro registros hoje", erroHoje);
+        return;
+      }
+
       const totalHoje = registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
 
       const inicio = formatInTimeZone(subDays(new Date(), 6), perfil.timezone, "yyyy-MM-dd");
 
-      const { data: registrosGrafico } = await supabase
-        .from("registros")
-        .select("data, fenil_mg")
-        .eq("usuario_id", userId)
-        .gte("data", inicio);
+      const { data: registrosGrafico, error: erroGrafico } = await supabase
+          .from("registros")
+          .select("data, fenil_mg")
+          .eq("usuario_id", userId)
+          .gte("data", inicio);
+
+      if (erroGrafico) {
+        console.error("[Dashboard] erro gráfico", erroGrafico);
+        return;
+      }
 
       const mapa: Record<string, number> = {};
       registrosGrafico?.forEach((r) => {
@@ -122,7 +133,7 @@ export default function DashboardPage() {
     loadDashboard(usuario.id);
   };
 
-  if (loading || !usuario || !hoje || loadingAuth) {
+  if (loading || loadingAuth || !usuario || !hoje) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
@@ -135,7 +146,7 @@ export default function DashboardPage() {
 
   return (
     <Layout>
-      {!usuario.consentimento_lgpd_em && <ConsentimentoLGPD onAccept={handleConsentimento} />}
+      {!usuario.consentimento_lgpd_em && (<ConsentimentoLGPD onAccept={handleConsentimento} />)}
 
       {showAddModal && (
         <AdicionarRegistro
@@ -154,7 +165,7 @@ export default function DashboardPage() {
         />
       )}
 
-      <div className="space-y-6">
+            <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>

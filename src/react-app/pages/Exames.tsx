@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Activity, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/react-app/context/AuthContext";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
+import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 
 interface ExamePKU {
   id: string;
@@ -18,8 +17,7 @@ interface ExamePKU {
 }
 
 export default function ExamesPage() {
-  const navigate = useNavigate();
-  const { authUser, loadingAuth } = useAuth();
+  const { authUser, isReady } = useProtectedPage();
 
   const [exames, setExames] = useState<ExamePKU[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,16 +31,11 @@ export default function ExamesPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (loadingAuth) return;
-
-    if (!authUser) {
-      navigate("/", { replace: true });
-      return;
-    }
+    if (!isReady || !authUser) return;
 
     carregarPerfil(authUser.id);
     loadExames(authUser.id);
-  }, [loadingAuth, authUser]);
+  }, [isReady, authUser]);
 
   const carregarPerfil = async (userId: string) => {
     const { data, error } = await supabase
@@ -63,7 +56,6 @@ export default function ExamesPage() {
 
   useEffect(() => {
     if (!showModal) return;
-    if (!userTimezone) return;
 
     const hojeNoFusoDoUsuario = formatInTimeZone(
       new Date(),
@@ -73,7 +65,6 @@ export default function ExamesPage() {
 
     setDataExame(hojeNoFusoDoUsuario);
   }, [showModal, userTimezone]);
-
 
   const loadExames = async (userId: string) => {
     setLoading(true);
@@ -99,8 +90,7 @@ export default function ExamesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!dataExame || !resultadoMgDl || !authUser) return;
+    if (!authUser || !dataExame || !resultadoMgDl) return;
 
     const valor = Number(resultadoMgDl);
     if (Number.isNaN(valor)) return;
@@ -126,7 +116,6 @@ export default function ExamesPage() {
       }
 
       setShowModal(false);
-      setDataExame(new Date().toISOString().split("T")[0]);
       setResultadoMgDl("");
       loadExames(authUser.id);
     } finally {
@@ -149,12 +138,8 @@ export default function ExamesPage() {
     }
   };
 
-  if (loadingAuth || loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
-    );
+  if (!isReady || loading) {
+    return null;
   }
 
   const examesOrdenados = [...exames].sort(
@@ -165,10 +150,10 @@ export default function ExamesPage() {
   const penultimoExame = examesOrdenados.at(-2);
 
   const tendencia =
-    ultimoExame && penultimoExame 
-    ? ultimoExame.resultado_mg_dl - 
-    penultimoExame.resultado_mg_dl 
-    : 0;
+    ultimoExame && penultimoExame
+      ? ultimoExame.resultado_mg_dl -
+        penultimoExame.resultado_mg_dl
+      : 0;
 
   const graficoData = examesOrdenados.map((e) => ({
     data_exame: e.data_exame,

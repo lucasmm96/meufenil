@@ -1,13 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Layout from "@/react-app/components/Layout";
 import { Trash2, Calendar, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/hooks/useUser";
-import { useAuth } from "../context/AuthContext";
+import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 
 interface Registro {
   id: string;
@@ -19,8 +16,7 @@ interface Registro {
 }
 
 export default function HistoricoPage() {
-  const navigate = useNavigate();
-  const { authUser, loadingAuth } = useAuth();
+  const { authUser, isReady } = useProtectedPage();
 
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,9 +24,8 @@ export default function HistoricoPage() {
   const [dataFim, setDataFim] = useState("");
 
   const loadRegistros = useCallback(async () => {
-    if (!authUser) return;
-
     setLoading(true);
+
     try {
       let query = supabase
         .from("registros")
@@ -42,7 +37,7 @@ export default function HistoricoPage() {
           created_at,
           referencias!inner ( nome )
         `)
-        .eq("usuario_id", authUser.id)
+        .eq("usuario_id", authUser!.id)
         .order("data", { ascending: false });
 
       if (dataInicio) query = query.gte("data", dataInicio);
@@ -54,9 +49,9 @@ export default function HistoricoPage() {
       setRegistros(
         (data ?? []).map((r: any) => {
           const referencia =
-            Array.isArray(r.referencias)
-              ? r.referencias[0]
-              : r.referencias;
+          Array.isArray(r.referencias)
+            ? r.referencias[0]
+            : r.referencias;
 
           return {
             id: r.id,
@@ -71,7 +66,13 @@ export default function HistoricoPage() {
     } finally {
       setLoading(false);
     }
-  }, [authUser, dataInicio, dataFim]);
+  }, [authUser?.id, dataInicio, dataFim]);
+
+
+  useEffect(() => {
+    if (!isReady) return;
+    loadRegistros();
+  }, [isReady, loadRegistros]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este registro?")) return;
@@ -86,19 +87,6 @@ export default function HistoricoPage() {
     }
   };
 
-  useEffect(() => {
-    if (loadingAuth) return;
-
-    if (!authUser) {
-      navigate("/", { replace: true });
-    }
-  }, [loadingAuth, authUser, navigate]);
-
-  useEffect(() => {
-    if (loadingAuth || !authUser) return;
-    loadRegistros();
-  }, [loadingAuth, authUser, loadRegistros]);
-
   const agrupadosPorData = useMemo(() => {
     return registros.reduce<Record<string, Registro[]>>((acc, r) => {
       if (!acc[r.data]) acc[r.data] = [];
@@ -107,7 +95,7 @@ export default function HistoricoPage() {
     }, {});
   }, [registros]);
 
-  if (loadingAuth) {
+  if (!isReady || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
@@ -154,6 +142,7 @@ export default function HistoricoPage() {
               />
             </div>
           </div>
+
           {(dataInicio || dataFim) && (
             <button
               onClick={() => {
@@ -166,6 +155,7 @@ export default function HistoricoPage() {
             </button>
           )}
         </div>
+
         {Object.keys(agrupadosPorData).length === 0 ? (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg text-center">
             <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -181,16 +171,28 @@ export default function HistoricoPage() {
             {Object.entries(agrupadosPorData)
               .sort(([a], [b]) => b.localeCompare(a))
               .map(([data, regs]) => {
-                const totalDia = regs.reduce((sum, r) => sum + r.fenil_mg, 0);
+                const totalDia = regs.reduce(
+                  (sum, r) => sum + r.fenil_mg,
+                  0
+                );
+
                 return (
-                  <div key={data} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+                  <div
+                    key={data}
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg"
+                  >
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {format(new Date(data + "T12:00:00"), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                          {format(
+                            new Date(data + "T12:00:00"),
+                            "EEEE, d 'de' MMMM",
+                            { locale: ptBR }
+                          )}
                         </h3>
                         <p className="text-sm text-gray-500 mt-1">
-                          {regs.length} {regs.length === 1 ? "registro" : "registros"}
+                          {regs.length}{" "}
+                          {regs.length === 1 ? "registro" : "registros"}
                         </p>
                       </div>
                       <div className="text-right">

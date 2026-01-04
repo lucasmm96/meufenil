@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Search, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { formatInTimeZone } from "date-fns-tz";
+import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useAuth } from "@/react-app/context/AuthContext";
 
 interface Referencia {
@@ -19,7 +20,8 @@ export default function AdicionarRegistro({
   onClose,
   onSuccess,
 }: AdicionarRegistroProps) {
-  const { authUser, loadingAuth, timezone } = useAuth();
+  const { authUser, isReady } = useProtectedPage();
+  const { timezone } = useAuth(); // timezone é estado global, não auth gate
 
   const [referencias, setReferencias] = useState<Referencia[]>([]);
   const [search, setSearch] = useState("");
@@ -33,7 +35,7 @@ export default function AdicionarRegistro({
   const [novaRefNome, setNovaRefNome] = useState("");
   const [novaRefFenil, setNovaRefFenil] = useState("");
 
-  const userId = authUser?.id ?? null;
+  if (!isReady) return null;
 
   useEffect(() => {
     if (!timezone) return;
@@ -43,8 +45,8 @@ export default function AdicionarRegistro({
   }, [timezone]);
 
   useEffect(() => {
-    if (userId) loadReferencias("");
-  }, [userId]);
+    loadReferencias("");
+  }, []);
 
   useEffect(() => {
     if (!search) {
@@ -53,22 +55,20 @@ export default function AdicionarRegistro({
     }
 
     const t = setTimeout(() => {
-      if (userId) loadReferencias(search);
+      loadReferencias(search);
       setShowDropdown(true);
     }, 300);
 
     return () => clearTimeout(t);
-  }, [search, userId]);
+  }, [search]);
 
   async function loadReferencias(searchTerm: string) {
-    if (!userId) return;
-
     const filter = searchTerm ? `%${searchTerm}%` : `%`;
 
     const { data, error } = await supabase
       .from("referencias")
       .select("id, nome, fenil_mg_por_100g")
-      .or(`is_global.eq.true,criado_por.eq.${userId}`)
+      .or(`is_global.eq.true,criado_por.eq.${authUser!.id}`)
       .ilike("nome", filter)
       .order("nome");
 
@@ -77,12 +77,12 @@ export default function AdicionarRegistro({
       return;
     }
 
-    if (data) setReferencias(data);
+    setReferencias(data ?? []);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedReferencia || !pesoG || !userId || !data || !timezone) return;
+    if (!selectedReferencia || !pesoG || !data || !timezone) return;
 
     setLoading(true);
 
@@ -98,7 +98,7 @@ export default function AdicionarRegistro({
 
       const { error } = await supabase.from("registros").insert({
         data: dataTimestamp,
-        usuario_id: userId,
+        usuario_id: authUser!.id,
         referencia_id: selectedReferencia.id,
         peso_g: Number(pesoG),
         fenil_mg,
@@ -116,7 +116,7 @@ export default function AdicionarRegistro({
 
   async function handleNovaReferencia(e: React.FormEvent) {
     e.preventDefault();
-    if (!novaRefNome || !novaRefFenil || !userId) return;
+    if (!novaRefNome || !novaRefFenil) return;
 
     setLoading(true);
 
@@ -125,7 +125,7 @@ export default function AdicionarRegistro({
       .insert({
         nome: novaRefNome,
         fenil_mg_por_100g: Number(novaRefFenil),
-        criado_por: userId,
+        criado_por: authUser!.id,
         is_global: false,
       })
       .select()
@@ -145,8 +145,6 @@ export default function AdicionarRegistro({
     selectedReferencia && pesoG
       ? (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100
       : 0;
-
-  if (loadingAuth) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">

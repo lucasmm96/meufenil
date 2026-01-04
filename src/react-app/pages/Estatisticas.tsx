@@ -7,6 +7,7 @@ import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
+import { formatInTimeZone } from "date-fns-tz";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
@@ -18,58 +19,86 @@ interface Registro {
   total: number;
 }
 
+interface Usuario {
+  id: string;
+  timezone: string;
+}
+
 export default function EstatisticasPage() {
   const navigate = useNavigate();
   const { authUser, loadingAuth } = useAuth();
 
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [periodo, setPeriodo] = useState<"semana" | "mes">("semana");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (loadingAuth) return;
-
-    if (!authUser) {
+    if (!loadingAuth && !authUser) {
       navigate("/", { replace: true });
+    }
+  }, [loadingAuth, authUser, navigate]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    loadUsuario(authUser.id);
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!usuario) return;
+    loadEstatisticas(usuario);
+  }, [usuario, periodo]);
+
+  const loadUsuario = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("id, timezone")
+      .eq("id", userId)
+      .single();
+
+    if (error || !data) {
+      console.error("[Estatisticas] erro usuario", error);
       return;
     }
 
-    loadEstatisticas(authUser.id);
-  }, [loadingAuth, authUser, periodo]);
+    setUsuario(data);
+  };
 
-  const loadEstatisticas = async (userId: string) => {
+  const loadEstatisticas = async (user: Usuario) => {
     setLoading(true);
 
-    const dias = periodo === "semana" ? 7 : 30;
-    const inicio = format(subDays(new Date(), dias - 1), "yyyy-MM-dd");
+    try {
+      const dias = periodo === "semana" ? 7 : 30;
+      const inicio = formatInTimeZone(subDays(new Date(), dias - 1), user.timezone, "yyyy-MM-dd");
 
-    const { data: registrosDB, error } = await supabase
-      .from("registros")
-      .select("data, fenil_mg")
-      .eq("usuario_id", userId)
-      .gte("data", inicio);
+      const { data: registrosDB, error } = await supabase
+        .from("registros")
+        .select("data, fenil_mg")
+        .eq("usuario_id", user.id)
+        .gte("data", inicio);
 
-    if (error) {
-      console.error(error);
+      if (error) {
+        console.error("[Estatisticas] erro registros", error);
+        return;
+      }
+
+      const mapa: Record<string, number> = {};
+
+      registrosDB?.forEach((r) => {
+        mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
+      });
+
+      const resultado: Registro[] = Object.keys(mapa)
+        .sort()
+        .map((data) => ({
+          data,
+          total: mapa[data],
+        }));
+
+      setRegistros(resultado);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const mapa: Record<string, number> = {};
-
-    registrosDB?.forEach((r) => {
-      mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
-    });
-
-    const resultado: Registro[] = Object.keys(mapa)
-      .sort()
-      .map((data) => ({
-        data,
-        total: mapa[data],
-      }));
-
-    setRegistros(resultado);
-    setLoading(false);
   };
 
   const downloadFile = (content: string, filename: string, type: string) => {
@@ -107,17 +136,16 @@ export default function EstatisticasPage() {
     );
   };
 
-  if (loading) {
+  if (loading || loadingAuth || !usuario) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
   }
 
   const totalConsumo = registros.reduce((sum, r) => sum + r.total, 0);
-  const mediaConsumo =
-    registros.length > 0 ? totalConsumo / registros.length : 0;
+  const mediaConsumo = registros.length > 0 ? totalConsumo / registros.length : 0;
   const maiorConsumo = Math.max(...registros.map((r) => r.total), 0);
 
   return (
@@ -156,7 +184,7 @@ export default function EstatisticasPage() {
               className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${periodo === "semana"
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
+              }`}
             >
               Última Semana
             </button>
@@ -165,7 +193,7 @@ export default function EstatisticasPage() {
               className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${periodo === "mes"
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
+              }`}
             >
               Último Mês
             </button>
@@ -198,9 +226,7 @@ export default function EstatisticasPage() {
             <p className="text-3xl font-bold text-gray-900">
               {mediaConsumo.toFixed(1)} mg
             </p>
-            <p className="text-sm text-gray-600 mt-2">
-              por dia
-            </p>
+            <p className="text-sm text-gray-600 mt-2">por dia</p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
@@ -213,9 +239,7 @@ export default function EstatisticasPage() {
             <p className="text-3xl font-bold text-gray-900">
               {maiorConsumo.toFixed(1)} mg
             </p>
-            <p className="text-sm text-gray-600 mt-2">
-              em um dia
-            </p>
+            <p className="text-sm text-gray-600 mt-2">em um dia</p>
           </div>
         </div>
 

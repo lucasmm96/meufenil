@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/react-app/context/AuthContext";
 
 type AppUser = {
   id: string;
@@ -8,28 +7,25 @@ type AppUser = {
   email?: string | null;
 };
 
-export function useUser() {
-  const { authUser, loadingAuth } = useAuth();
-
+export function useUser(userId?: string) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
 
     async function carregarUsuario() {
-      if (!authUser) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
 
       const { data, error } = await supabase
         .from("usuarios")
         .select("id, role, email")
-        .eq("id", authUser.id)
+        .eq("id", userId)
         .maybeSingle();
 
       if (!mounted) return;
@@ -44,14 +40,21 @@ export function useUser() {
       setLoading(false);
     }
 
-    if (!loadingAuth) {
-      carregarUsuario();
-    }
+    carregarUsuario();
 
     return () => {
       mounted = false;
     };
-  }, [authUser, loadingAuth]);
+  }, [userId]);
 
-  return { user, loading };
+  const signInWithGoogle = async () => {
+    return supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+  };
+
+  return { user, loading, signInWithGoogle };
 }

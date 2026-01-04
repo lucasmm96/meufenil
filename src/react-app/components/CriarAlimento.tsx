@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/react-app/context/AuthContext";
+import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 
 interface CriarAlimentoProps {
   onClose: () => void;
@@ -12,17 +12,17 @@ export default function CriarAlimento({
   onClose,
   onSuccess,
 }: CriarAlimentoProps) {
-  const { authUser, loadingAuth } = useAuth();
+  const { authUser, isReady } = useProtectedPage();
 
   const [loading, setLoading] = useState(false);
   const [nome, setNome] = useState("");
   const [fenil, setFenil] = useState("");
 
-  const userId = authUser?.id ?? null;
+  if (!isReady) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!nome || !fenil || !userId) return;
+    if (!nome || !fenil) return;
 
     setLoading(true);
 
@@ -30,7 +30,7 @@ export default function CriarAlimento({
       const { error } = await supabase.from("referencias").insert({
         nome,
         fenil_mg_por_100g: parseFloat(fenil),
-        criado_por: userId,
+        criado_por: authUser!.id,
         is_global: false,
       });
 
@@ -44,8 +44,6 @@ export default function CriarAlimento({
       setLoading(false);
     }
   }
-
-  if (loadingAuth) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -71,7 +69,7 @@ export default function CriarAlimento({
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Ex: Maçã fuji"
+                placeholder="Ex: Maçã Fuji"
                 required
               />
             </div>
@@ -101,7 +99,7 @@ export default function CriarAlimento({
               </button>
               <button
                 type="submit"
-                disabled={loading || !userId}
+                disabled={loading}
                 className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {loading ? "Criando..." : "Criar Alimento"}

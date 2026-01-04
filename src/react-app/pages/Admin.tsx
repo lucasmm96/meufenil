@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
 import Layout from "@/react-app/components/Layout";
 import { Shield, Users, Database, AlertCircle, Upload, Download, FileText, HardDrive, Package } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useUser } from "@/hooks/useUser";
+import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 
 interface UsuarioAdmin {
   id: string;
@@ -37,62 +36,42 @@ type EstatisticasAdminRPC = {
   referencias_personalizadas: number;
 };
 
-type UserWithEmail = {
-  email?: string;
-};
-
 export default function AdminPage() {
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useUser();
+  const { authUser, isReady } = useProtectedPage();
 
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
-  const [perfilUsuario, setPerfilUsuario] = useState<UsuarioAdmin | null>(null);
+  const [perfilUsuario, setPerfilUsuario] =
+    useState<UsuarioAdmin | null>(null);
   const [estatisticasDB, setEstatisticasDB] =
     useState<EstatisticasDB | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [csvText, setCsvText] = useState("");
   const [importando, setImportando] = useState(false);
+  const [houveAtualizacoes, setHouveAtualizacoes] = useState(false);
   const [resultadoImportacao, setResultadoImportacao] = useState<{
     importados: number;
     erros: string[];
     total: number;
   } | null>(null);
 
+  const carregarAdmin = useCallback(async () => {
+    if (!authUser) return;
 
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
-      navigate("/", { replace: true });
-      return;
-    }
-
-    carregarAdmin(user.id);
-  }, [authLoading, user]);
-
-  async function carregarAdmin(userId: string) {
     try {
       setLoading(true);
 
-      /* Perfil */
       const { data: perfil, error: perfilError } = await supabase
         .from("usuarios")
         .select("*")
-        .eq("id", userId)
+        .eq("id", authUser.id)
         .single();
 
-      if (perfilError || !perfil) {
-        navigate("/dashboard", { replace: true });
-        return;
-      }
+      if (perfilError || !perfil) return;
 
       setPerfilUsuario(perfil);
 
-      if (perfil.role !== "admin") {
-        navigate("/dashboard", { replace: true });
-        return;
-      }
+      if (perfil.role !== "admin") return;
 
       const { data: usuariosData } = await supabase
         .from("usuarios")
@@ -101,11 +80,11 @@ export default function AdminPage() {
 
       setUsuarios(usuariosData || []);
 
-      const { data: stats, error: statsError } = await supabase
+      const { data: stats } = await supabase
         .rpc("get_estatisticas_admin")
         .single<EstatisticasAdminRPC>();
 
-      if (statsError || !stats) return;
+      if (!stats) return;
 
       const LIMITE_MB = 500;
       const percentual = Math.min(
@@ -127,27 +106,27 @@ export default function AdminPage() {
           percentual_usado: percentual,
         },
       });
+    } catch (e) {
+      console.error("Erro ao carregar painel admin:", e);
     } finally {
       setLoading(false);
     }
-  }
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    carregarAdmin();
+  }, [isReady, carregarAdmin]);
 
   const handleToggleRole = async (id: string, role: string) => {
-    const novoRole = role === "admin" ? "user" : "admin";
+    if (!authUser) return;
 
+    const novoRole = role === "admin" ? "user" : "admin";
     if (!confirm(`Alterar papel para ${novoRole}?`)) return;
 
-    await supabase
-      .from("usuarios")
-      .update({ role: novoRole })
-      .eq("id", id);
-
-    if (user) {
-      carregarAdmin(user.id);
-    }
+    await supabase.from("usuarios").update({ role: novoRole }).eq("id", id);
+    carregarAdmin();
   };
-
-  const [houveAtualizacoes, setHouveAtualizacoes] = useState(false);
 
   const handleImportarCsv = async () => {
     if (!csvText.trim()) return;
@@ -160,49 +139,29 @@ export default function AdminPage() {
     let importados = 0;
 
     try {
-      // Remove BOM e normaliza
       const texto = csvText.replace(/^\uFEFF/, "").trim();
-
-      const linhas = texto.split(/\r?\n/).filter(l => l.trim());
+      const linhas = texto.split(/\r?\n/).filter((l) => l.trim());
       if (linhas.length === 0) {
-        setResultadoImportacao({ importados: 0, erros: ["CSV vazio"], total: 0 });
+        setResultadoImportacao({
+          importados: 0,
+          erros: ["CSV vazio"],
+          total: 0,
+        });
         return;
       }
 
-      // Detecta separador automaticamente
       const separador = linhas[0].includes(";") ? ";" : ",";
+      const inicio = linhas[0].toLowerCase().includes("nome") ? 1 : 0;
 
-      // Remove cabeçalho se existir
-      const inicio = linhas[0].toLowerCase().includes("nome")
-        ? 1
-        : 0;
-
-      const registros: {
-        nome: string;
-        fenil_mg_por_100g: number;
-        is_global: boolean;
-        nome_normalizado?: string;
-      }[] = [];
+      const registros: any[] = [];
 
       for (let i = inicio; i < linhas.length; i++) {
-        const linha = linhas[i];
-        const [nomeRaw, fenilRaw] = linha.split(separador);
+        const [nomeRaw, fenilRaw] = linhas[i].split(separador);
+        const nome = nomeRaw?.trim();
+        const fenil = Number(fenilRaw?.replace(",", "."));
 
-        if (!nomeRaw || !fenilRaw) {
-          erros.push(`Linha ${i + 1}: formato inválido`);
-          continue;
-        }
-
-        const nome = nomeRaw.trim();
-        const fenil = Number(fenilRaw.replace(",", "."));
-
-        if (!nome) {
-          erros.push(`Linha ${i + 1}: nome vazio`);
-          continue;
-        }
-
-        if (isNaN(fenil) || fenil < 0) {
-          erros.push(`Linha ${i + 1}: valor de fenilalanina inválido`);
+        if (!nome || isNaN(fenil) || fenil < 0) {
+          erros.push(`Linha ${i + 1}: inválida`);
           continue;
         }
 
@@ -227,36 +186,21 @@ export default function AdminPage() {
         return;
       }
 
-      /**
-       * 🔍 DETECTA SE JÁ EXISTEM REGISTROS
-       */
-      const nomesNormalizados = registros.map(r => r.nome_normalizado!);
-
-      const { data: existentes, error: erroConsulta } = await supabase
+      const { data: existentes } = await supabase
         .from("referencias")
         .select("nome_normalizado")
-        .in("nome_normalizado", nomesNormalizados);
-
-      if (erroConsulta) {
-        throw erroConsulta;
-      }
+        .in(
+          "nome_normalizado",
+          registros.map((r) => r.nome_normalizado)
+        );
 
       if (existentes && existentes.length > 0) {
         setHouveAtualizacoes(true);
       }
 
-      /**
-       * UPSERT
-       */
-      const { error } = await supabase
-        .from("referencias")
-        .upsert(registros, {
-          onConflict: "nome_normalizado",
-        });
-
-      if (error) {
-        throw error;
-      }
+      await supabase.from("referencias").upsert(registros, {
+        onConflict: "nome_normalizado",
+      });
 
       importados = registros.length;
 
@@ -266,15 +210,12 @@ export default function AdminPage() {
         total: linhas.length - inicio,
       });
 
-      if (importados > 0) {
-        setCsvText("");
-      }
-    } catch (error: any) {
-      console.error("Erro ao importar CSV:", error);
-      erros.push("Erro inesperado ao importar CSV");
+      setCsvText("");
+    } catch (e) {
+      console.error("Erro ao importar CSV:", e);
       setResultadoImportacao({
         importados: 0,
-        erros,
+        erros: ["Erro inesperado ao importar CSV"],
         total: 0,
       });
     } finally {
@@ -283,32 +224,25 @@ export default function AdminPage() {
   };
 
   const handleBaixarModelo = () => {
-    const csvContent =
+    const csv =
       "\uFEFF" +
       "nome;fenil_mg_por_100g\n" +
       "Arroz branco cozido;80\n" +
-      "Feijão preto cozido;140\n" +
-      "Peito de frango;850\n";
+      "Feijão preto cozido;140\n";
 
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
     a.download = "modelo-referencias.csv";
-    document.body.appendChild(a);
     a.click();
-
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  if (authLoading || loading) {
+  if (!isReady || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
@@ -320,7 +254,7 @@ export default function AdminPage() {
         <div className="max-w-2xl mx-auto">
           <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-6 h-6 text-red-600 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900">Acesso Negado</h3>
                 <p className="text-sm text-red-700 mt-1">
@@ -334,9 +268,9 @@ export default function AdminPage() {
     );
   }
 
-  const totalUsuarios = usuarios.length;
   const totalAdmins = usuarios.filter((u) => u.role === "admin").length;
   const totalUsers = usuarios.filter((u) => u.role === "user").length;
+  const totalUsuarios = usuarios.length;
 
   return (
     <Layout>
@@ -545,10 +479,10 @@ export default function AdminPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
                         onClick={() => handleToggleRole(usuario.id, usuario.role)}
-                        disabled={usuario.email === (user as UserWithEmail | null)?.email}
-                        className={`font-medium ${usuario.email === user?.email
-                          ? "text-gray-400 cursor-not-allowed"
-                          : "text-indigo-600 hover:text-indigo-900"
+                        disabled={usuario.email === authUser?.email}
+                        className={`font-medium ${usuario.email === authUser?.email
+                            ? "text-gray-400 cursor-not-allowed"
+                            : "text-indigo-600 hover:text-indigo-900"
                           }`}
                       >
                         {usuario.role === "admin" ? "Remover Admin" : "Tornar Admin"}
