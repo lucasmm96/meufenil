@@ -3,7 +3,7 @@ import Layout from "@/react-app/components/Layout";
 import { Trash2, Calendar, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/react-app/lib/supabase";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 
 interface Registro {

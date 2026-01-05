@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/react-app/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
 
 import {

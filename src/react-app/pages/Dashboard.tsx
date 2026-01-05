@@ -7,7 +7,7 @@ import { Activity, TrendingUp, AlertCircle, Plus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/react-app/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { formatInTimeZone } from "date-fns-tz";
 

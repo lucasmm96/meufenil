@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Search, Plus } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/react-app/lib/supabase";
 import { formatInTimeZone } from "date-fns-tz";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useAuth } from "@/react-app/context/AuthContext";

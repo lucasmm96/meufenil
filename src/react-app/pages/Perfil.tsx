@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { User, Save, Shield, Download, Trash2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/react-app/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
 
 interface Usuario {

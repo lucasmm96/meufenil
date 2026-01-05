@@ -4,7 +4,7 @@ import { Activity, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/react-app/lib/supabase";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 

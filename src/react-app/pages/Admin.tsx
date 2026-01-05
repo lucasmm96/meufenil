@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Layout from "@/react-app/components/Layout";
 import { Shield, Users, Database, AlertCircle, Upload, Download, FileText, HardDrive, Package } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/react-app/lib/supabase";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 
 interface UsuarioAdmin {
