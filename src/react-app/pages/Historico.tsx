@@ -1,94 +1,49 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import Layout from "@/react-app/components/Layout";
 import { Trash2, Calendar, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/react-app/lib/supabase";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
-
-interface Registro {
-  id: string;
-  data: string;
-  peso_g: number;
-  fenil_mg: number;
-  created_at: string;
-  nome_alimento: string;
-}
+import { useRegistros } from "@/react-app/hooks/useRegistros";
 
 export default function HistoricoPage() {
   const { authUser, isReady } = useProtectedPage();
 
-  const [registros, setRegistros] = useState<Registro[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
-  const loadRegistros = useCallback(async () => {
-    setLoading(true);
+  const [dataInicioTemp, setDataInicioTemp] = useState("");
+  const [dataFimTemp, setDataFimTemp] = useState("");
 
-    try {
-      let query = supabase
-        .from("registros")
-        .select(`
-          id,
-          data,
-          peso_g,
-          fenil_mg,
-          created_at,
-          referencias!inner ( nome )
-        `)
-        .eq("usuario_id", authUser!.id)
-        .order("data", { ascending: false });
-
-      if (dataInicio) query = query.gte("data", dataInicio);
-      if (dataFim) query = query.lte("data", dataFim);
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      setRegistros(
-        (data ?? []).map((r: any) => {
-          const referencia =
-          Array.isArray(r.referencias)
-            ? r.referencias[0]
-            : r.referencias;
-
-          return {
-            id: r.id,
-            data: r.data,
-            peso_g: r.peso_g,
-            fenil_mg: r.fenil_mg,
-            created_at: r.created_at,
-            nome_alimento: referencia?.nome ?? "Alimento removido",
-          };
-        })
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [authUser?.id, dataInicio, dataFim]);
-
-
-  useEffect(() => {
-    if (!isReady) return;
-    loadRegistros();
-  }, [isReady, loadRegistros]);
+  const { data: registros = [], loading, remove } = useRegistros(
+    isReady && authUser
+      ? {
+          usuarioId: authUser.id,
+          dataInicio,
+          dataFim,
+        }
+      : undefined
+  );
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este registro?")) return;
+    await remove(id);
+  };
 
-    const { error } = await supabase
-      .from("registros")
-      .delete()
-      .eq("id", id);
+  const aplicarFiltros = () => {
+    setDataInicio(dataInicioTemp);
+    setDataFim(dataFimTemp);
+  };
 
-    if (!error) {
-      loadRegistros();
-    }
+  const limparFiltros = () => {
+    setDataInicio("");
+    setDataFim("");
+    setDataInicioTemp("");
+    setDataFimTemp("");
   };
 
   const agrupadosPorData = useMemo(() => {
-    return registros.reduce<Record<string, Registro[]>>((acc, r) => {
+    return registros.reduce<Record<string, typeof registros>>((acc, r) => {
       if (!acc[r.data]) acc[r.data] = [];
       acc[r.data].push(r);
       return acc;
@@ -108,7 +63,9 @@ export default function HistoricoPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Histórico</h1>
-          <p className="text-gray-600 mt-1">Todos os seus registros de consumo</p>
+          <p className="text-gray-600 mt-1">
+            Todos os seus registros de consumo
+          </p>
         </div>
 
         {/* Filtros */}
@@ -125,35 +82,42 @@ export default function HistoricoPage() {
               </label>
               <input
                 type="date"
-                value={dataInicio}
-                onChange={(e) => setDataInicio(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={dataInicioTemp}
+                onChange={(e) => setDataInicioTemp(e.target.value)}
+                className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Data Fim
               </label>
               <input
                 type="date"
-                value={dataFim}
-                onChange={(e) => setDataFim(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={dataFimTemp}
+                onChange={(e) => setDataFimTemp(e.target.value)}
+                className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
-          {(dataInicio || dataFim) && (
+          <div className="flex gap-4 mt-4">
             <button
-              onClick={() => {
-                setDataInicio("");
-                setDataFim("");
-              }}
-              className="mt-4 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              onClick={aplicarFiltros}
+              className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700"
             >
-              Limpar filtros
+              Aplicar filtros
             </button>
-          )}
+
+            {(dataInicio || dataFim) && (
+              <button
+                onClick={limparFiltros}
+                className="mt-4 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
         </div>
 
         {Object.keys(agrupadosPorData).length === 0 ? (
@@ -163,7 +127,7 @@ export default function HistoricoPage() {
               Nenhum registro encontrado
             </h3>
             <p className="text-gray-600">
-              Comece adicionando seus primeiros registros na página do Dashboard
+              Comece adicionando seus primeiros registros no Dashboard
             </p>
           </div>
         ) : (
@@ -192,7 +156,9 @@ export default function HistoricoPage() {
                         </h3>
                         <p className="text-sm text-gray-500 mt-1">
                           {regs.length}{" "}
-                          {regs.length === 1 ? "registro" : "registros"}
+                          {regs.length === 1
+                            ? "registro"
+                            : "registros"}
                         </p>
                       </div>
                       <div className="text-right">
@@ -207,7 +173,7 @@ export default function HistoricoPage() {
                       {regs.map((r) => (
                         <div
                           key={r.id}
-                          className="flex justify-between items-center mt-3 bg-gray-50 p-4 rounded-xl"
+                          className="flex justify-between items-center bg-gray-50 p-4 rounded-xl"
                         >
                           <div>
                             <p className="font-semibold">{r.nome_alimento}</p>
@@ -217,7 +183,7 @@ export default function HistoricoPage() {
                           </div>
                           <button
                             onClick={() => handleDelete(r.id)}
-                            className="ml-4 w-10 h-10 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors"
+                            className="ml-4 w-10 h-10 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600"
                           >
                             <Trash2 className="w-5 h-5" />
                           </button>

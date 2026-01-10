@@ -7,40 +7,24 @@ import { Activity, TrendingUp, AlertCircle, Plus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/react-app/lib/supabase";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { formatInTimeZone } from "date-fns-tz";
+import { useDashboard } from "@/react-app/hooks/useDashboard";
+import { updateConsentimentoLGPD } from "@/react-app/services/dashboard.service";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
   return new Date(y, m - 1, d);
 };
 
-interface Usuario {
-  id: string;
-  limite_diario_mg: number;
-  consentimento_lgpd_em: string | null;
-  timezone: string;
-}
-
-interface DashboardHoje {
-  total: number;
-  limite: number;
-  data: string;
-}
-
-interface GraficoData {
-  data: string;
-  total: number;
-}
-
 export default function DashboardPage() {
   const { authUser, loadingAuth } = useAuth();
 
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [hoje, setHoje] = useState<DashboardHoje | null>(null);
-  const [grafico, setGrafico] = useState<GraficoData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: dashboard,
+    loading,
+    reload,
+  } = useDashboard(authUser?.id);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
@@ -50,90 +34,7 @@ export default function DashboardPage() {
     if (!authUser) window.location.href = "/";
   }, [loadingAuth, authUser]);
 
-  useEffect(() => {
-    if (!authUser) return;
-    loadDashboard(authUser.id);
-  }, [authUser]);
-
-  const loadDashboard = async (userId: string) => {
-    setLoading(true);
-
-    try {
-      const { data: perfil, error } = await supabase
-        .from("usuarios")
-        .select("id, limite_diario_mg, consentimento_lgpd_em, timezone")
-        .eq("id", userId)
-        .single();
-
-      if (error || !perfil) {
-        console.error("[Dashboard] erro perfil", error);
-        return;
-      }
-
-      const hojeStr = formatInTimeZone(new Date(), perfil.timezone, "yyyy-MM-dd");
-
-      const { data: registrosHoje, error: erroHoje } = await supabase
-        .from("registros")
-        .select("fenil_mg")
-        .eq("usuario_id", userId)
-        .eq("data", hojeStr);
-
-      if (erroHoje) {
-        console.error("[Dashboard] erro registros hoje", erroHoje);
-        return;
-      }
-
-      const totalHoje = registrosHoje?.reduce((acc, r) => acc + (r.fenil_mg ?? 0), 0) ?? 0;
-
-      const inicio = formatInTimeZone(subDays(new Date(), 6), perfil.timezone, "yyyy-MM-dd");
-
-      const { data: registrosGrafico, error: erroGrafico } = await supabase
-          .from("registros")
-          .select("data, fenil_mg")
-          .eq("usuario_id", userId)
-          .gte("data", inicio);
-
-      if (erroGrafico) {
-        console.error("[Dashboard] erro gráfico", erroGrafico);
-        return;
-      }
-
-      const mapa: Record<string, number> = {};
-      registrosGrafico?.forEach((r) => {
-        mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
-      });
-
-      const graficoData = Object.keys(mapa)
-        .sort()
-        .map((data) => ({
-          data,
-          total: mapa[data],
-        }));
-
-      setUsuario(perfil);
-      setHoje({
-        total: totalHoje,
-        limite: perfil.limite_diario_mg,
-        data: hojeStr,
-      });
-      setGrafico(graficoData);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConsentimento = async () => {
-    if (!usuario) return;
-
-    await supabase
-      .from("usuarios")
-      .update({ consentimento_lgpd_em: new Date().toISOString() })
-      .eq("id", usuario.id);
-
-    loadDashboard(usuario.id);
-  };
-
-  if (loading || loadingAuth || !usuario || !hoje) {
+  if (loading || loadingAuth || !dashboard) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
@@ -141,8 +42,15 @@ export default function DashboardPage() {
     );
   }
 
+  const { usuario, hoje, grafico } = dashboard;
+
   const percentual = (hoje.total / hoje.limite) * 100;
   const ultrapassou = hoje.total > hoje.limite;
+
+  const handleConsentimento = async () => {
+    await updateConsentimentoLGPD(usuario.id);
+    reload();
+  };
 
   return (
     <Layout>
@@ -152,7 +60,7 @@ export default function DashboardPage() {
         <AdicionarRegistro
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
-            loadDashboard(usuario.id);
+            reload();
             setShowAddModal(false);
           }}
         />
@@ -165,7 +73,7 @@ export default function DashboardPage() {
         />
       )}
 
-            <div className="space-y-6">
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>

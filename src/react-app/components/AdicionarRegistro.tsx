@@ -1,15 +1,11 @@
 import { useState, useEffect } from "react";
 import { X, Search, Plus } from "lucide-react";
-import { supabase } from "@/react-app/lib/supabase";
 import { formatInTimeZone } from "date-fns-tz";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useAuth } from "@/react-app/context/AuthContext";
-
-interface Referencia {
-  id: string;
-  nome: string;
-  fenil_mg_por_100g: number;
-}
+import { useReferencias } from "@/react-app/hooks/useReferencias";
+import { useCreateRegistro } from "@/react-app/hooks/useCreateRegistro";
+import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
 
 interface AdicionarRegistroProps {
   onClose: () => void;
@@ -21,31 +17,38 @@ export default function AdicionarRegistro({
   onSuccess,
 }: AdicionarRegistroProps) {
   const { authUser, isReady } = useProtectedPage();
-  const { timezone } = useAuth(); // timezone é estado global, não auth gate
+  const { timezone } = useAuth();
 
-  const [referencias, setReferencias] = useState<Referencia[]>([]);
   const [search, setSearch] = useState("");
   const [selectedReferencia, setSelectedReferencia] =
-    useState<Referencia | null>(null);
+    useState<ReferenciaDTO | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [pesoG, setPesoG] = useState("");
   const [data, setData] = useState("");
-  const [loading, setLoading] = useState(false);
   const [showNovaReferencia, setShowNovaReferencia] = useState(false);
   const [novaRefNome, setNovaRefNome] = useState("");
   const [novaRefFenil, setNovaRefFenil] = useState("");
+
+  const {
+    data: referencias,
+    loading: referenciasLoading,
+    search: searchReferencias,
+    create: createReferencia,
+  } = useReferencias(authUser!.id);
+
+  const registro = useCreateRegistro();
+
+  const loading = registro.loading || referenciasLoading;
 
   if (!isReady) return null;
 
   useEffect(() => {
     if (!timezone) return;
-
-    const hoje = formatInTimeZone(new Date(), timezone, "yyyy-MM-dd");
-    setData(hoje);
+    setData(formatInTimeZone(new Date(), timezone, "yyyy-MM-dd"));
   }, [timezone]);
 
   useEffect(() => {
-    loadReferencias("");
+    searchReferencias("");
   }, []);
 
   useEffect(() => {
@@ -55,90 +58,50 @@ export default function AdicionarRegistro({
     }
 
     const t = setTimeout(() => {
-      loadReferencias(search);
+      searchReferencias(search);
       setShowDropdown(true);
     }, 300);
 
     return () => clearTimeout(t);
-  }, [search]);
-
-  async function loadReferencias(searchTerm: string) {
-    const filter = searchTerm ? `%${searchTerm}%` : `%`;
-
-    const { data, error } = await supabase
-      .from("referencias")
-      .select("id, nome, fenil_mg_por_100g")
-      .or(`is_global.eq.true,criado_por.eq.${authUser!.id}`)
-      .ilike("nome", filter)
-      .order("nome");
-
-    if (error) {
-      console.error("Erro ao carregar referências:", error);
-      return;
-    }
-
-    setReferencias(data ?? []);
-  }
+  }, [search, searchReferencias]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedReferencia || !pesoG || !data || !timezone) return;
 
-    setLoading(true);
+    const fenil_mg =
+      (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
 
-    try {
-      const fenil_mg =
-        (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
+    const dataTimestamp = formatInTimeZone(
+      new Date(`${data}T00:00:00`),
+      timezone,
+      "yyyy-MM-dd'T'HH:mm:ssXXX"
+    );
 
-      const dataTimestamp = formatInTimeZone(
-        new Date(`${data}T00:00:00`),
-        timezone,
-        "yyyy-MM-dd'T'HH:mm:ssXXX"
-      );
+    await registro.create({
+      usuarioId: authUser!.id,
+      referenciaId: selectedReferencia.id,
+      data: dataTimestamp,
+      peso_g: Number(pesoG),
+      fenil_mg,
+    });
 
-      const { error } = await supabase.from("registros").insert({
-        data: dataTimestamp,
-        usuario_id: authUser!.id,
-        referencia_id: selectedReferencia.id,
-        peso_g: Number(pesoG),
-        fenil_mg,
-      });
-
-      if (!error) {
-        onSuccess();
-      } else {
-        console.error("Erro ao salvar registro:", error);
-      }
-    } finally {
-      setLoading(false);
-    }
+    onSuccess();
   }
 
   async function handleNovaReferencia(e: React.FormEvent) {
     e.preventDefault();
     if (!novaRefNome || !novaRefFenil) return;
 
-    setLoading(true);
+    const ref = await createReferencia(
+      novaRefNome,
+      Number(novaRefFenil)
+    );
 
-    const { data, error } = await supabase
-      .from("referencias")
-      .insert({
-        nome: novaRefNome,
-        fenil_mg_por_100g: Number(novaRefFenil),
-        criado_por: authUser!.id,
-        is_global: false,
-      })
-      .select()
-      .single();
-
-    setLoading(false);
-
-    if (!error && data) {
-      setSelectedReferencia(data);
-      setSearch(data.nome);
-      setShowNovaReferencia(false);
-      loadReferencias("");
-    }
+    setSelectedReferencia(ref);
+    setSearch(ref.nome);
+    setShowNovaReferencia(false);
+    searchReferencias("");
   }
 
   const fenilCalculada =
