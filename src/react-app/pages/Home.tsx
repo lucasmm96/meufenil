@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Activity, Vegan, BarChart3, FileText, Shield, Heart, Linkedin, Mail } from "lucide-react";
 import { useAuth } from "@/react-app/context/AuthContext";
@@ -8,6 +9,10 @@ export default function HomePage() {
   const { authUser, loadingAuth } = useAuth();
   const { signInWithGoogle } = useUser();
 
+  useEffect(() => {
+    if (!loadingAuth && authUser) navigate("/dashboard", { replace: true });
+  }, [authUser, loadingAuth, navigate]);
+
   if (loadingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -16,10 +21,7 @@ export default function HomePage() {
     );
   }
 
-  if (authUser) {
-    navigate("/dashboard", { replace: true });
-    return null;
-  }
+  if (authUser) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
