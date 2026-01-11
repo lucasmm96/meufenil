@@ -4,89 +4,37 @@ import { Activity, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/react-app/lib/supabase";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
-
-interface ExamePKU {
-  id: string;
-  usuario_id: string;
-  data_exame: string;
-  resultado_mg_dl: number;
-  created_at: string;
-}
+import { useExames } from "@/react-app/hooks/useExames";
 
 export default function ExamesPage() {
   const { authUser, isReady } = useProtectedPage();
 
-  const [exames, setExames] = useState<ExamePKU[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    exames,
+    timezone,
+    loading,
+    criar,
+    remover,
+  } = useExames(authUser?.id);
+
   const [showModal, setShowModal] = useState(false);
   const [dataExame, setDataExame] = useState("");
   const [resultadoMgDl, setResultadoMgDl] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const [perfilUsuario, setPerfilUsuario] = useState<{
-    timezone: string;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!isReady || !authUser) return;
-
-    carregarPerfil(authUser.id);
-    loadExames(authUser.id);
-  }, [isReady, authUser]);
-
-  const carregarPerfil = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("timezone")
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      console.error("Erro ao carregar timezone:", error);
-      return;
-    }
-
-    setPerfilUsuario(data);
-  };
-
-  const userTimezone = perfilUsuario?.timezone ?? "America/Sao_Paulo";
 
   useEffect(() => {
     if (!showModal) return;
 
     const hojeNoFusoDoUsuario = formatInTimeZone(
       new Date(),
-      userTimezone,
+      timezone,
       "yyyy-MM-dd"
     );
 
     setDataExame(hojeNoFusoDoUsuario);
-  }, [showModal, userTimezone]);
-
-  const loadExames = async (userId: string) => {
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("exames_pku")
-        .select("*")
-        .eq("usuario_id", userId)
-        .order("data_exame", { ascending: false });
-
-      if (error) {
-        console.error("Erro ao carregar exames:", error);
-        setExames([]);
-        return;
-      }
-
-      setExames(data ?? []);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [showModal, timezone]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,24 +48,16 @@ export default function ExamesPage() {
     try {
       const utcDate = zonedTimeToUtc(
         `${dataExame}T00:00:00`,
-        userTimezone
+        timezone
       );
 
-      const { error } = await supabase.from("exames_pku").insert({
-        usuario_id: authUser.id,
-        data_exame: utcDate.toISOString(),
-        resultado_mg_dl: valor,
+      await criar({
+        dataISO: utcDate.toISOString(),
+        resultado: valor,
       });
-
-      if (error) {
-        console.error("Erro ao adicionar exame:", error);
-        alert("Erro ao salvar exame");
-        return;
-      }
 
       setShowModal(false);
       setResultadoMgDl("");
-      loadExames(authUser.id);
     } finally {
       setSubmitting(false);
     }
@@ -127,15 +67,7 @@ export default function ExamesPage() {
     if (!authUser) return;
     if (!confirm("Tem certeza que deseja excluir este exame?")) return;
 
-    const { error } = await supabase
-      .from("exames_pku")
-      .delete()
-      .eq("id", id)
-      .eq("usuario_id", authUser.id);
-
-    if (!error) {
-      loadExames(authUser.id);
-    }
+    await remover(id);
   };
 
   if (!isReady || loading) {
@@ -152,7 +84,7 @@ export default function ExamesPage() {
   const tendencia =
     ultimoExame && penultimoExame
       ? ultimoExame.resultado_mg_dl -
-        penultimoExame.resultado_mg_dl
+      penultimoExame.resultado_mg_dl
       : 0;
 
   const graficoData = examesOrdenados.map((e) => ({
@@ -191,11 +123,7 @@ export default function ExamesPage() {
                     {ultimoExame.resultado_mg_dl.toFixed(1)} mg/dL
                   </p>
                   <p className="text-sm text-gray-600">
-                    {ultimoExame && (
-                      <span>
-                        {format(parseISO(ultimoExame.data_exame), "dd/MM/yyyy")}
-                      </span>
-                    )}
+                    {format(parseISO(ultimoExame.data_exame), "dd/MM/yyyy")}
                   </p>
                 </div>
               </div>
@@ -215,11 +143,11 @@ export default function ExamesPage() {
                       <span className="text-sm font-medium text-gray-500">Variação</span>
                     </div>
                     <div className="space-y-2">
-                      <p className={`text-3xl font-bold ${tendencia <= 0 
-                        ? 'text-green-600' 
+                      <p className={`text-3xl font-bold ${tendencia <= 0
+                        ? 'text-green-600'
                         : 'text-orange-600'
                         }`}
-                        >
+                      >
                         {tendencia > 0 ? '+' : ''}
                         {tendencia.toFixed(1)} mg/dL
                       </p>
