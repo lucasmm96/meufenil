@@ -1,105 +1,40 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { Download, TrendingUp, Calendar } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { supabase } from "@/react-app/lib/supabase";
-import { useAuth } from "@/react-app/context/AuthContext";
-import { formatInTimeZone } from "date-fns-tz";
+import { useState } from "react";
+import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
+import { useEstatisticas } from "@/react-app/hooks/useEstatisticas";
+import { PeriodoEstatisticas } from "@/react-app/services/dtos/estatisticas.dto";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
   return new Date(y, m - 1, d);
 };
 
-interface Registro {
-  data: string;
-  total: number;
-}
-
-interface Usuario {
-  id: string;
-  timezone: string;
-}
-
 export default function EstatisticasPage() {
-  const navigate = useNavigate();
-  const { authUser, loadingAuth } = useAuth();
+  const { authUser, isReady } = useProtectedPage();
+  const [periodo, setPeriodo] = useState<PeriodoEstatisticas>("semana");
 
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [registros, setRegistros] = useState<Registro[]>([]);
-  const [periodo, setPeriodo] = useState<"semana" | "mes">("semana");
-  const [loading, setLoading] = useState(true);
+  const { data, loading } = useEstatisticas(
+    isReady && authUser
+      ? {
+          usuarioId: authUser.id,
+          periodo,
+        }
+      : undefined
+  );
 
-  useEffect(() => {
-    if (!loadingAuth && !authUser) {
-      navigate("/", { replace: true });
-    }
-  }, [loadingAuth, authUser, navigate]);
+  if (!isReady || loading || !data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (!authUser) return;
-    loadUsuario(authUser.id);
-  }, [authUser]);
-
-  useEffect(() => {
-    if (!usuario) return;
-    loadEstatisticas(usuario);
-  }, [usuario, periodo]);
-
-  const loadUsuario = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("id, timezone")
-      .eq("id", userId)
-      .single();
-
-    if (error || !data) {
-      console.error("[Estatisticas] erro usuario", error);
-      return;
-    }
-
-    setUsuario(data);
-  };
-
-  const loadEstatisticas = async (user: Usuario) => {
-    setLoading(true);
-
-    try {
-      const dias = periodo === "semana" ? 7 : 30;
-      const inicio = formatInTimeZone(subDays(new Date(), dias - 1), user.timezone, "yyyy-MM-dd");
-
-      const { data: registrosDB, error } = await supabase
-        .from("registros")
-        .select("data, fenil_mg")
-        .eq("usuario_id", user.id)
-        .gte("data", inicio);
-
-      if (error) {
-        console.error("[Estatisticas] erro registros", error);
-        return;
-      }
-
-      const mapa: Record<string, number> = {};
-
-      registrosDB?.forEach((r) => {
-        mapa[r.data] = (mapa[r.data] ?? 0) + (r.fenil_mg ?? 0);
-      });
-
-      const resultado: Registro[] = Object.keys(mapa)
-        .sort()
-        .map((data) => ({
-          data,
-          total: mapa[data],
-        }));
-
-      setRegistros(resultado);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { registros, totalConsumo, mediaConsumo, maiorConsumo } = data;
 
   const downloadFile = (content: string, filename: string, type: string) => {
     const blob = new Blob([content], { type });
@@ -135,18 +70,6 @@ export default function EstatisticasPage() {
       "application/json"
     );
   };
-
-  if (loading || loadingAuth || !usuario) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
-    );
-  }
-
-  const totalConsumo = registros.reduce((sum, r) => sum + r.total, 0);
-  const mediaConsumo = registros.length > 0 ? totalConsumo / registros.length : 0;
-  const maiorConsumo = Math.max(...registros.map((r) => r.total), 0);
 
   return (
     <Layout>
@@ -265,7 +188,7 @@ export default function EstatisticasPage() {
                     boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                   }}
                   labelFormatter={(value) =>
-                    format(parseLocalDate(value), "dd 'de' MMMM", { locale: ptBR })
+                    format(parseLocalDate(value as string), "dd 'de' MMMM", { locale: ptBR })
                   }
                   formatter={(value: number) => [`${value.toFixed(1)} mg`, "Fenilalanina"]}
                 />
