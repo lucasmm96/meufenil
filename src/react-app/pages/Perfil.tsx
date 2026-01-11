@@ -2,98 +2,41 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { User, Save, Shield, Download, Trash2 } from "lucide-react";
+import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
+import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { supabase } from "@/react-app/lib/supabase";
-import { useAuth } from "@/react-app/context/AuthContext";
-
-interface Usuario {
-  id: string;
-  nome: string | null;
-  email: string | null;
-  role: string;
-  limite_diario_mg: number;
-  timezone: string;
-  consentimento_lgpd_em: string | null;
-}
 
 export default function PerfilPage() {
   const navigate = useNavigate();
-  const { authUser, loadingAuth } = useAuth();
+  const { authUser, isReady } = useProtectedPage();
 
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const {
+    perfil,
+    loading,
+    saving,
+    salvar,
+  } = usePerfil(authUser?.id);
+
   const [nome, setNome] = useState("");
   const [limiteDiario, setLimiteDiario] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!loadingAuth && !authUser) {
-      navigate("/", { replace: true });
+    if (perfil) {
+      setNome(perfil.nome ?? "");
+      setLimiteDiario(perfil.limite_diario_mg.toString());
     }
-  }, [loadingAuth, authUser, navigate]);
-
-  useEffect(() => {
-    if (!authUser) return;
-    loadPerfil(authUser.id);
-  }, [authUser]);
-
-  const loadPerfil = async (userId: string) => {
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("usuarios")
-        .select(`
-          id,
-          nome,
-          email,
-          role,
-          limite_diario_mg,
-          timezone,
-          consentimento_lgpd_em
-        `)
-        .eq("id", userId)
-        .single();
-
-      if (error || !data) {
-        console.error("Erro ao carregar perfil:", error);
-        return;
-      }
-
-      setUsuario(data);
-      setNome(data.nome ?? "");
-      setLimiteDiario(data.limite_diario_mg.toString());
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [perfil]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authUser) return;
+    if (!perfil) return;
 
-    setSaving(true);
+    await salvar({
+      nome,
+      limite_diario_mg: Number(limiteDiario),
+    });
 
-    try {
-      const { error } = await supabase
-        .from("usuarios")
-        .update({
-          nome,
-          limite_diario_mg: Number(limiteDiario),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", authUser.id);
-
-      if (error) {
-        console.error("Erro ao salvar perfil:", error);
-        alert("Erro ao salvar perfil");
-        return;
-      }
-
-      alert("Perfil atualizado com sucesso!");
-      loadPerfil(authUser.id);
-    } finally {
-      setSaving(false);
-    }
+    alert("Perfil atualizado com sucesso!");
   };
 
   const handleExportarTudo = async () => {
@@ -103,7 +46,7 @@ export default function PerfilPage() {
     }
 
     try {
-      const { data: perfil, error: perfilError } = await supabase
+      const { data: perfilData, error: perfilError } = await supabase
         .from("usuarios")
         .select("*")
         .eq("id", authUser.id)
@@ -127,7 +70,7 @@ export default function PerfilPage() {
       if (registrosError) throw registrosError;
 
       const exportData = {
-        usuario: perfil,
+        usuario: perfilData,
         registros,
         exportado_em: new Date().toISOString(),
         versao: "1.0",
@@ -136,7 +79,7 @@ export default function PerfilPage() {
       const blob = new Blob(
         [JSON.stringify(exportData, null, 2)],
         { type: "application/json" }
-    );
+      );
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -151,7 +94,7 @@ export default function PerfilPage() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Erro ao exportar dados:", err);
-      alert("Erro ao exportar dados: " + (err?.message ?? err));
+      alert("Erro ao exportar dados");
     }
   };
 
@@ -167,15 +110,15 @@ export default function PerfilPage() {
     }
 
     try {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
+      const { data: sessionData } =
+      await supabase.auth.getSession();
+      
+      const accessToken = sessionData?.session?.access_token;
 
-      if (sessionError || !sessionData.session) {
+      if (!accessToken) {
         alert("Usuário não autenticado");
         return;
       }
-
-      const accessToken = sessionData.session.access_token;
 
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`,
@@ -194,7 +137,6 @@ export default function PerfilPage() {
       };
 
       if (!res.ok) {
-        console.error("Erro ao excluir conta:", data);
         alert("Erro ao excluir conta: " + (data.error ?? "Erro desconhecido"));
         return;
       }
@@ -208,7 +150,7 @@ export default function PerfilPage() {
     }
   };
 
-  if (loadingAuth || loading) {
+  if (!isReady || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
@@ -216,7 +158,7 @@ export default function PerfilPage() {
     );
   }
 
-  if (!usuario) return null;
+  if (!perfil) return null;
 
   return (
     <Layout>
@@ -246,7 +188,7 @@ export default function PerfilPage() {
             <div>
               <label className="block text-sm font-medium mb-1">E-mail</label>
               <input
-                value={usuario.email ?? ""}
+                value={perfil.email ?? ""}
                 disabled
                 className="w-full px-4 py-3 rounded-xl border bg-gray-100"
               />
@@ -283,12 +225,10 @@ export default function PerfilPage() {
             <h2 className="text-xl font-bold">Privacidade e Dados</h2>
           </div>
 
-          {usuario.consentimento_lgpd_em && (
+          {perfil.consentimento_lgpd_em && (
             <p className="text-sm text-green-700 mb-4">
               ✓ Consentimento LGPD em{" "}
-              {new Date(usuario.consentimento_lgpd_em).toLocaleDateString(
-                "pt-BR"
-                )}
+              {new Date(perfil.consentimento_lgpd_em).toLocaleDateString("pt-BR")}
             </p>
           )}
 

@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import {getExamesPKU, createExamePKU, deleteExamePKU} from "@/react-app/services/exames.service";
-import { getPerfilUsuario } from "@/react-app/services/usuarios.service";
 import { ExameDTO } from "@/react-app/services/dtos/exames.dto";
+import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { AppError } from "@/react-app/lib/errors";
 import { logger } from "@/react-app/lib/logger";
 
 export function useExames(usuarioId?: string) {
   const [exames, setExames] = useState<ExameDTO[]>([]);
-  const [timezone, setTimezone] = useState("America/Sao_Paulo");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<AppError | null>(null);
+
+  const { perfil } = usePerfil(usuarioId);
+
+  const timezone = perfil?.timezone ?? "America/Sao_Paulo";
 
   const load = useCallback(async () => {
     if (!usuarioId) {
@@ -21,12 +24,7 @@ export function useExames(usuarioId?: string) {
       setLoading(true);
       setError(null);
 
-      const [perfil, examesData] = await Promise.all([
-        getPerfilUsuario(usuarioId),
-        getExamesPKU(usuarioId),
-      ]);
-
-      setTimezone(perfil.timezone);
+      const examesData = await getExamesPKU(usuarioId);
       setExames(examesData);
     } catch (err) {
       const appError =
