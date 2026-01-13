@@ -1,250 +1,76 @@
-import { useEffect, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import Layout from "@/react-app/components/Layout";
-import { Shield, Users, Database, AlertCircle, Upload, Download, FileText, HardDrive, Package } from "lucide-react";
-import { supabase } from "@/react-app/lib/supabase";
-import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
+import { Users, Shield, HardDrive, FileText, Package, Database, Download, Upload, AlertCircle } from "lucide-react";
+import { useAuth } from "@/react-app/context/AuthContext";
+import { useAdmin } from "@/react-app/hooks/useAdmin";
+import { ResultadoImportacaoDTO } from "@/react-app/services/dtos/admin.dto";
 
-interface UsuarioAdmin {
-  id: string;
-  nome: string;
-  email: string;
-  role: "user" | "admin";
-  limite_diario_mg: number;
-  created_at: string;
-}
+export default function Admin() {
+  const { authUser } = useAuth();
+  const {
+    perfilUsuario,
+    usuarios,
+    estatisticasDB,
+    loading,
+    toggleRole,
+    importarReferencias,
+  } = useAdmin(authUser?.id);
 
-interface EstatisticasDB {
-  usuarios: number;
-  referencias: {
-    total: number;
-    globais: number;
-    personalizadas: number;
-  };
-  registros: number;
-  armazenamento: {
-    estimado_mb: number;
-    limite_gratuito_mb: number;
-    percentual_usado: number;
-  };
-}
-
-type EstatisticasAdminRPC = {
-  tamanho_db_mb: number;
-  registros_totais: number;
-  referencias_total: number;
-  referencias_globais: number;
-  referencias_personalizadas: number;
-};
-
-export default function AdminPage() {
-  const { authUser, isReady } = useProtectedPage();
-
-  const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
-  const [perfilUsuario, setPerfilUsuario] =
-    useState<UsuarioAdmin | null>(null);
-  const [estatisticasDB, setEstatisticasDB] =
-    useState<EstatisticasDB | null>(null);
-
-  const [loading, setLoading] = useState(true);
   const [csvText, setCsvText] = useState("");
   const [importando, setImportando] = useState(false);
-  const [houveAtualizacoes, setHouveAtualizacoes] = useState(false);
-  const [resultadoImportacao, setResultadoImportacao] = useState<{
-    importados: number;
-    erros: string[];
-    total: number;
-  } | null>(null);
+  const [resultadoImportacao, setResultadoImportacao] =
+    useState<ResultadoImportacaoDTO | null>(null);
 
-  const carregarAdmin = useCallback(async () => {
-    if (!authUser) return;
+  const totalUsuarios = usuarios.length;
 
+  const totalAdmins = useMemo(
+    () => usuarios.filter((u) => u.role === "admin").length,
+    [usuarios],
+  );
+
+  const totalUsers = totalUsuarios - totalAdmins;
+
+  const houveAtualizacoes = resultadoImportacao?.houveAtualizacoes ?? false;
+
+  async function handleToggleRole(
+    id: string,
+    roleAtual: "admin" | "user",
+  ) {
+    await toggleRole(id, roleAtual);
+  }
+
+  async function handleImportarCsv() {
     try {
-      setLoading(true);
+      setImportando(true);
+      setResultadoImportacao(null);
 
-      const { data: perfil, error: perfilError } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("id", authUser.id)
-        .single();
-
-      if (perfilError || !perfil) return;
-
-      setPerfilUsuario(perfil);
-
-      if (perfil.role !== "admin") return;
-
-      const { data: usuariosData } = await supabase
-        .from("usuarios")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      setUsuarios(usuariosData || []);
-
-      const { data: stats } = await supabase
-        .rpc("get_estatisticas_admin")
-        .single<EstatisticasAdminRPC>();
-
-      if (!stats) return;
-
-      const LIMITE_MB = 500;
-      const percentual = Math.min(
-        (stats.tamanho_db_mb / LIMITE_MB) * 100,
-        100
-      );
-
-      setEstatisticasDB({
-        usuarios: usuariosData?.length || 0,
-        registros: stats.registros_totais,
-        referencias: {
-          total: stats.referencias_total,
-          globais: stats.referencias_globais,
-          personalizadas: stats.referencias_personalizadas,
-        },
-        armazenamento: {
-          estimado_mb: stats.tamanho_db_mb,
-          limite_gratuito_mb: LIMITE_MB,
-          percentual_usado: percentual,
-        },
-      });
-    } catch (e) {
-      console.error("Erro ao carregar painel admin:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [authUser]);
-
-  useEffect(() => {
-    if (!isReady) return;
-    carregarAdmin();
-  }, [isReady, carregarAdmin]);
-
-  const handleToggleRole = async (id: string, role: string) => {
-    if (!authUser) return;
-
-    const novoRole = role === "admin" ? "user" : "admin";
-    if (!confirm(`Alterar papel para ${novoRole}?`)) return;
-
-    await supabase.from("usuarios").update({ role: novoRole }).eq("id", id);
-    carregarAdmin();
-  };
-
-  const handleImportarCsv = async () => {
-    if (!csvText.trim()) return;
-
-    setImportando(true);
-    setResultadoImportacao(null);
-    setHouveAtualizacoes(false);
-
-    const erros: string[] = [];
-    let importados = 0;
-
-    try {
-      const texto = csvText.replace(/^\uFEFF/, "").trim();
-      const linhas = texto.split(/\r?\n/).filter((l) => l.trim());
-      if (linhas.length === 0) {
-        setResultadoImportacao({
-          importados: 0,
-          erros: ["CSV vazio"],
-          total: 0,
-        });
-        return;
-      }
-
-      const separador = linhas[0].includes(";") ? ";" : ",";
-      const inicio = linhas[0].toLowerCase().includes("nome") ? 1 : 0;
-
-      const registros: any[] = [];
-
-      for (let i = inicio; i < linhas.length; i++) {
-        const [nomeRaw, fenilRaw] = linhas[i].split(separador);
-        const nome = nomeRaw?.trim();
-        const fenil = Number(fenilRaw?.replace(",", "."));
-
-        if (!nome || isNaN(fenil) || fenil < 0) {
-          erros.push(`Linha ${i + 1}: inválida`);
-          continue;
-        }
-
-        registros.push({
-          nome,
-          fenil_mg_por_100g: fenil,
-          is_global: true,
-          nome_normalizado: nome
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .toLowerCase()
-            .trim(),
-        });
-      }
-
-      if (registros.length === 0) {
-        setResultadoImportacao({
-          importados: 0,
-          erros,
-          total: linhas.length - inicio,
-        });
-        return;
-      }
-
-      const { data: existentes } = await supabase
-        .from("referencias")
-        .select("nome_normalizado")
-        .in(
-          "nome_normalizado",
-          registros.map((r) => r.nome_normalizado)
-        );
-
-      if (existentes && existentes.length > 0) {
-        setHouveAtualizacoes(true);
-      }
-
-      await supabase.from("referencias").upsert(registros, {
-        onConflict: "nome_normalizado",
-      });
-
-      importados = registros.length;
-
-      setResultadoImportacao({
-        importados,
-        erros,
-        total: linhas.length - inicio,
-      });
-
-      setCsvText("");
-    } catch (e) {
-      console.error("Erro ao importar CSV:", e);
-      setResultadoImportacao({
-        importados: 0,
-        erros: ["Erro inesperado ao importar CSV"],
-        total: 0,
-      });
+      const resultado = await importarReferencias(csvText);
+      setResultadoImportacao(resultado);
     } finally {
       setImportando(false);
     }
-  };
+  }
 
-  const handleBaixarModelo = () => {
-    const csv =
-      "\uFEFF" +
-      "nome;fenil_mg_por_100g\n" +
-      "Arroz branco cozido;80\n" +
-      "Feijão preto cozido;140\n";
+  function handleBaixarModelo() {
+    const conteudo =
+      "nome,fenil_mg_por_100g\nArroz branco cozido,80\nFeijão preto cozido,140";
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([conteudo], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "modelo-referencias.csv";
+    a.download = "modelo_referencias.csv";
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }
 
-  if (!isReady || loading) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <Layout>
+        {/* <p className="text-gray-600">Carregando painel administrativo...</p> */}
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
+      </Layout>
     );
   }
 
@@ -267,10 +93,6 @@ export default function AdminPage() {
       </Layout>
     );
   }
-
-  const totalAdmins = usuarios.filter((u) => u.role === "admin").length;
-  const totalUsers = usuarios.filter((u) => u.role === "user").length;
-  const totalUsuarios = usuarios.length;
 
   return (
     <Layout>
