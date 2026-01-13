@@ -1,80 +1,20 @@
-import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/react-app/lib/supabase";
+import { ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/react-app/context/AuthContext";
-
-import {
-  LayoutDashboard,
-  History,
-  BarChart3,
-  User,
-  LogOut,
-  Shield,
-  Heart,
-  Linkedin,
-  Mail,
-  Stethoscope,
-  Info,
-  Vegan,
-} from "lucide-react";
+import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
+import { useLogout } from "@/react-app/hooks/useLogout";
+import { LayoutDashboard, History, BarChart3, User, LogOut, Shield, Heart, Linkedin, Mail, Stethoscope, Info, Vegan } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
-interface Perfil {
-  role: string;
-  nome?: string;
-}
-
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
-  const navigate = useNavigate();
 
   const { authUser, loadingAuth } = useAuth();
-
-  const [perfil, setPerfil] = useState<Perfil | null>(null);
-
-  useEffect(() => {
-    if (loadingAuth) return;
-    if (!authUser) {
-      setPerfil(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    supabase
-      .from("usuarios")
-      .select("role, nome")
-      .eq("id", authUser.id)
-      .single()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-
-        if (!error && data) {
-          setPerfil((prev) => {
-            // evita re-render desnecessário
-            if (
-              prev?.role === data.role &&
-              prev?.nome === data.nome
-            ) {
-              return prev;
-            }
-            return data;
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authUser, loadingAuth]);
-
-  async function handleLogout() {
-    await supabase.auth.signOut().catch(() => { });
-    navigate("/", { replace: true });
-  }
+  const { perfil } = useLayoutPerfil(authUser?.id);
+  const { handleLogout } = useLogout();
 
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = perfil?.role === "admin";
