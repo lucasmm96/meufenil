@@ -5,12 +5,13 @@ import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
 import CriarAlimento from "@/react-app/components/CriarAlimento";
 import { Activity, TrendingUp, AlertCircle, Plus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { formatInTimeZone } from "date-fns-tz";
 import { useDashboard } from "@/react-app/hooks/useDashboard";
 import { updateConsentimentoLGPD } from "@/react-app/services/dashboard.service";
+import { LayoutSkeleton, DashboardSkeleton } from "@skeletons";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
@@ -36,9 +37,9 @@ export default function DashboardPage() {
 
   if (loading || loadingAuth || !dashboard) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
+      <LayoutSkeleton>
+        <DashboardSkeleton />
+      </LayoutSkeleton>
     );
   }
 

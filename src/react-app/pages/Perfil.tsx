@@ -5,6 +5,7 @@ import { User, Save, Shield, Download, Trash2 } from "lucide-react";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { supabase } from "@/react-app/lib/supabase";
+import { LayoutSkeleton, PerfilSkeleton } from "@skeletons";
 
 export default function PerfilPage() {
   const navigate = useNavigate();
@@ -152,9 +153,9 @@ export default function PerfilPage() {
 
   if (!isReady || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
+      <LayoutSkeleton>
+        <PerfilSkeleton />
+      </LayoutSkeleton>
     );
   }
 

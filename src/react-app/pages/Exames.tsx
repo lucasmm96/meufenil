@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useExames } from "@/react-app/hooks/useExames";
+import { LayoutSkeleton, ExamesSkeleton } from "@skeletons";
 
 export default function ExamesPage() {
   const { authUser, isReady } = useProtectedPage();
@@ -71,7 +72,11 @@ export default function ExamesPage() {
   };
 
   if (!isReady || loading) {
-    return null;
+    return (
+      <LayoutSkeleton>
+        <ExamesSkeleton />
+      </LayoutSkeleton>
+    );
   }
 
   const examesOrdenados = [...exames].sort(

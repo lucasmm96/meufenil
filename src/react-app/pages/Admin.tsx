@@ -4,6 +4,7 @@ import { Users, Shield, HardDrive, FileText, Package, Database, Download, Upload
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useAdmin } from "@/react-app/hooks/useAdmin";
 import { ResultadoImportacaoDTO } from "@/react-app/services/dtos/admin.dto";
+import { LayoutSkeleton, AdminSkeleton } from "@skeletons";
 
 export default function Admin() {
   const { authUser } = useAuth();
@@ -67,10 +68,9 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <Layout>
-        {/* <p className="text-gray-600">Carregando painel administrativo...</p> */}
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </Layout>
+      <LayoutSkeleton>
+        <AdminSkeleton />
+      </LayoutSkeleton>
     );
   }
 

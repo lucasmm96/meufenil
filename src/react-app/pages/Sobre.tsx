@@ -1,12 +1,17 @@
 import { Heart, CheckCircle, Lightbulb, Info } from "lucide-react";
 import Layout from "@/react-app/components/Layout";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
+import { LayoutSkeleton, SobreSkeleton } from "@skeletons";
 
 export default function SobrePage() {
   const { isReady } = useProtectedPage();
 
   if (!isReady) {
-    return null;
+    return (
+      <LayoutSkeleton>
+        <SobreSkeleton />
+      </LayoutSkeleton>
+    );
   }
 
   return (

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useEstatisticas } from "@/react-app/hooks/useEstatisticas";
 import { PeriodoEstatisticas } from "@/react-app/services/dtos/estatisticas.dto";
+import { LayoutSkeleton, EstatisticasSkeleton } from "@skeletons";
 
 const parseLocalDate = (dateString: string) => {
   const [y, m, d] = dateString.split("-").map(Number);
@@ -28,9 +29,9 @@ export default function EstatisticasPage() {
 
   if (!isReady || loading || !data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
+      <LayoutSkeleton>
+        <EstatisticasSkeleton />
+      </LayoutSkeleton>
     );
   }
 

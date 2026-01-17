@@ -10,7 +10,9 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@skeletons": ["src/react-app/skeletons/index.ts"],
+      "@skeletons/*": ["src/react-app/skeletons/*"]
     },
 
     "strict": true,

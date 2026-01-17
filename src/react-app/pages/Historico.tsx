@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useRegistros } from "@/react-app/hooks/useRegistros";
+import { LayoutSkeleton, HistoricoSkeleton } from "@skeletons";
 
 export default function HistoricoPage() {
   const { authUser, isReady } = useProtectedPage();
@@ -52,9 +53,9 @@ export default function HistoricoPage() {
 
   if (!isReady || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
+      <LayoutSkeleton>
+        <HistoricoSkeleton />
+      </LayoutSkeleton>
     );
   }
 

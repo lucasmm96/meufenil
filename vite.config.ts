@@ -13,6 +13,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@skeletons": path.resolve(__dirname, "src/react-app/skeletons"),
     },
   },
 });
