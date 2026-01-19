@@ -44,7 +44,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex justify-between items-center h-16">
             <Link to="/dashboard" className="flex items-center h-16">
               <img
-                src="/icons/logo_simplificado.png"
+                src="/icons/logo.png"
                 alt="MeuFenil"
                 className="w-10 h-10 object-cover border-0 shadow-none m-0 p-0"
                 style={{ display: "block" }}
