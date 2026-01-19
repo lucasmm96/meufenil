@@ -27,8 +27,13 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="max-w-6xl mx-auto px-4 py-16">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-6 shadow-lg">
-            <Vegan className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 mb-6">
+            <img
+              src="/icons/logo_simplificado.png"
+              alt="MeuFenil"
+              className="w-full h-full object-cover"
+              style={{ display: "block" }}
+            />
           </div>
 
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
