@@ -29,7 +29,7 @@ export default function HomePage() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center justify-center w-20 h-20 mb-6">
             <img
-              src="/icons/logo_simplificado.png"
+              src="/icons/logo.png"
               alt="MeuFenil"
               className="w-full h-full object-cover"
               style={{ display: "block" }}
