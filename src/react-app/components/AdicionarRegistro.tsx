@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Search, Plus } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
-import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useReferencias } from "@/react-app/hooks/useReferencias";
 import { useCreateRegistro } from "@/react-app/hooks/useCreateRegistro";
@@ -16,12 +15,10 @@ export default function AdicionarRegistro({
   onClose,
   onSuccess,
 }: AdicionarRegistroProps) {
-  const { authUser, isReady } = useProtectedPage();
-  const { timezone } = useAuth();
+  const { ready, usuarioAtivoId, timezone } = useAuth();
 
   const [search, setSearch] = useState("");
-  const [selectedReferencia, setSelectedReferencia] =
-    useState<ReferenciaDTO | null>(null);
+  const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaDTO | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [pesoG, setPesoG] = useState("");
   const [data, setData] = useState("");
@@ -34,13 +31,13 @@ export default function AdicionarRegistro({
     loading: referenciasLoading,
     search: searchReferencias,
     create: createReferencia,
-  } = useReferencias(authUser!.id);
+  } = useReferencias(usuarioAtivoId!);
 
   const registro = useCreateRegistro();
 
   const loading = registro.loading || referenciasLoading;
 
-  if (!isReady) return null;
+  if (!ready || !usuarioAtivoId) return null;
 
   useEffect(() => {
     if (!timezone) return;
@@ -49,7 +46,7 @@ export default function AdicionarRegistro({
 
   useEffect(() => {
     searchReferencias("");
-  }, []);
+  }, [searchReferencias]);
 
   useEffect(() => {
     if (!search) {
@@ -67,7 +64,7 @@ export default function AdicionarRegistro({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedReferencia || !pesoG || !data || !timezone) return;
+    if (!usuarioAtivoId || !selectedReferencia || !pesoG || !data || !timezone) return;
 
     const fenil_mg =
       (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
@@ -79,7 +76,7 @@ export default function AdicionarRegistro({
     );
 
     await registro.create({
-      usuarioId: authUser!.id,
+      usuarioId: usuarioAtivoId,
       referenciaId: selectedReferencia.id,
       data: dataTimestamp,
       peso_g: Number(pesoG),
