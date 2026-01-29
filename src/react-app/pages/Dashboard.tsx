@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Layout from "@/react-app/components/Layout";
 import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
 import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
@@ -19,23 +19,18 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function DashboardPage() {
-  const { authUser, loadingAuth } = useAuth();
+  const { ready, usuarioAtivoId } = useAuth();
 
   const {
     data: dashboard,
     loading,
     reload,
-  } = useDashboard(authUser?.id);
+  } = useDashboard(usuarioAtivoId ?? undefined);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
 
-  useEffect(() => {
-    if (loadingAuth) return;
-    if (!authUser) window.location.href = "/";
-  }, [loadingAuth, authUser]);
-
-  if (loading || loadingAuth || !dashboard) {
+  if (!ready || loading || !dashboard) {
     return (
       <LayoutSkeleton>
         <DashboardSkeleton />
