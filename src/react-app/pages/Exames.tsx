@@ -5,12 +5,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
-import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
+import { useAuth } from "@/react-app/context/AuthContext";
 import { useExames } from "@/react-app/hooks/useExames";
 import { LayoutSkeleton, ExamesSkeleton } from "@skeletons";
+import { useUsuarioAtivo } from "@/react-app/hooks/useUsuarioAtivo";
 
 export default function ExamesPage() {
-  const { authUser, isReady } = useProtectedPage();
+  const { ready } = useAuth();
+  const { usuarioAtivoId } = useUsuarioAtivo();
 
   const {
     exames,
@@ -18,7 +20,7 @@ export default function ExamesPage() {
     loading,
     criar,
     remover,
-  } = useExames(authUser?.id);
+  } = useExames(usuarioAtivoId ?? undefined);
 
   const [showModal, setShowModal] = useState(false);
   const [dataExame, setDataExame] = useState("");
@@ -39,7 +41,7 @@ export default function ExamesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authUser || !dataExame || !resultadoMgDl) return;
+    if (!dataExame || !resultadoMgDl) return;
 
     const valor = Number(resultadoMgDl);
     if (Number.isNaN(valor)) return;
@@ -65,13 +67,11 @@ export default function ExamesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!authUser) return;
     if (!confirm("Tem certeza que deseja excluir este exame?")) return;
-
     await remover(id);
   };
 
-  if (!isReady || loading) {
+  if (!ready || loading) {
     return (
       <LayoutSkeleton>
         <ExamesSkeleton />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { supabase } from "@/react-app/lib/supabase";
-import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 interface CriarAlimentoProps {
   onClose: () => void;
@@ -12,13 +12,13 @@ export default function CriarAlimento({
   onClose,
   onSuccess,
 }: CriarAlimentoProps) {
-  const { authUser, isReady } = useProtectedPage();
+  const { ready, usuarioAtivoId } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [nome, setNome] = useState("");
   const [fenil, setFenil] = useState("");
 
-  if (!isReady) return null;
+  if (!ready || !usuarioAtivoId) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +30,7 @@ export default function CriarAlimento({
       const { error } = await supabase.from("referencias").insert({
         nome,
         fenil_mg_por_100g: parseFloat(fenil),
-        criado_por: authUser!.id,
+        criado_por: usuarioAtivoId,
         is_global: false,
       });
 

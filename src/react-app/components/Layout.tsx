@@ -4,6 +4,7 @@ import { useAuth } from "@/react-app/context/AuthContext";
 import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { useLogout } from "@/react-app/hooks/useLogout";
 import { LayoutDashboard, History, BarChart3, User, LogOut, Shield, Heart, Linkedin, Mail, Stethoscope, Info, Vegan } from "lucide-react";
+import { LoginAsBanner } from "@/react-app/components/login-as/LoginAsBanner";
 
 interface LayoutProps {
   children: ReactNode;
@@ -40,6 +41,7 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50">
+      <LoginAsBanner />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/dashboard" className="flex items-center h-16">

@@ -3,12 +3,12 @@ import Layout from "@/react-app/components/Layout";
 import { Trash2, Calendar, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
 import { useRegistros } from "@/react-app/hooks/useRegistros";
 import { LayoutSkeleton, HistoricoSkeleton } from "@skeletons";
+import { useAuth } from "@/react-app/context/AuthContext";
 
 export default function HistoricoPage() {
-  const { authUser, isReady } = useProtectedPage();
+  const { ready, usuarioAtivoId } = useAuth();
 
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -17,9 +17,9 @@ export default function HistoricoPage() {
   const [dataFimTemp, setDataFimTemp] = useState("");
 
   const { data: registros = [], loading, remove } = useRegistros(
-    isReady && authUser
+    ready && usuarioAtivoId
       ? {
-          usuarioId: authUser.id,
+          usuarioId: usuarioAtivoId,
           dataInicio,
           dataFim,
         }
@@ -51,7 +51,7 @@ export default function HistoricoPage() {
     }, {});
   }, [registros]);
 
-  if (!isReady || loading) {
+  if (!ready || loading) {
     return (
       <LayoutSkeleton>
         <HistoricoSkeleton />

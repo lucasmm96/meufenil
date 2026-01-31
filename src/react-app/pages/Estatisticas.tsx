@@ -4,7 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
-import { useProtectedPage } from "@/react-app/hooks/useProtectedPage";
+import { useAuth } from "@/react-app/context/AuthContext";
+import { useUsuarioAtivo } from "@/react-app/hooks/useUsuarioAtivo";
 import { useEstatisticas } from "@/react-app/hooks/useEstatisticas";
 import { PeriodoEstatisticas } from "@/react-app/services/dtos/estatisticas.dto";
 import { LayoutSkeleton, EstatisticasSkeleton } from "@skeletons";
@@ -15,19 +16,22 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function EstatisticasPage() {
-  const { authUser, isReady } = useProtectedPage();
+  const { ready: authReady, loadingAuth } = useAuth();
+  const { ready: usuarioReady, usuarioAtivoId } = useUsuarioAtivo();
   const [periodo, setPeriodo] = useState<PeriodoEstatisticas>("semana");
 
+  const podeBuscar = authReady && usuarioReady && !!usuarioAtivoId;
+
   const { data, loading } = useEstatisticas(
-    isReady && authUser
+    podeBuscar
       ? {
-          usuarioId: authUser.id,
+          usuarioId: usuarioAtivoId,
           periodo,
         }
       : undefined
   );
 
-  if (!isReady || loading || !data) {
+  if (loadingAuth || !podeBuscar || loading || !data) {
     return (
       <LayoutSkeleton>
         <EstatisticasSkeleton />
