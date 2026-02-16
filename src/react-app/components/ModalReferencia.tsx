@@ -1,48 +1,41 @@
-import { useState } from "react";
 import { X } from "lucide-react";
-import { supabase } from "@/react-app/lib/supabase";
-import { useAuth } from "@/react-app/context/AuthContext";
+import { useState, useEffect } from "react";
+import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
 
-interface CriarAlimentoProps {
+interface ModalReferenciaProps {
+  referencia?: ReferenciaDTO | null;
+  loading?: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSubmit: (data: { nome: string; fenil: number }) => Promise<void>;
 }
 
-export default function CriarAlimento({
+export default function ModalReferencia({
+  referencia,
+  loading,
   onClose,
-  onSuccess,
-}: CriarAlimentoProps) {
-  const { ready, usuarioAtivoId } = useAuth();
-
-  const [loading, setLoading] = useState(false);
+  onSubmit,
+}: ModalReferenciaProps) {
   const [nome, setNome] = useState("");
   const [fenil, setFenil] = useState("");
 
-  if (!ready || !usuarioAtivoId) return null;
+  useEffect(() => {
+    if (referencia) {
+      setNome(referencia.nome);
+      setFenil(referencia.fenil_mg_por_100g.toString());
+    } else {
+      setNome("");
+      setFenil("");
+    }
+  }, [referencia]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nome || !fenil) return;
 
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.from("referencias").insert({
-        nome,
-        fenil_mg_por_100g: parseFloat(fenil),
-        criado_por: usuarioAtivoId,
-        is_global: false,
-      });
-
-      if (error) {
-        console.error("Erro ao criar alimento:", error);
-        return;
-      }
-
-      onSuccess();
-    } finally {
-      setLoading(false);
-    }
+    await onSubmit({
+      nome,
+      fenil: Number(fenil),
+    });
   }
 
   return (
@@ -50,7 +43,7 @@ export default function CriarAlimento({
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Criar Novo Alimento</h2>
+            <h2 className="text-xl font-bold">{referencia ? "Editar Referência" : "Nova Referência"}</h2>
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
@@ -102,7 +95,7 @@ export default function CriarAlimento({
                 disabled={loading}
                 className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {loading ? "Criando..." : "Criar Alimento"}
+                {loading ? "Salvando..." : "Salvar"}
               </button>
             </div>
           </form>
