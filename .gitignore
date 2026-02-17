@@ -2,3 +2,6 @@ dist/
 node_modules/
 .dev.vars
 .env*
+.cli-token
+.cli-sql
+.cli-sql.*

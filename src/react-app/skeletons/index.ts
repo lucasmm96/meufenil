@@ -12,3 +12,4 @@ export { ExamesSkeleton } from "./pages/ExamesSkeleton";
 export { SobreSkeleton } from "./pages/SobreSkeleton";
 export { AdminSkeleton } from "./pages/AdminSkeleton";
 export { PerfilSkeleton } from "./pages/PerfilSkeleton";
+export { ReferenciasSkeleton } from "./pages/ReferenciasSkeleton";

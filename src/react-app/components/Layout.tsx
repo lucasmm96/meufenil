@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { useLogout } from "@/react-app/hooks/useLogout";
-import { LayoutDashboard, History, BarChart3, User, LogOut, Shield, Heart, Linkedin, Mail, Stethoscope, Info, Vegan } from "lucide-react";
+import { LayoutDashboard, History, BarChart3, User, LogOut, Shield, Heart, Linkedin, Mail, Stethoscope, Info, List } from "lucide-react";
 import { LoginAsBanner } from "@/react-app/components/login-as/LoginAsBanner";
 
 interface LayoutProps {
@@ -22,6 +22,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/referencias", icon: List, label: "Referências" },
     { path: "/historico", icon: History, label: "Histórico" },
     { path: "/estatisticas", icon: BarChart3, label: "Estatísticas" },
     { path: "/exames", icon: Stethoscope, label: "Exames PKU" },

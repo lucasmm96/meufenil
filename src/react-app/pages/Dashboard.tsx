@@ -2,7 +2,8 @@ import { useState } from "react";
 import Layout from "@/react-app/components/Layout";
 import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
 import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
-import CriarAlimento from "@/react-app/components/CriarAlimento";
+import ModalReferencia from "@/react-app/components/ModalReferencia";
+import { useReferencias } from "@/react-app/hooks/useReferencias";
 import { Activity, TrendingUp, AlertCircle, Plus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
@@ -29,6 +30,9 @@ export default function DashboardPage() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
+  const [creatingReferencia, setCreatingReferencia] = useState(false);
+
+  const { create: createReferencia } = useReferencias(usuarioAtivoId!);
 
   if (!ready || loading || !dashboard) {
     return (
@@ -48,6 +52,24 @@ export default function DashboardPage() {
     reload();
   };
 
+  async function handleCreateReferencia(data: { nome: string; fenil: number }) {
+    const { nome, fenil } = data;
+
+    if (Number.isNaN(fenil)) return;
+
+    setCreatingReferencia(true);
+
+    try {
+      await createReferencia(nome, fenil);
+
+      reload();
+
+      setShowCriarModal(false);
+    } finally {
+      setCreatingReferencia(false);
+    }
+  }
+
   return (
     <Layout>
       {!usuario.consentimento_lgpd_em && (<ConsentimentoLGPD onAccept={handleConsentimento} />)}
@@ -63,9 +85,10 @@ export default function DashboardPage() {
       )}
 
       {showCriarModal && (
-        <CriarAlimento
+        <ModalReferencia
+          loading={creatingReferencia}
           onClose={() => setShowCriarModal(false)}
-          onSuccess={() => setShowCriarModal(false)}
+          onSubmit={handleCreateReferencia}
         />
       )}
 
