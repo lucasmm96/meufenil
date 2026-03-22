@@ -25,9 +25,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="max-w-6xl mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center justify-center w-20 h-20 mb-6">
+      <div className="max-w-6xl mx-auto px-4 py-10 sm:py-14 md:py-16 space-y-10">
+        <div className="text-center space-y-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 mx-auto">
             <img
               src="/icons/logo.png"
               alt="MeuFenil"
@@ -36,23 +36,25 @@ export default function HomePage() {
             />
           </div>
 
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900">
             MeuFenil
           </h1>
 
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
             Controle diário de consumo de fenilalanina para pessoas com PKU
           </p>
 
-          <button
-            onClick={signInWithGoogle}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
-          >
-            Entrar com Google
-          </button>
+          <div className="pt-2">
+            <button
+              onClick={signInWithGoogle}
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+            >
+              Entrar com Google
+            </button>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           <Feature
             icon={<Activity className="w-6 h-6 text-indigo-600" />}
             title="Controle Diário"
@@ -70,13 +72,13 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg max-w-2xl mx-auto">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-lg max-w-2xl mx-auto w-full">
           <div className="flex gap-4">
-            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
               <Shield className="w-5 h-5 text-green-600" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">
                 Seus dados estão seguros
               </h3>
               <p className="text-gray-600 text-sm">
@@ -102,21 +104,23 @@ function Feature({
   text: string;
 }) {
   return (
-    <div className="bg-white/80 rounded-2xl p-8 shadow-lg">
-      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-4">
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-lg w-full flex flex-col gap-4">
+      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
         {icon}
       </div>
-      <h3 className="text-xl font-semibold mb-2">{title}</h3>
-      <p className="text-gray-600">{text}</p>
+      <div className="space-y-2">
+        <h3 className="text-lg sm:text-xl font-semibold">{title}</h3>
+        <p className="text-gray-600 text-sm sm:text-base">{text}</p>
+      </div>
     </div>
   );
 }
 
 function Footer() {
   return (
-    <footer className="bg-white/60 border-t mt-16">
-      <div className="max-w-7xl mx-auto py-8 text-center space-y-4">
-        <div className="flex justify-center items-center gap-2 text-gray-700">
+    <footer className="bg-white/60 border-t mt-10 sm:mt-16">
+      <div className="max-w-7xl mx-auto px-4 py-8 text-center space-y-4">
+        <div className="flex justify-center items-center gap-2 text-gray-700 text-sm sm:text-base">
           <span>Feito com</span>
           <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
           <span>para pacientes fenil</span>
