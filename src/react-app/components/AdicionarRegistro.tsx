@@ -124,7 +124,7 @@ export default function AdicionarRegistro({
     setShowDropdown(true);
   }
 
-  async function handleCreateReferencia(data: { nome: string; fenil: number; }) {
+  async function handleCreateReferencia(data: { nome: string; fenil: number }) {
     const { nome, fenil } = data;
 
     if (Number.isNaN(fenil)) return;
@@ -140,7 +140,6 @@ export default function AdicionarRegistro({
 
       searchReferencias("");
       setShowModalReferencia(false);
-
     } finally {
       setCreatingReferencia(false);
     }
@@ -154,11 +153,13 @@ export default function AdicionarRegistro({
   const listaExibida = referencias;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Adicionar Registro</h2>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+              Adicionar Registro
+            </h2>
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
@@ -167,9 +168,9 @@ export default function AdicionarRegistro({
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Data</label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Data</label>
               <input
                 type="date"
                 value={data}
@@ -179,8 +180,9 @@ export default function AdicionarRegistro({
               />
             </div>
 
-            <div ref={dropdownRef}>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Alimento</label>
+            <div ref={dropdownRef} className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Alimento</label>
+
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
 
@@ -191,9 +193,7 @@ export default function AdicionarRegistro({
                     setSearch(e.target.value);
                     setSelectedReferencia(null);
                   }}
-                  onFocus={() => {
-                    setShowDropdown(true);
-                  }}
+                  onFocus={() => setShowDropdown(true)}
                   className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Buscar alimento..."
                 />
@@ -210,7 +210,7 @@ export default function AdicionarRegistro({
               </div>
 
               {showDropdown && listaExibida.length > 0 && (
-                <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto divide-y">
                   {listaExibida.map((ref) => (
                     <button
                       key={ref.id}
@@ -220,28 +220,31 @@ export default function AdicionarRegistro({
                         setSearch(ref.nome);
                         setShowDropdown(false);
                       }}
-                      className={`w-full px-4 py-3 text-left hover:bg-gray-50 flex justify-between items-center ${ref.is_favorita ? "bg-amber-50/60" : ""
-                        }`}
+                      className={`w-full px-4 py-3 flex items-start justify-between gap-3 text-left hover:bg-gray-50 ${
+                        ref.is_favorita ? "bg-amber-50/60" : ""
+                      }`}
                     >
-                      <div className="flex items-center gap-2">
-                        {ref.is_favorita && (
-                          <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                        )}
-                        <span className="font-medium text-gray-900">
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-medium text-gray-900 text-sm sm:text-base break-words">
                           {ref.nome}
                         </span>
+
+                        <span className="text-xs sm:text-sm text-gray-500">
+                          {ref.fenil_mg_por_100g.toFixed(1)} mg/100g
+                        </span>
                       </div>
-                      <span className="text-sm text-gray-500">
-                        {ref.fenil_mg_por_100g.toFixed(1)} mg/100g
-                      </span>
+
+                      {ref.is_favorita && (
+                        <Star className="w-5 h-5 text-amber-500 fill-amber-500 shrink-0 mt-0.5" />
+                      )}
                     </button>
                   ))}
                 </div>
               )}
 
               {selectedReferencia && (
-                <div className="mt-2 p-3 bg-indigo-50 rounded-xl flex justify-between items-start">
-                  <div className="text-sm text-indigo-900">
+                <div className="p-4 bg-indigo-50 rounded-xl flex justify-between items-start gap-3">
+                  <div className="text-sm text-indigo-900 break-words">
                     <span className="font-semibold">
                       {selectedReferencia.nome}
                     </span>{" "}
@@ -253,7 +256,7 @@ export default function AdicionarRegistro({
                   <button
                     type="button"
                     onClick={handleClearSelected}
-                    className="text-indigo-400 hover:text-indigo-600 transition-colors"
+                    className="text-indigo-400 hover:text-indigo-600 transition-colors shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -263,15 +266,17 @@ export default function AdicionarRegistro({
               <button
                 type="button"
                 onClick={() => setShowModalReferencia(true)}
-                className="mt-2 flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2"
               >
                 <Plus className="w-4 h-4" />
                 Criar novo alimento
               </button>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Peso consumido (gramas)</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Peso consumido (gramas)
+              </label>
               <input
                 type="number"
                 step="0.01"
@@ -284,26 +289,29 @@ export default function AdicionarRegistro({
             </div>
 
             {fenilCalculada > 0 && (
-              <div className="p-4 bg-purple-50 rounded-xl">
-                <p className="text-sm text-gray-600">Fenilalanina calculada:</p>
-                <p className="text-2xl font-bold text-purple-600">
+              <div className="p-4 bg-purple-50 rounded-xl space-y-1">
+                <p className="text-sm text-gray-600">
+                  Fenilalanina calculada:
+                </p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">
                   {fenilCalculada.toFixed(1)} mg
                 </p>
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                className="w-full sm:w-auto flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
+
               <button
                 type="submit"
                 disabled={loading || !selectedReferencia || !pesoG}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-full sm:w-auto flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {loading ? "Salvando..." : "Salvar Registro"}
               </button>

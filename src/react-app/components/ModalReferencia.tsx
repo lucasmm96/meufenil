@@ -39,11 +39,14 @@ export default function ModalReferencia({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">{referencia ? "Editar Referência" : "Nova Referência"}</h2>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg sm:text-xl font-bold">
+              {referencia ? "Editar Referência" : "Nova Referência"}
+            </h2>
+
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
@@ -52,11 +55,12 @@ export default function ModalReferencia({
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
                 Nome do Alimento
               </label>
+
               <input
                 type="text"
                 value={nome}
@@ -67,10 +71,11 @@ export default function ModalReferencia({
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
                 Fenilalanina (mg por 100g)
               </label>
+
               <input
                 type="number"
                 step="0.01"
@@ -82,18 +87,19 @@ export default function ModalReferencia({
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                className="w-full sm:w-auto flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-full sm:w-auto flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {loading ? "Salvando..." : "Salvar"}
               </button>
