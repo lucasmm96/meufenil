@@ -89,7 +89,7 @@ export default function ExamesPage() {
   const tendencia =
     ultimoExame && penultimoExame
       ? ultimoExame.resultado_mg_dl -
-      penultimoExame.resultado_mg_dl
+        penultimoExame.resultado_mg_dl
       : 0;
 
   const graficoData = examesOrdenados.map((e) => ({
@@ -100,14 +100,15 @@ export default function ExamesPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Exames PKU</h1>
-            <p className="text-gray-600 mt-1">Controle de fenilcetonúria</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Exames PKU</h1>
+            <p className="text-sm sm:text-base text-gray-600">Controle de fenilcetonúria</p>
           </div>
+
           <button
             onClick={() => setShowModal(true)}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
           >
             + Registrar Exame
           </button>
@@ -115,16 +116,16 @@ export default function ExamesPage() {
 
         {exames.length > 0 && (
           <>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="w-full bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                    <Activity className="w-6 h-6 text-indigo-600" />
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                    <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
                   </div>
-                  <span className="text-sm font-medium text-gray-500">Último Exame</span>
+                  <span className="text-xs sm:text-sm font-medium text-gray-500">Último Exame</span>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-3xl font-bold text-gray-900">
+                <div className="space-y-1">
+                  <p className="text-xl sm:text-3xl font-bold text-gray-900">
                     {ultimoExame.resultado_mg_dl.toFixed(1)} mg/dL
                   </p>
                   <p className="text-sm text-gray-600">
@@ -135,20 +136,20 @@ export default function ExamesPage() {
 
               {penultimoExame && (
                 <>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+                  <div className="w-full bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tendencia <= 0 ? 'bg-green-100' : 'bg-orange-100'
+                      <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${tendencia <= 0 ? 'bg-green-100' : 'bg-orange-100'
                         }`}>
                         {tendencia <= 0 ? (
-                          <TrendingDown className="w-6 h-6 text-green-600" />
+                          <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                         ) : (
-                          <TrendingUp className="w-6 h-6 text-orange-600" />
+                          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                         )}
                       </div>
-                      <span className="text-sm font-medium text-gray-500">Variação</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-500">Variação</span>
                     </div>
-                    <div className="space-y-2">
-                      <p className={`text-3xl font-bold ${tendencia <= 0
+                    <div className="space-y-1">
+                      <p className={`text-xl sm:text-3xl font-bold ${tendencia <= 0
                         ? 'text-green-600'
                         : 'text-orange-600'
                         }`}
@@ -162,15 +163,15 @@ export default function ExamesPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+                  <div className="w-full bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                        <Activity className="w-6 h-6 text-purple-600" />
+                      <div className="w-11 h-11 sm:w-12 sm:h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                       </div>
-                      <span className="text-sm font-medium text-gray-500">Total de Exames</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-500">Total de Exames</span>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-3xl font-bold text-gray-900">
+                    <div className="space-y-1">
+                      <p className="text-xl sm:text-3xl font-bold text-gray-900">
                         {exames.length}
                       </p>
                       <p className="text-sm text-gray-600">
@@ -182,10 +183,9 @@ export default function ExamesPage() {
               )}
             </div>
 
-            {/* Gráfico */}
             {exames.length >= 2 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">
+              <div className="w-full bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
                   Histórico de Resultados
                 </h2>
                 <div className="h-64">
@@ -227,71 +227,101 @@ export default function ExamesPage() {
         )}
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Histórico de Exames</h2>
+          <div className="p-5 sm:p-6 border-b border-gray-200">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Histórico de Exames</h2>
           </div>
 
           {exames.length === 0 ? (
-            <div className="p-12 text-center">
-              <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <div className="p-10 text-center space-y-4">
+              <Activity className="w-12 h-12 text-gray-400 mx-auto" />
               <p className="text-gray-600">Nenhum exame registrado ainda</p>
               <button
                 onClick={() => setShowModal(true)}
-                className="mt-4 text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-indigo-600 hover:text-indigo-700 font-medium"
               >
                 Registrar primeiro exame
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Data do Exame
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Resultado (mg/dL)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Registrado em
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {exames.map((e) => (
-                    <tr key={e.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {format(parseISO(e.data_exame), "dd/MM/yyyy")}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-indigo-600">
-                          {e.resultado_mg_dl.toFixed(1)} mg/dL
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">
-                          {format(parseISO(e.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleDelete(e.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Data do Exame
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Resultado (mg/dL)
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Registrado em
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ações
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {exames.map((e) => (
+                      <tr key={e.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {format(parseISO(e.data_exame), "dd/MM/yyyy")}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-indigo-600">
+                            {e.resultado_mg_dl.toFixed(1)} mg/dL
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {format(parseISO(e.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleDelete(e.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="md:hidden space-y-4 p-4">
+                {exames.map((e) => (
+                  <div
+                    key={e.id}
+                    className="w-full bg-white rounded-xl border border-gray-200 p-4 flex justify-between items-center"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {format(parseISO(e.data_exame), "dd/MM/yyyy")}
+                      </p>
+                      <p className="text-sm text-indigo-600 font-semibold">
+                        {e.resultado_mg_dl.toFixed(1)} mg/dL
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {format(parseISO(e.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleDelete(e.id)}
+                      className="text-red-600"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
@@ -311,14 +341,15 @@ export default function ExamesPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                   Registrar Exame
                 </h2>
-                <button onClick={() => setShowModal(false)}
+                <button
+                  onClick={() => setShowModal(false)}
                   className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
                 >
                   <Plus className="w-5 h-5 text-gray-500 rotate-45" />
@@ -326,8 +357,8 @@ export default function ExamesPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">
                     Data do Exame
                   </label>
                   <input
@@ -339,8 +370,8 @@ export default function ExamesPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">
                     Resultado PKU (mg/dL)
                   </label>
                   <input
@@ -352,23 +383,23 @@ export default function ExamesPage() {
                     placeholder="Ex: 2.5"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     Valor PHE ÷ 60,6 = PKU em mg/dL
                   </p>
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                    className="w-full sm:w-auto flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="w-full sm:w-auto flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {submitting ? "Salvando..." : "Salvar"}
                   </button>
