@@ -98,12 +98,11 @@ export default function Admin() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Painel Administrativo</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Painel Administrativo</h1>
           <p className="text-gray-600 mt-1">Gerenciar usuários e sistema</p>
         </div>
 
-        {/* Estatísticas de Usuários */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -135,15 +134,13 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Estatísticas do Banco de Dados */}
         {estatisticasDB && (
           <>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Uso do Banco de Dados</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Uso do Banco de Dados</h2>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Armazenamento */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
@@ -174,15 +171,9 @@ export default function Admin() {
                       style={{ width: `${Math.min(estatisticasDB.armazenamento.percentual_usado, 100)}%` }}
                     />
                   </div>
-                  {estatisticasDB.armazenamento.percentual_usado > 80 && (
-                    <p className="text-xs text-red-600 mt-2">
-                      ⚠️ Atenção: Armazenamento acima de 80%. Considere excluir dados antigos.
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* Registros */}
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center">
@@ -196,7 +187,6 @@ export default function Admin() {
                 </p>
               </div>
 
-              {/* Referências */}
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
@@ -217,7 +207,6 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* Informações sobre limites */}
               <div className="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-6">
                 <div className="flex items-start gap-3">
                   <Database className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -243,51 +232,35 @@ export default function Admin() {
           </>
         )}
 
-        {/* Lista de Usuários */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-900">Usuários do Sistema</h2>
           </div>
-          <div className="overflow-x-auto">
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Usuário
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Limite Diário
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Papel
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cadastro
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ações
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuário</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Limite Diário</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Papel</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cadastro</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {usuarios.map((usuario) => (
                   <tr key={usuario.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {usuario.nome}
-                        </div>
-                        <div className="text-sm text-gray-500">{usuario.email}</div>
-                      </div>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{usuario.nome}</div>
+                      <div className="text-sm text-gray-500">{usuario.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {usuario.limite_diario_mg.toFixed(0)} mg
-                      </div>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {usuario.limite_diario_mg.toFixed(0)} mg
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <span
-                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${usuario.role === "admin"
+                        className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${usuario.role === "admin"
                           ? "bg-purple-100 text-purple-800"
                           : "bg-green-100 text-green-800"
                           }`}
@@ -295,16 +268,16 @@ export default function Admin() {
                         {usuario.role === "admin" ? "Admin" : "Usuário"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(usuario.created_at).toLocaleDateString("pt-BR")}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 text-sm">
                       <button
                         onClick={() => handleToggleRole(usuario.id, usuario.role)}
                         disabled={usuario.email === authUser?.email}
                         className={`font-medium ${usuario.email === authUser?.email
-                            ? "text-gray-400 cursor-not-allowed"
-                            : "text-indigo-600 hover:text-indigo-900"
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-indigo-600 hover:text-indigo-900"
                           }`}
                       >
                         {usuario.role === "admin" ? "Remover Admin" : "Tornar Admin"}
@@ -315,12 +288,55 @@ export default function Admin() {
               </tbody>
             </table>
           </div>
+
+          <div className="md:hidden p-4 space-y-4">
+            {usuarios.map((usuario) => (
+              <div key={usuario.id} className="w-full bg-gray-50 rounded-xl p-4 space-y-3">
+                <div>
+                  <p className="font-semibold text-gray-900 text-base">{usuario.nome}</p>
+                  <p className="text-sm text-gray-500 break-all">{usuario.email}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">Limite: </span>
+                    <span className="font-semibold text-gray-900">
+                      {usuario.limite_diario_mg.toFixed(0)} mg
+                    </span>
+                  </div>
+
+                  <span
+                    className={`px-3 py-1 text-xs font-semibold rounded-full ${usuario.role === "admin"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-green-100 text-green-800"
+                      }`}
+                  >
+                    {usuario.role === "admin" ? "Admin" : "Usuário"}
+                  </span>
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  Cadastro: {new Date(usuario.created_at).toLocaleDateString("pt-BR")}
+                </div>
+
+                <button
+                  onClick={() => handleToggleRole(usuario.id, usuario.role)}
+                  disabled={usuario.email === authUser?.email}
+                  className={`w-full sm:w-auto py-2 rounded-xl text-sm font-medium ${usuario.email === authUser?.email
+                    ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+                    : "text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+                    }`}
+                >
+                  {usuario.role === "admin" ? "Remover Admin" : "Tornar Admin"}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Importação de Referências */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
                   Importação em Massa de Referências
@@ -331,7 +347,7 @@ export default function Admin() {
               </div>
               <button
                 onClick={handleBaixarModelo}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto py-2 px-4 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
               >
                 <Download className="w-4 h-4" />
                 Baixar Modelo
