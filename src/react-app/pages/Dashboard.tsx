@@ -93,10 +93,10 @@ export default function DashboardPage() {
       )}
 
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600">
               {formatInTimeZone(
                 new Date(),
                 usuario.timezone,
@@ -106,50 +106,51 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="grid grid-cols-1 sm:flex gap-3 w-full sm:w-auto">
             <button
               onClick={() => setShowCriarModal(true)}
-              className="flex items-center gap-2 bg-white border-2 border-indigo-600 text-indigo-600 px-4 sm:px-6 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border-2 border-indigo-600 text-indigo-600 px-4 sm:px-6 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
             >
               <Plus className="w-5 h-5" />
               <span>Criar Alimento</span>
             </button>
+
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
             >
               Adicionar Registro
             </button>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-                <Activity className="w-6 h-6 text-indigo-600" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
               </div>
               <span className="text-sm font-medium text-gray-500">Hoje</span>
             </div>
-            <div className="space-y-2">
-              <p className="text-3xl font-bold text-gray-900">{hoje.total.toFixed(1)} mg</p>
+            <div className="space-y-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{hoje.total.toFixed(1)} mg</p>
               <p className="text-sm text-gray-600">de {hoje.limite.toFixed(0)} mg</p>
             </div>
           </div>
 
-          <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg ${ultrapassou ? "ring-2 ring-red-500" : ""}`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${ultrapassou ? "bg-red-100" : "bg-green-100"}`}>
+          <div className={`bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg ${ultrapassou ? "ring-2 ring-red-500" : ""}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${ultrapassou ? "bg-red-100" : "bg-green-100"}`}>
                 {ultrapassou ? (
-                  <AlertCircle className="w-6 h-6 text-red-600" />
+                  <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                 ) : (
-                  <TrendingUp className="w-6 h-6 text-green-600" />
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 )}
               </div>
               <span className="text-sm font-medium text-gray-500">Percentual</span>
             </div>
             <div className="space-y-2">
-              <p className={`text-3xl font-bold ${ultrapassou ? "text-red-600" : "text-green-600"}`}>
+              <p className={`text-2xl sm:text-3xl font-bold ${ultrapassou ? "text-red-600" : "text-green-600"}`}>
                 {percentual.toFixed(1)}%
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -161,23 +162,23 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <Activity className="w-6 h-6 text-purple-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
               </div>
               <span className="text-sm font-medium text-gray-500">Restante</span>
             </div>
-            <div className="space-y-2">
-              <p className="text-3xl font-bold text-gray-900">{Math.max(0, hoje.limite - hoje.total).toFixed(1)} mg</p>
+            <div className="space-y-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{Math.max(0, hoje.limite - hoje.total).toFixed(1)} mg</p>
               <p className="text-sm text-gray-600">disponível hoje</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Últimos 7 dias</h2>
-          <div className="h-64">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Últimos 7 dias</h2>
+          <div className="h-56 sm:h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={grafico}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

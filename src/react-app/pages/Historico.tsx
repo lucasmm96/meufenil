@@ -62,50 +62,51 @@ export default function HistoricoPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Histórico</h1>
-          <p className="text-gray-600 mt-1">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+            Histórico
+          </h1>
+          <p className="text-gray-600">
             Todos os seus registros de consumo
           </p>
         </div>
 
-        {/* Filtros */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg space-y-4">
+          <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-600" />
             <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
                 Data Início
               </label>
               <input
                 type="date"
                 value={dataInicioTemp}
                 onChange={(e) => setDataInicioTemp(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
                 Data Fim
               </label>
               <input
                 type="date"
                 value={dataFimTemp}
                 onChange={(e) => setDataFimTemp(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
-          <div className="flex gap-4 mt-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={aplicarFiltros}
-              className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700"
             >
               Aplicar filtros
             </button>
@@ -113,7 +114,7 @@ export default function HistoricoPage() {
             {(dataInicio || dataFim) && (
               <button
                 onClick={limparFiltros}
-                className="mt-4 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                className="w-full sm:w-auto py-3 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
               >
                 Limpar filtros
               </button>
@@ -122,9 +123,9 @@ export default function HistoricoPage() {
         </div>
 
         {Object.keys(agrupadosPorData).length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg text-center">
-            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 sm:p-12 shadow-lg text-center space-y-4">
+            <Calendar className="w-14 h-14 text-gray-300 mx-auto" />
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
               Nenhum registro encontrado
             </h3>
             <p className="text-gray-600">
@@ -144,10 +145,10 @@ export default function HistoricoPage() {
                 return (
                   <div
                     key={data}
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg space-y-4"
                   >
-                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-                      <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-gray-200">
+                      <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {format(
                             new Date(data + "T12:00:00"),
@@ -155,16 +156,17 @@ export default function HistoricoPage() {
                             { locale: ptBR }
                           )}
                         </h3>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-sm text-gray-500">
                           {regs.length}{" "}
                           {regs.length === 1
                             ? "registro"
                             : "registros"}
                         </p>
                       </div>
-                      <div className="text-right">
+
+                      <div className="text-left sm:text-right">
                         <p className="text-sm text-gray-500">Total do dia</p>
-                        <p className="text-2xl font-bold text-indigo-600">
+                        <p className="text-xl sm:text-2xl font-bold text-indigo-600">
                           {totalDia.toFixed(1)} mg
                         </p>
                       </div>
@@ -174,17 +176,20 @@ export default function HistoricoPage() {
                       {regs.map((r) => (
                         <div
                           key={r.id}
-                          className="flex justify-between items-center bg-gray-50 p-4 rounded-xl"
+                          className="w-full flex items-center justify-between gap-3 bg-gray-50 p-4 rounded-xl"
                         >
-                          <div>
-                            <p className="font-semibold">{r.nome_alimento}</p>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <p className="font-semibold text-gray-900">
+                              {r.nome_alimento}
+                            </p>
                             <p className="text-sm text-gray-600">
                               {r.peso_g}g • {r.fenil_mg.toFixed(1)} mg
                             </p>
                           </div>
+
                           <button
                             onClick={() => handleDelete(r.id)}
-                            className="ml-4 w-10 h-10 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600"
+                            className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600"
                           >
                             <Trash2 className="w-5 h-5" />
                           </button>

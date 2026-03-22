@@ -39,29 +39,36 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Header */}
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50">
-      <LoginAsBanner />
+        <LoginAsBanner />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/dashboard" className="flex items-center h-16">
+            <Link to="/dashboard" className="flex items-center gap-2 h-16">
               <img
                 src="/icons/logo.png"
                 alt="MeuFenil"
-                className="w-10 h-10 object-cover border-0 shadow-none m-0 p-0"
+                className="w-9 h-9 sm:w-10 sm:h-10 object-cover"
                 style={{ display: "block" }}
               />
-              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 MeuFenil
               </span>
             </Link>
-            <div className="flex items-center gap-4">
-              <Link to="/perfil" className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-indigo-600 rounded-lg transition-colors">
+
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Link
+                to="/perfil"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-indigo-600 rounded-lg transition-colors"
+              >
                 <User className="w-4 h-4" />
                 <span className="hidden sm:inline">Perfil</span>
               </Link>
-              <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+
+              <button
+                onClick={handleLogout}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm">Sair</span>
               </button>
@@ -71,8 +78,8 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       <nav className="bg-white/60 backdrop-blur-md border-b border-gray-200/50">
-        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <div className="flex gap-1 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2">
+          <div className="grid grid-cols-4 sm:grid-cols-4 md:flex md:gap-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
@@ -81,13 +88,16 @@ export default function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${active
-                    ? "text-indigo-600 border-b-2 border-indigo-600"
-                    : "text-gray-600 hover:text-gray-900"
-                    }`}
+                  className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-1.5 px-2 md:px-4 py-2 md:py-3 text-xs sm:text-sm font-medium rounded-xl transition-colors ${
+                    active
+                      ? "text-indigo-600 bg-indigo-50"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{item.label}</span>
+                  <span className="text-[10px] sm:text-xs md:text-sm text-center">
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}
@@ -95,16 +105,14 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </nav>
 
-      {/* Main */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white/60 backdrop-blur-md border-t border-gray-200/50 mt-16">
+      <footer className="bg-white/60 backdrop-blur-md border-t border-gray-200/50 mt-10 sm:mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-1.5 text-gray-700 text-center">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex items-center gap-1.5 text-gray-700">
               <span className="text-xs sm:text-sm">Feito com</span>
               <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
               <span className="text-xs sm:text-sm">

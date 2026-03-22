@@ -79,25 +79,27 @@ export default function EstatisticasPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Estatísticas</h1>
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+              Estatísticas
+            </h1>
             <p className="text-gray-600">
               Análise do consumo de fenilalanina
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:flex gap-3">
             <button
               onClick={exportCSV}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
             >
               <Download className="w-4 h-4" />
               CSV
             </button>
             <button
               onClick={exportJSON}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
             >
               <Download className="w-4 h-4" />
               JSON
@@ -106,10 +108,11 @@ export default function EstatisticasPage() {
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setPeriodo("semana")}
-              className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${periodo === "semana"
+              className={`w-full py-3 rounded-xl font-semibold transition-colors ${
+                periodo === "semana"
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
@@ -118,7 +121,8 @@ export default function EstatisticasPage() {
             </button>
             <button
               onClick={() => setPeriodo("mes")}
-              className={`flex-1 px-4 py-2 rounded-xl font-semibold transition-colors ${periodo === "mes"
+              className={`w-full py-3 rounded-xl font-semibold transition-colors ${
+                periodo === "mes"
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
@@ -128,54 +132,54 @@ export default function EstatisticasPage() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-blue-600" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               </div>
               <h3 className="font-semibold text-gray-900">Total</h3>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
               {totalConsumo.toFixed(1)} mg
             </p>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-gray-600 mt-1">
               {periodo === "semana" ? "nos últimos 7 dias" : "nos últimos 30 dias"}
             </p>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-green-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
               </div>
               <h3 className="font-semibold text-gray-900">Média Diária</h3>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
               {mediaConsumo.toFixed(1)} mg
             </p>
-            <p className="text-sm text-gray-600 mt-2">por dia</p>
+            <p className="text-sm text-gray-600 mt-1">por dia</p>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 shadow-lg">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
               </div>
               <h3 className="font-semibold text-gray-900">Maior Consumo</h3>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">
               {maiorConsumo.toFixed(1)} mg
             </p>
-            <p className="text-sm text-gray-600 mt-2">em um dia</p>
+            <p className="text-sm text-gray-600 mt-1">em um dia</p>
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
             Consumo por Dia
           </h2>
-          <div className="h-80">
+          <div className="h-64 sm:h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={registros}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

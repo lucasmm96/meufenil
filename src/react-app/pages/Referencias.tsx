@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "@/react-app/components/Layout";
-import { Star, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Edit2, RotateCcw, Filter, X } from "lucide-react";
+import { Star, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Edit2, RotateCcw, Filter, X, Globe, User } from "lucide-react";
 
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useUsuarioAtivo } from "@/react-app/hooks/useUsuarioAtivo";
@@ -173,37 +173,40 @@ export default function ReferenciasPage() {
     <Layout>
       <div className="space-y-6">
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">
               Referências Alimentares
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-sm sm:text-base text-gray-600">
               Valores de fenilalanina por 100g
             </p>
           </div>
 
           <button
             onClick={handleOpenCreate}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
           >
             + Nova Referência
           </button>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg space-y-4">
+
+          <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-600" />
             <h2 className="text-lg font-semibold text-gray-900">
               Filtros
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
                 Buscar alimento
               </label>
+
               <div className="relative">
                 <input
                   type="text"
@@ -216,7 +219,7 @@ export default function ReferenciasPage() {
                       onlyCustomizadas,
                     })
                   }
-                  className="w-full px-4 py-2 pr-10 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-3 pr-10 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
 
                 {searchTerm && (
@@ -236,8 +239,7 @@ export default function ReferenciasPage() {
               </div>
             </div>
 
-            {/* Opções */}
-            <div className="flex flex-col justify-end gap-3">
+            <div className="flex flex-col gap-3 justify-end">
 
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
@@ -272,6 +274,7 @@ export default function ReferenciasPage() {
                 />
                 Somente favoritas
               </label>
+
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
@@ -289,12 +292,12 @@ export default function ReferenciasPage() {
                 />
                 Somente customizadas
               </label>
+
             </div>
+
           </div>
         </div>
 
-
-        {/* Erro */}
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-4">
             <p className="text-red-700">
@@ -311,14 +314,14 @@ export default function ReferenciasPage() {
             </div>
           )}
 
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
               Lista de Referências
             </h2>
           </div>
 
           {referencias.length === 0 ? (
-            <div className="p-12 text-center">
+            <div className="p-8 sm:p-12 text-center">
               <Star className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
                 Nenhuma referência cadastrada ainda
@@ -331,147 +334,241 @@ export default function ReferenciasPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                      Fav
-                    </th>
+            <>
+              <div className="md:hidden p-4 space-y-4">
+                {referenciasPaginadas.map((r) => {
+                  const bloqueado = !podeEditarOuRemover(r) || !r.is_ativa;
 
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
-                      onClick={() => toggleSort("nome")}
-                    >
-                      Nome
-                      {ordenarPor === "nome" && <ArrowUp className="inline w-4 h-4 ml-1" />}
-                      {ordenarPor === "nome_desc" && <ArrowDown className="inline w-4 h-4 ml-1" />}
-                      {!["nome", "nome_desc"].includes(ordenarPor) && (
-                        <ArrowUpDown className="inline w-4 h-4 ml-1" />
-                      )}
-                    </th>
+                  return (
+                    <div key={r.id} className="w-full bg-white rounded-xl border border-gray-200 p-4 space-y-3 shadow-sm">
 
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
-                      onClick={() => toggleSort("fenil")}
-                    >
-                      Fenilalanina (mg/100g)
-                      {ordenarPor === "fenil" && <ArrowUp className="inline w-4 h-4 ml-1" />}
-                      {ordenarPor === "fenil_desc" && <ArrowDown className="inline w-4 h-4 ml-1" />}
-                      {!["fenil", "fenil_desc"].includes(ordenarPor) && (
-                        <ArrowUpDown className="inline w-4 h-4 ml-1" />
-                      )}
-                    </th>
+                      <div className="flex items-start gap-3">
 
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Tipo
-                    </th>
+                        <button
+                          onClick={() => {
+                            if (!r.is_ativa) return;
+                            toggleFavoritoReferencia(r.id);
+                          }}
+                          disabled={!r.is_ativa}
+                          className={`transition-transform ${r.is_ativa ? "hover:scale-110" : "cursor-not-allowed opacity-40"}`}
+                        >
+                          <Star className={`w-5 h-5 ${r.is_favorita ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
+                        </button>
 
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <p className={`text-sm font-semibold ${r.is_ativa ? "text-gray-900" : "text-gray-400 line-through"}`}>
+                              {r.nome}
+                            </p>
 
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {referenciasPaginadas.map((r) => {
-                    const bloqueado = !podeEditarOuRemover(r) || !r.is_ativa;
-
-                    return (
-                      <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => {
-                              if (!r.is_ativa) return;
-                              toggleFavoritoReferencia(r.id);
-                            }}
-                            disabled={!r.is_ativa}
-                            title={r.is_ativa ? (r.is_favorita ? "Desmarcar favorito" : "Marcar como favorito") : "Referência inativa"}
-                            className={`transition-transform ${r.is_ativa ? "hover:scale-110" : "cursor-not-allowed opacity-40"}`}
-                          >
-                            <Star className={`w-5 h-5 ${r.is_favorita ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
-                          </button>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <p
-                            className={`text-sm font-medium ${r.is_ativa ? "text-gray-900" : "text-gray-400 line-through"
-                              }`}
-                          >
-                            {r.nome}
                             {!r.is_ativa && (
-                              <span className="ml-2 text-xs text-red-600">(Inativa)</span>
-                            )}
-                          </p>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <p className="text-sm font-semibold text-indigo-600">
-                            {r.fenil_mg_por_100g.toFixed(1)}
-                          </p>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <span className={`text-xs font-medium px-3 py-1 rounded-full ${r.is_global
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-purple-100 text-purple-700"
-                            }`}>
-                            {r.is_global ? "Global" : "Customizada"}
-                          </span>
-                        </td>
-
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-3">
-
-                            <button
-                              disabled={bloqueado}
-                              onClick={() => handleOpenEdit(r)}
-                              title={bloqueado ? motivoBloqueio(r) : "Editar"}
-                              className={
-                                bloqueado
-                                  ? "text-gray-300 cursor-not-allowed"
-                                  : "text-indigo-600 hover:text-indigo-700"
-                              }
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-
-                            <button
-                              disabled={bloqueado}
-                              onClick={() => handleDelete(r)}
-                              title={bloqueado ? motivoBloqueio(r) : "Remover"}
-                              className={
-                                bloqueado
-                                  ? "text-gray-300 cursor-not-allowed"
-                                  : "text-red-600 hover:text-red-700"
-                              }
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-
-                            {/* REATIVAR */}
-                            {!r.is_ativa && podeEditarOuRemover(r) && (
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`Reativar a referência "${r.nome}"?`)) return;
-                                  await activate(r.id);
-                                }}
-                                title="Reativar referência"
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <RotateCcw className="w-4 h-4" />
-                              </button>
+                              <span className="text-xs text-red-600">(Inativa)</span>
                             )}
                           </div>
-                        </td>
 
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <span
+                            title={r.is_global ? "Referência global (disponível para todos os usuários)" : "Referência criada pelo usuário"}
+                            className={`flex-shrink-0 flex items-center justify-center w-6 h-6 rounded ${r.is_global
+                              ? "bg-blue-100 text-blue-600"
+                              : "bg-purple-100 text-purple-600"
+                              }`}
+                          >
+                            {r.is_global ? (
+                              <Globe className="w-3.5 h-3.5" />
+                            ) : (
+                              <User className="w-3.5 h-3.5" />
+                            )}
+                          </span>
+                        </div>
+
+                      </div>
+
+                      <div className="flex items-center justify-between">
+
+                        <div className="text-lg font-semibold text-indigo-600">
+                          {r.fenil_mg_por_100g.toFixed(1)} mg
+                        </div>
+
+                        <div className="flex items-center gap-4">
+
+                          <button
+                            disabled={bloqueado}
+                            onClick={() => handleOpenEdit(r)}
+                            className={
+                              bloqueado
+                                ? "text-gray-300 cursor-not-allowed"
+                                : "text-indigo-600"
+                            }
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+
+                          <button
+                            disabled={bloqueado}
+                            onClick={() => handleDelete(r)}
+                            className={
+                              bloqueado
+                                ? "text-gray-300 cursor-not-allowed"
+                                : "text-red-600"
+                            }
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+
+                          {!r.is_ativa && podeEditarOuRemover(r) && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Reativar a referência "${r.nome}"?`)) return;
+                                await activate(r.id);
+                              }}
+                              className="text-green-600"
+                            >
+                              <RotateCcw className="w-5 h-5" />
+                            </button>
+                          )}
+
+                        </div>
+
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        Fav
+                      </th>
+
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
+                        onClick={() => toggleSort("nome")}
+                      >
+                        Nome
+                        {ordenarPor === "nome" && <ArrowUp className="inline w-4 h-4 ml-1" />}
+                        {ordenarPor === "nome_desc" && <ArrowDown className="inline w-4 h-4 ml-1" />}
+                        {!["nome", "nome_desc"].includes(ordenarPor) && (
+                          <ArrowUpDown className="inline w-4 h-4 ml-1" />
+                        )}
+                      </th>
+
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
+                        onClick={() => toggleSort("fenil")}
+                      >
+                        Fenilalanina (mg/100g)
+                        {ordenarPor === "fenil" && <ArrowUp className="inline w-4 h-4 ml-1" />}
+                        {ordenarPor === "fenil_desc" && <ArrowDown className="inline w-4 h-4 ml-1" />}
+                        {!["fenil", "fenil_desc"].includes(ordenarPor) && (
+                          <ArrowUpDown className="inline w-4 h-4 ml-1" />
+                        )}
+                      </th>
+
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Tipo
+                      </th>
+
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {referenciasPaginadas.map((r) => {
+                      const bloqueado = !podeEditarOuRemover(r) || !r.is_ativa;
+
+                      return (
+                        <tr key={r.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => {
+                                if (!r.is_ativa) return;
+                                toggleFavoritoReferencia(r.id);
+                              }}
+                              disabled={!r.is_ativa}
+                              className={`transition-transform ${r.is_ativa ? "hover:scale-110" : "cursor-not-allowed opacity-40"}`}
+                            >
+                              <Star className={`w-5 h-5 ${r.is_favorita ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
+                            </button>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <p className={`text-sm font-medium ${r.is_ativa ? "text-gray-900" : "text-gray-400 line-through"}`}>
+                              {r.nome}
+                            </p>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <p className="text-sm font-semibold text-indigo-600">
+                              {r.fenil_mg_por_100g.toFixed(1)}
+                            </p>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <span className={`text-xs font-medium px-3 py-1 rounded-full ${r.is_global
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-purple-100 text-purple-700"
+                              }`}>
+                              {r.is_global ? "Global" : "Customizada"}
+                            </span>
+                          </td>
+
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-3">
+
+                              <button
+                                disabled={bloqueado}
+                                onClick={() => handleOpenEdit(r)}
+                                className={
+                                  bloqueado
+                                    ? "text-gray-300 cursor-not-allowed"
+                                    : "text-indigo-600 hover:text-indigo-700"
+                                }
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                disabled={bloqueado}
+                                onClick={() => handleDelete(r)}
+                                className={
+                                  bloqueado
+                                    ? "text-gray-300 cursor-not-allowed"
+                                    : "text-red-600 hover:text-red-700"
+                                }
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+
+                              {!r.is_ativa && podeEditarOuRemover(r) && (
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Reativar a referência "${r.nome}"?`)) return;
+                                    await activate(r.id);
+                                  }}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <RotateCcw className="w-4 h-4" />
+                                </button>
+                              )}
+
+                            </div>
+                          </td>
+
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
+
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200 bg-gray-50">
 
             <div className="flex items-center gap-2 text-sm">
@@ -546,7 +643,9 @@ export default function ReferenciasPage() {
 
             </div>
           </div>
+
         </div>
+
         {showModal && (
           <ModalReferencia
             referencia={editingReferencia}
@@ -555,6 +654,7 @@ export default function ReferenciasPage() {
             onSubmit={handleSubmit}
           />
         )}
+
       </div>
     </Layout>
   );

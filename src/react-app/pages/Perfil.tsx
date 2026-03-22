@@ -244,26 +244,6 @@ export default function PerfilPage() {
           </form>
         </div>
 
-        {/* {!isReadOnly && (
-          <div className="bg-white rounded-2xl p-6 shadow">
-            <button
-              onClick={() => setModalOpen(true)}
-              className="w-full flex items-center justify-center gap-2 border rounded-xl py-3 hover:bg-gray-50"
-            >
-              <Plus className="w-5 h-5" />
-              Conceder acesso
-            </button>
-          </div>
-
-        )} */}
-
-        {/* <AcessosConcedidosCard
-          acessos={concedidos}
-          loading={false}
-          onRevogar={isReadOnly ? noopAsync : revogar}
-          isReadOnly={isReadOnly}
-        /> */}
-
         <AcessosConcedidosCard
           acessos={concedidos}
           loading={false}
