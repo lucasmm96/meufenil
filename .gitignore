@@ -5,3 +5,4 @@ node_modules/
 .cli-token
 .cli-sql
 .cli-sql.*
+.vercel
