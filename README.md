@@ -118,6 +118,52 @@ A aplicação utiliza os **planos gratuitos do Supabase e da Vercel**, e o consu
 
 Caso o volume de usuários cresça a ponto de exigir planos pagos para manter a aplicação funcionando, a política de gratuidade **poderá ser reavaliada**, sempre com o único objetivo de **cobrir custos de infraestrutura**, nunca visando lucro.
 
+## Keepalive diário
+
+Para evitar que os projetos gratuitos do Supabase entrem em estado de pausa por inatividade, a aplicação expõe uma rota interna em `/api/keepalive`.
+
+Essa rota é executada automaticamente pelo Vercel Cron uma vez por dia e faz uma leitura mínima na tabela `public.usuarios` dos dois bancos:
+
+- `meufenil`
+- `meufenil-dev`
+
+Variáveis de ambiente necessárias na Vercel:
+
+```env
+KEEPALIVE_SUPABASE_URL=...
+KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY=...
+KEEPALIVE_DEV_SUPABASE_URL=...
+KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+Horário do cron:
+
+- `0 12 * * *` UTC, equivalente a 09:00 em `America/Sao_Paulo` durante o horário normal.
+
+Para testar manualmente:
+
+```bash
+# carregue os dois arquivos e crie aliases temporários para o keepalive
+set -a
+source .env.development
+export KEEPALIVE_DEV_SUPABASE_URL="$VITE_SUPABASE_URL"
+export KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
+set +a
+
+set -a
+source .env.production
+export KEEPALIVE_SUPABASE_URL="$VITE_SUPABASE_URL"
+export KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
+set +a
+
+vercel dev
+curl http://localhost:3000/api/keepalive
+```
+
+Na Vercel, a resposta `200` indica que os dois bancos foram acessados com sucesso. Se algum projeto falhar, a rota retorna `500` e o payload mostra qual banco apresentou erro.
+
+Se você quiser testar apenas um ambiente isolado, também funciona deixando disponíveis apenas `VITE_SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` do ambiente correspondente, porque a rota agora aceita esses nomes como fallback.
+
 ## 🤝 Contribuição
 
 Contribuições são muito bem-vindas!
