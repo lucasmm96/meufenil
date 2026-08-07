@@ -127,6 +127,13 @@ Essa rota é executada automaticamente pelo Vercel Cron uma vez por dia e faz um
 - `meufenil`
 - `meufenil-dev`
 
+Além de manter os projetos ativos, cada execução também persiste um histórico próprio em ambos os ambientes na tabela `public.background_job_executions`.
+
+O registro é gravado no mesmo banco que foi acessado:
+
+- o log do ambiente `prod` fica em `meufenil`
+- o log do ambiente `dev` fica em `meufenil-dev`
+
 Variáveis de ambiente necessárias na Vercel:
 
 ```env
@@ -139,6 +146,32 @@ KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY=...
 Horário do cron:
 
 - `0 12 * * *` UTC, equivalente a 09:00 em `America/Sao_Paulo` durante o horário normal.
+
+## Infraestrutura de jobs
+
+A persistência das execuções de jobs fica centralizada na tabela `public.background_job_executions`.
+
+Campos principais:
+
+- `job_key`: identifica o job, como `keepalive`
+- `environment`: indica o ambiente do registro, como `prod` ou `dev`
+- `run_id`: agrupa os eventos da mesma execução
+- `started_at` e `finished_at`: início e fim da execução
+- `duration_ms`: duração total
+- `status`: `success`, `failure` ou `partial`
+- `message`: resumo legível da execução
+- `details`: JSON com metadados adicionais
+
+Reutilização:
+
+- novas rotinas em background podem chamar o helper compartilhado em `src/shared/background-jobs.ts`
+- basta informar `jobKey`, `environment`, `status`, tempos, mensagem e `details`
+
+Retenção:
+
+- a tabela mantém apenas registros dos últimos 365 dias
+- a limpeza é automática via trigger no banco
+- isso evita crescimento infinito sem depender de um job de manutenção separado
 
 Para testar manualmente:
 
@@ -163,6 +196,33 @@ curl http://localhost:3000/api/keepalive
 Na Vercel, a resposta `200` indica que os dois bancos foram acessados com sucesso. Se algum projeto falhar, a rota retorna `500` e o payload mostra qual banco apresentou erro.
 
 Se você quiser testar apenas um ambiente isolado, também funciona deixando disponíveis apenas `VITE_SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` do ambiente correspondente, porque a rota agora aceita esses nomes como fallback.
+
+Para consultar o histórico:
+
+```sql
+select *
+from public.background_job_executions
+where job_key = 'keepalive'
+order by created_at desc;
+```
+
+Se quiser ver só um ambiente:
+
+```sql
+select *
+from public.background_job_executions
+where job_key = 'keepalive'
+  and environment = 'prod'
+order by created_at desc;
+```
+
+```sql
+select *
+from public.background_job_executions
+where job_key = 'keepalive'
+  and environment = 'dev'
+order by created_at desc;
+```
 
 ## 🤝 Contribuição
 
