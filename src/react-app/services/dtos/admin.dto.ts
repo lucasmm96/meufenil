@@ -21,10 +21,3 @@ export interface EstatisticasAdminDTO {
     percentual_usado: number;
   };
 }
-
-export interface ResultadoImportacaoDTO {
-  importados: number;
-  erros: string[];
-  total: number;
-  houveAtualizacoes: boolean;
-}

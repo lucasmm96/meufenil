@@ -12,7 +12,6 @@ vi.mock("@/react-app/services/admin.service", () => ({
   getUsuariosAdmin: vi.fn(),
   getEstatisticasAdmin: vi.fn(),
   toggleRoleUsuario: vi.fn(),
-  importarReferenciasCSV: vi.fn(),
 }));
 
 vi.mock("@/react-app/lib/logger", () => ({
@@ -112,20 +111,5 @@ describe("useAdmin", () => {
     });
 
     expect(adminService.toggleRoleUsuario).toHaveBeenCalledWith("1", "admin");
-  });
-
-  it("importarReferencias apenas delega ao service", async () => {
-    const resultado = { sucesso: 10, erros: 0 };
-
-    (adminService.importarReferenciasCSV as any).mockResolvedValue(resultado);
-
-    const { result } = renderHook(() => useAdmin(usuarioId));
-
-    const response = await act(async () => {
-      return result.current.importarReferencias("csv-content");
-    });
-
-    expect(adminService.importarReferenciasCSV).toHaveBeenCalledWith("csv-content");
-    expect(response).toEqual(resultado);
   });
 });
