@@ -29,56 +29,83 @@ describe("referencias.service", () => {
         { id: "2", nome: "Feijão", fenil_mg_por_100g: 120 },
       ];
 
-      const orderMock = vi.fn().mockResolvedValue({
+      const rangeMock = vi.fn().mockResolvedValue({
         data: mockData,
         error: null,
       });
-
-      const ilikeMock = vi.fn().mockReturnValue({
+      const orderMock = vi.fn().mockReturnValue({
+        range: rangeMock,
+      });
+      const eqAtivaMock = vi.fn().mockReturnValue({
         order: orderMock,
       });
-
+      const ilikeMock = vi.fn().mockReturnValue({
+        eq: eqAtivaMock,
+      });
       const orMock = vi.fn().mockReturnValue({
+        eq: eqAtivaMock,
         ilike: ilikeMock,
       });
-
       const selectMock = vi.fn().mockReturnValue({
         or: orMock,
       });
-
-      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        select: selectMock,
+      const favSelectMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
       });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce({
+          select: favSelectMock,
+        })
+        .mockReturnValueOnce({
+          select: selectMock,
+        });
 
       const result = await getReferencias({
         usuarioId: "123",
         search: "Ar",
       });
 
-      expect(result).toEqual(mockData);
-      expect(selectMock).toHaveBeenCalledWith(
-        "id, nome, fenil_mg_por_100g"
-      );
-      expect(orMock).toHaveBeenCalledWith(
-        "is_global.eq.true,criado_por.eq.123"
-      );
+      expect(result).toEqual([
+        expect.objectContaining({ ...mockData[0], is_favorita: false }),
+        expect.objectContaining({ ...mockData[1], is_favorita: false }),
+      ]);
+      expect(selectMock).toHaveBeenCalledWith(expect.stringContaining("id"));
+      expect(orMock).toHaveBeenCalledWith(expect.stringContaining("is_global.eq.true"));
       expect(ilikeMock).toHaveBeenCalledWith("nome", "%Ar%");
-      expect(orderMock).toHaveBeenCalledWith("nome");
+      expect(eqAtivaMock).toHaveBeenCalledWith("is_ativa", true);
+      expect(orderMock).toHaveBeenCalledWith("nome", { ascending: true });
+      expect(rangeMock).toHaveBeenCalledWith(0, 999);
     });
 
     it("deve lançar AppError se ocorrer erro", async () => {
-      const orderMock = vi.fn().mockResolvedValue({
+      const rangeMock = vi.fn().mockResolvedValue({
         data: null,
         error: new Error("DB error"),
       });
 
-      const ilikeMock = vi.fn().mockReturnValue({ order: orderMock });
+      const orderMock = vi.fn().mockReturnValue({ range: rangeMock });
+      const eqAtivaMock = vi.fn().mockReturnValue({ order: orderMock });
+      const ilikeMock = vi.fn().mockReturnValue({ eq: eqAtivaMock });
       const orMock = vi.fn().mockReturnValue({ ilike: ilikeMock });
       const selectMock = vi.fn().mockReturnValue({ or: orMock });
-
-      (supabase.from as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        select: selectMock,
+      const favSelectMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
       });
+
+      (supabase.from as unknown as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce({
+          select: favSelectMock,
+        })
+        .mockReturnValueOnce({
+          select: selectMock,
+        });
 
       await expect(
         getReferencias({ usuarioId: "123" })
@@ -88,10 +115,11 @@ describe("referencias.service", () => {
 
   describe("createReferencia", () => {
     it("deve criar referência corretamente", async () => {
-      const mockData: ReferenciaDTO = {
+      const mockData = {
         id: "1",
         nome: "Banana",
         fenil_mg_por_100g: 30,
+        is_global: false,
       };
 
       const singleMock = vi.fn().mockResolvedValue({
@@ -124,7 +152,14 @@ describe("referencias.service", () => {
         is_global: false,
       });
 
-      expect(result).toEqual(mockData);
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...mockData,
+          criado_por: undefined,
+          is_favorita: false,
+          is_ativa: true,
+        }),
+      );
     });
 
     it("deve lançar AppError se falhar ao criar referência", async () => {
