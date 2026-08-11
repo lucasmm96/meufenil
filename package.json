@@ -25,6 +25,7 @@
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
     "@vitejs/plugin-react": "^4.4.1",
+    "@vitest/coverage-v8": "^4.0.17",
     "eslint": "9.25.1",
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-react-refresh": "0.4.19",
@@ -40,11 +41,14 @@
   },
   "scripts": {
     "build": "tsc -b && vite build",
-    "test": "npx vitest",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "cf-typegen": "wrangler types",
     "check": "tsc && vite build && wrangler deploy --dry-run",
     "dev": "vite",
     "lint": "eslint .",
+    "supabase:migrations:apply": "bash scripts/apply-supabase-migrations.sh",
     "cli": "node scripts/cli/index.js"
   }
 }
