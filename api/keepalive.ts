@@ -21,6 +21,16 @@ type KeepaliveResult = {
   error?: string;
 };
 
+type KeepaliveRequest = {
+  method?: string;
+};
+
+type KeepaliveResponse = {
+  statusCode: number;
+  setHeader(name: string, value: string): void;
+  end(body?: string): void;
+};
+
 function requireEnv(...names: string[]): string {
   for (const name of names) {
     const value = process.env[name];
@@ -31,6 +41,34 @@ function requireEnv(...names: string[]): string {
   }
 
   throw new Error(`Missing environment variable: ${names.join(" or ")}`);
+}
+
+function resolveKeepaliveEnvironment(): "prod" | "dev" {
+  return process.env.VERCEL_ENV === "production" ? "prod" : "dev";
+}
+
+function resolveKeepaliveTarget(environment: "prod" | "dev"): KeepaliveTarget {
+  if (environment === "prod") {
+    return {
+      label: "meufenil",
+      environment,
+      url: requireEnv("KEEPALIVE_SUPABASE_URL", "VITE_SUPABASE_URL", "SUPABASE_URL"),
+      serviceRoleKey: requireEnv(
+        "KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY"
+      ),
+    };
+  }
+
+  return {
+    label: "meufenil-dev",
+    environment,
+    url: requireEnv("KEEPALIVE_DEV_SUPABASE_URL", "VITE_SUPABASE_URL", "SUPABASE_URL"),
+    serviceRoleKey: requireEnv(
+      "KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ),
+  };
 }
 
 function createSupabaseClient(url: string, serviceRoleKey: string) {
@@ -107,7 +145,7 @@ async function persistProjectExecution(
   });
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: KeepaliveRequest, res: KeepaliveResponse) {
   try {
     if (req.method && req.method !== "GET" && req.method !== "HEAD") {
       res.statusCode = 405;
@@ -119,87 +157,24 @@ export default async function handler(req: any, res: any) {
 
     const startedAt = Date.now();
     const runId = crypto.randomUUID();
-
-    const targets: KeepaliveTarget[] = [
-      {
-        label: "meufenil",
-        environment: "prod",
-        url: requireEnv("KEEPALIVE_SUPABASE_URL", "VITE_SUPABASE_URL", "SUPABASE_URL"),
-        serviceRoleKey: requireEnv(
-          "KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY",
-          "SUPABASE_SERVICE_ROLE_KEY"
-        ),
-      },
-      {
-        label: "meufenil-dev",
-        environment: "dev",
-        url: requireEnv("KEEPALIVE_DEV_SUPABASE_URL", "VITE_SUPABASE_URL", "SUPABASE_URL"),
-        serviceRoleKey: requireEnv(
-          "KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY",
-          "SUPABASE_SERVICE_ROLE_KEY"
-        ),
-      },
-    ];
+    const environment = resolveKeepaliveEnvironment();
+    const target = resolveKeepaliveTarget(environment);
 
     console.info("[keepalive] run started");
 
-    const results = await Promise.allSettled(
-      targets.map((target) => pingProject(target))
-    );
-    const projects = results.map((result, index) => {
-      const fallbackTarget = targets[index];
-      const fallbackStartedAt = new Date(startedAt).toISOString();
-      const fallbackFinishedAt = new Date().toISOString();
+    const project = await pingProject(target);
+    const logClient = createSupabaseClient(target.url, target.serviceRoleKey);
 
-      if (result.status === "fulfilled") {
-        return result.value;
-      }
-
-      const errorMessage =
-        result.reason instanceof Error
-          ? result.reason.message
-          : String(result.reason);
-
+    try {
+      await persistProjectExecution(logClient, runId, project);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[keepalive] failed ${fallbackTarget.label} before query: ${errorMessage}`
+        `[keepalive] failed to persist ${project.environment} result: ${message}`
       );
+    }
 
-      return {
-        label: fallbackTarget.label,
-        environment: fallbackTarget.environment,
-        ok: false,
-        elapsedMs: 0,
-        startedAt: fallbackStartedAt,
-        finishedAt: fallbackFinishedAt,
-        error: errorMessage,
-      };
-    });
-
-    await Promise.all(
-      projects.map(async (project) => {
-        const target = targets.find((item) => item.environment === project.environment);
-
-        if (!target) {
-          console.error(
-            `[keepalive] missing target for environment ${project.environment}`
-          );
-          return;
-        }
-
-        const logClient = createSupabaseClient(target.url, target.serviceRoleKey);
-
-        try {
-          await persistProjectExecution(logClient, runId, project);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          console.error(
-            `[keepalive] failed to persist ${project.environment} result: ${message}`
-          );
-        }
-      })
-    );
-
-    const ok = projects.every((project) => project.ok);
+    const ok = project.ok;
     const durationMs = Date.now() - startedAt;
 
     console.info(
@@ -214,7 +189,7 @@ export default async function handler(req: any, res: any) {
         ok,
         runId,
         durationMs,
-        projects,
+        projects: [project],
       })
     );
   } catch (error) {
