@@ -41,7 +41,6 @@ Atualmente, o MeuFenil oferece:
 
 - Melhorias no gerenciamento de alimentos personalizados
 - Interface para alimentos favoritos e/ou mais consumidos
-- Compartilhamento de acesso com terceiros (ex: familiares ou cuidadores)
 
 ## 🧱 Stack técnica
 
@@ -90,11 +89,28 @@ A aplicação utiliza um banco PostgreSQL gerenciado pelo Supabase. De forma res
 
 ### Variáveis de ambiente
 
-Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
+Crie os arquivos `.env.development` e `.env.production` na raiz do projeto com as seguintes variáveis:
 
 ```env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_PROJECT_ID=your_project_id
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_DATABASE_URL=your_database_url
+```
+
+### Migrations
+
+Migrations do banco de dados são gerenciadas via Supabase CLI e versionadas em `supabase/migrations/`.
+
+Para aplicar migrations pendentes:
+
+```bash
+# Desenvolvimento
+./scripts/apply-supabase-migrations.sh --env development
+
+# Produção (exige confirmação adicional)
+./scripts/apply-supabase-migrations.sh --env production
 ```
 
 ### Instalação e execução
