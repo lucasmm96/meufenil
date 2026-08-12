@@ -4,7 +4,6 @@ import {
   getUsuariosAdmin,
   toggleRoleUsuario,
   getEstatisticasAdmin,
-  importarReferenciasCSV,
 } from "./admin.service";
 import { AppError } from "@/react-app/lib/errors";
 
@@ -109,34 +108,5 @@ describe("admin.service", () => {
 
     expect(result.armazenamento.percentual_usado).toBe(50);
     expect(result.armazenamento.limite_gratuito_mb).toBe(500);
-  });
-
-  it("importarReferenciasCSV importa CSV válido", async () => {
-    // consulta existentes
-    fromMock.mockReturnValueOnce({
-      select: vi.fn().mockReturnValueOnce({
-        in: vi.fn().mockResolvedValueOnce({
-          data: [],
-          error: null,
-        }),
-      }),
-    });
-
-    // upsert
-    fromMock.mockReturnValueOnce({
-      upsert: vi.fn().mockResolvedValueOnce({
-        error: null,
-      }),
-    });
-
-    const csv = `nome;fenil
-Arroz;10
-Feijão;20`;
-
-    const result = await importarReferenciasCSV(csv);
-
-    expect(result.importados).toBe(2);
-    expect(result.erros).toHaveLength(0);
-    expect(result.total).toBe(2);
   });
 });

@@ -41,7 +41,6 @@ Atualmente, o MeuFenil oferece:
 
 - Melhorias no gerenciamento de alimentos personalizados
 - Interface para alimentos favoritos e/ou mais consumidos
-- Compartilhamento de acesso com terceiros (ex: familiares ou cuidadores)
 
 ## 🧱 Stack técnica
 
@@ -90,11 +89,28 @@ A aplicação utiliza um banco PostgreSQL gerenciado pelo Supabase. De forma res
 
 ### Variáveis de ambiente
 
-Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
+Crie os arquivos `.env.development` e `.env.production` na raiz do projeto com as seguintes variáveis:
 
 ```env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_PROJECT_ID=your_project_id
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_DATABASE_URL=your_database_url
+```
+
+### Migrations
+
+Migrations do banco de dados são gerenciadas via Supabase CLI e versionadas em `supabase/migrations/`.
+
+Para aplicar migrations pendentes:
+
+```bash
+# Desenvolvimento
+./scripts/apply-supabase-migrations.sh --env development
+
+# Produção (exige confirmação adicional)
+./scripts/apply-supabase-migrations.sh --env production
 ```
 
 ### Instalação e execução
@@ -120,28 +136,23 @@ Caso o volume de usuários cresça a ponto de exigir planos pagos para manter a 
 
 ## Keepalive diário
 
-Para evitar que os projetos gratuitos do Supabase entrem em estado de pausa por inatividade, a aplicação expõe uma rota interna em `/api/keepalive`.
+Para evitar que o projeto gratuito do Supabase entre em estado de pausa por inatividade, a aplicação expõe uma rota interna em `/api/keepalive`.
 
-Essa rota é executada automaticamente pelo Vercel Cron uma vez por dia e faz uma leitura mínima na tabela `public.usuarios` dos dois bancos:
+Essa rota é executada automaticamente pelo Vercel Cron uma vez por dia e faz uma leitura mínima na tabela `public.usuarios` do banco correspondente ao ambiente atual:
 
-- `meufenil`
-- `meufenil-dev`
+- em desenvolvimento, lê o banco de dev
+- em produção, lê o banco de produção
 
-Além de manter os projetos ativos, cada execução também persiste um histórico próprio em ambos os ambientes na tabela `public.background_job_executions`.
+Cada execução também persiste um histórico próprio na tabela `public.background_job_executions` do mesmo banco acessado.
 
-O registro é gravado no mesmo banco que foi acessado:
-
-- o log do ambiente `prod` fica em `meufenil`
-- o log do ambiente `dev` fica em `meufenil-dev`
-
-Variáveis de ambiente necessárias na Vercel:
+A rota usa automaticamente as credenciais do ambiente atual:
 
 ```env
-KEEPALIVE_SUPABASE_URL=...
-KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY=...
-KEEPALIVE_DEV_SUPABASE_URL=...
-KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY=...
+VITE_SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
+
+Se você já mantiver variáveis explícitas de keepalive no painel da Vercel, elas continuam funcionando como override, mas não são obrigatórias para o fluxo padrão.
 
 Horário do cron:
 
@@ -149,7 +160,7 @@ Horário do cron:
 
 ## Infraestrutura de jobs
 
-A persistência das execuções de jobs fica centralizada na tabela `public.background_job_executions`.
+A persistência das execuções de jobs fica centralizada na tabela `public.background_job_executions` de cada ambiente.
 
 Campos principais:
 
@@ -172,6 +183,12 @@ Retenção:
 - a tabela mantém apenas registros dos últimos 365 dias
 - a limpeza é automática via trigger no banco
 - isso evita crescimento infinito sem depender de um job de manutenção separado
+
+Monitoramento no painel administrativo:
+
+- o painel de admin mostra um resumo das execuções em background do ambiente atual
+- a tela inclui filtros por job, status e período
+- o histórico fica paginado e protegido por RLS, visível apenas para administradores
 
 Para testar manualmente:
 

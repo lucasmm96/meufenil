@@ -1,9 +1,13 @@
 dist/
 node_modules/
+coverage/
 .dev.vars
 .env*
 .cli-token
 .cli-sql
 .cli-sql.*
 .vercel
+supabase/.branches/
 supabase/.temp/
+tsconfig.tsbuildinfo
+docs/analises/

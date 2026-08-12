@@ -4,9 +4,8 @@ import {
   getUsuariosAdmin,
   toggleRoleUsuario,
   getEstatisticasAdmin,
-  importarReferenciasCSV,
 } from "@/react-app/services/admin.service";
-import { UsuarioAdminDTO, EstatisticasAdminDTO, ResultadoImportacaoDTO } from "@/react-app/services/dtos/admin.dto";
+import { UsuarioAdminDTO, EstatisticasAdminDTO } from "@/react-app/services/dtos/admin.dto";
 import { AppError } from "@/react-app/lib/errors";
 import { logger } from "@/react-app/lib/logger";
 
@@ -68,10 +67,6 @@ export function useAdmin(usuarioId?: string) {
     await load();
   };
 
-  const importarReferencias = async (csvText: string): Promise<ResultadoImportacaoDTO> => {
-    return importarReferenciasCSV(csvText);
-  };
-
   return {
     perfilUsuario,
     usuarios,
@@ -80,6 +75,5 @@ export function useAdmin(usuarioId?: string) {
     error,
     reload: load,
     toggleRole,
-    importarReferencias,
   };
 }

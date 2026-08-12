@@ -32,13 +32,17 @@ describe("useReferencias", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetReferencias.mockResolvedValue([]);
   });
 
-  it("inicia com estado inicial correto", () => {
+  it("inicia com estado inicial correto", async () => {
     const { result } = renderHook(() => useReferencias(usuarioId));
 
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
     expect(result.current.data).toEqual([]);
-    expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
   });
 
@@ -52,16 +56,28 @@ describe("useReferencias", () => {
 
     const { result } = renderHook(() => useReferencias(usuarioId));
 
-    await act(async () => {
-      await result.current.search("arroz");
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
     });
 
-    expect(mockedGetReferencias).toHaveBeenCalledWith({
-      usuarioId,
-      search: "arroz",
+    act(() => {
+      result.current.search("arroz");
     });
 
-    expect(result.current.data).toEqual(fakeRefs);
+    await waitFor(() => {
+      expect(mockedGetReferencias).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          usuarioId,
+          search: "arroz",
+          orderBy: "nome",
+          showInativas: false,
+          onlyFavoritas: false,
+          onlyCustomizadas: false,
+        }),
+      );
+      expect(result.current.data).toEqual(fakeRefs);
+    });
+
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -73,13 +89,20 @@ describe("useReferencias", () => {
 
     const { result } = renderHook(() => useReferencias(usuarioId));
 
-    await act(async () => {
-      await result.current.search("erro");
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.data).toEqual([]);
-    expect(result.current.loading).toBe(false);
-    expect(result.current.error).toBeInstanceOf(AppError);
+    act(() => {
+      result.current.search("erro");
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.data).toEqual([]);
+      expect(result.current.error).toBeInstanceOf(AppError);
+    });
+
     expect(result.current.error?.code).toBe("UNKNOWN_ERROR");
   });
 
@@ -91,8 +114,13 @@ describe("useReferencias", () => {
     };
 
     mockedCreateReferencia.mockResolvedValue(fakeRef);
+    mockedGetReferencias.mockResolvedValue([]);
 
     const { result } = renderHook(() => useReferencias(usuarioId));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
 
     let response;
     await act(async () => {
@@ -113,8 +141,13 @@ describe("useReferencias", () => {
     const error = new Error("Erro ao criar");
 
     mockedCreateReferencia.mockRejectedValue(error);
+    mockedGetReferencias.mockResolvedValue([]);
 
     const { result } = renderHook(() => useReferencias(usuarioId));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
 
     let thrownError: unknown;
 
