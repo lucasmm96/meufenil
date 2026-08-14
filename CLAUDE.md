@@ -1,0 +1,143 @@
+# CLAUDE.md — MeuFenil
+
+> Manual operacional para agentes de IA neste projeto. Este arquivo ensina COMO trabalhar; os detalhes do sistema vivem no Specification System ([`.ai/specs/`](.ai/specs/)) e NÃO são duplicados aqui.
+
+## 1. O que é o MeuFenil
+
+Aplicação open source de controle pessoal da ingestão diária de fenilalanina para pessoas com PKU. **Não substitui acompanhamento médico ou nutricional.** SPA React/Vite + Supabase (Postgres/RLS/Auth/Edge Functions) + função Vercel (keepalive). Sem servidor de aplicação próprio.
+
+## 2. Fonte da verdade e separação Current × Proposed
+
+- **CURRENT STATE** = implementação atual (código, banco, migrations, testes, configuração) + as specs em [`.ai/specs/current/`](.ai/specs/current/) que a documentam. Em divergência factual, a implementação vence — e a divergência é registrada, nunca resolvida silenciosamente.
+- **PROPOSED STATE** = [`.ai/specs/proposed/`](.ai/specs/proposed/) — possibilidades futuras. NUNCA tratar proposta como comportamento implementado. NÃO alterar Current Specs para refletir uma proposta antes de ela ser realmente implementada.
+- **Governança** = [`.ai/specs/CONVENTIONS.md`](.ai/specs/CONVENTIONS.md). Quando houver conflito entre este arquivo e as specs, siga a governança e investigue a inconsistência — não altere silenciosamente nenhuma fonte.
+
+## 3. Navegação — carregue somente o necessário
+
+Pontos de entrada:
+
+| Propósito | Arquivo |
+|---|---|
+| Hub geral | [`.ai/specs/README.md`](.ai/specs/README.md) |
+| Mapa funcional (capability → camadas) | [`.ai/specs/current/system-map.md`](.ai/specs/current/system-map.md) |
+| Arquitetura (camadas, boundaries) | [`.ai/specs/current/architecture/overview.md`](.ai/specs/current/architecture/overview.md) |
+| Governança e regras | [`.ai/specs/CONVENTIONS.md`](.ai/specs/CONVENTIONS.md) |
+| Propostas | [`.ai/specs/proposed/index.md`](.ai/specs/proposed/index.md) |
+| Testes | [`.ai/specs/current/testing/testing-strategy.md`](.ai/specs/current/testing/testing-strategy.md) |
+| ADRs | [`.ai/specs/decisions/`](.ai/specs/decisions/) |
+| Templates | [`.ai/specs/templates/`](.ai/specs/templates/) |
+
+**PROGRESSIVE CONTEXT LOADING** — não leia tudo: (1) entenda a solicitação → (2) identifique a capability no system-map → (3) abra a Feature Spec → (4) Business Rules relacionadas → (5) camadas afetadas (frontend/backend/database/security) → (6) testing → (7) architecture/ADRs apenas com impacto arquitetural → (8) só então o código citado nas evidências.
+
+## 4. Antes de implementar (checklist obrigatório para tarefas não triviais)
+
+1. Objetivo compreendido e escopo identificado.
+2. Feature/domínio localizado no system-map; Current Specs lidas.
+3. Business Rules relevantes identificadas (BR-NNN em [`domain/business-rules.md`](.ai/specs/current/domain/business-rules.md) e rastreabilidade em [`domain/traceability.md`](.ai/specs/current/domain/traceability.md)).
+4. Implementação e testes existentes identificados.
+5. Impactos mapeados (matriz de Change Synchronization em [`CONVENTIONS.md`](.ai/specs/CONVENTIONS.md) seção 11).
+6. `proposed/` consultado — existe proposta relacionada? Existe UNKNOWN que afete a mudança?
+7. Decisão humana necessária? (seção 8 abaixo)
+
+Não comece editando código.
+
+## 5. Workflows
+
+### Nova feature
+
+```
+Pedido → verificar proposta existente → (não há?) criar Proposed Feature [template feature-spec, Tipo Proposed]
+→ APROVAÇÃO HUMANA → ACCEPTED → Feature Spec → Implementation → Tests
+→ Validation → Update Current Specs → Update Proposed status → System Map → validação da documentação
+```
+
+Nenhuma feature sem specification. Se a solicitação vier com especificação completa e autorização explícita, prossiga respeitando segurança/arquitetura/dados.
+
+### Bug
+
+```
+Reproduzir → CURRENT behavior → EXPECTED behavior → verificar spec → teste de regressão
+→ corrigir → testes → validar → avaliar documentação
+```
+
+Se o comportamento atual contradiz a spec: **STOP** — determine se o código está errado, a spec está obsoleta ou o requisito mudou; se não for possível determinar, peça decisão humana. Não assuma automaticamente que a spec está errada.
+
+### Implementar uma proposta existente (quando explicitamente solicitado)
+
+1. Abrir a proposta; verificar Status, Open Questions, Acceptance Criteria e impactos.
+2. Se houver Open Question relevante não resolvida: **STOP**.
+3. Implementar → testar → atualizar Current Specs → marcar proposta `IMPLEMENTED` com **Implemented Through** → atualizar `proposed/index.md` → validar documentação.
+
+## 6. Evidência — nunca transforme UNKNOWN em CONFIRMED sem evidência
+
+- `[CONFIRMED]` — evidência direta (sempre com fonte).
+- `[INFERRED]` — derivada de evidências; exige bloco `Basis:`.
+- `[ASSUMED]` — hipótese temporária; nunca como fato.
+- `[UNKNOWN]` — não determinado; registre `Evidence Needed:` quando útil.
+
+UNKNOWN não significa "escolha o que parece melhor". Se afeta a implementação: **STOP** e reporte a lacuna. Se não afeta: continue e registre. (Regras completas: [`CONVENTIONS.md`](.ai/specs/CONVENTIONS.md) seção 3.)
+
+## 7. Segurança, dados e contratos — regra de alto risco
+
+Qualquer alteração que possa afetar **segurança, dados, autorização, regra de negócio, contrato externo ou arquitetura** é HIGH RISK: **não implemente automaticamente**, mesmo que pareça tecnicamente pequena.
+
+- **Database:** antes de qualquer mudança, consulte [`current/database/`](.ai/specs/current/database/) e [`current/security/`](.ai/specs/current/security/). Migrations usam o mecanismo oficial existente ([`scripts/apply-supabase-migrations.sh`](scripts/apply-supabase-migrations.sh)) — não invente outro. Mudança de schema/RLS/RPC = HIGH RISK = parar antes de implementar.
+- **Segurança:** nunca trate autorização como preocupação de frontend — esconder UI não é autorizar. Consulte o [`security-model`](.ai/specs/current/security/security-model.md) e verifique authentication, authorization, ownership, RLS, RPC, admin, delegation, service_role e Edge Functions.
+- **Contrato externo** (payloads, respostas de edge functions/API, comportamento público): mudança = HIGH RISK.
+
+## 8. Stop conditions e fronteira de decisão humana
+
+**CONTINUE quando:** fato confirmado por spec + evidência · mudança claramente local e de baixo risco · UNKNOWN não afeta a decisão · typo factual inequívoco (corrigir E registrar).
+
+**PARE quando:** UNKNOWN afeta comportamento · código contradiz spec · duas specs se contradizem · schema/migration/RLS/RPC será alterado · autorização ou segurança será alterada · regra de negócio mudará · nova decisão arquitetural (propor ADR, Origin Contemporary) · contrato externo mudará · proposta não aprovada · governança do Specification System será alterada.
+
+Ao parar, NÃO implemente parcialmente "para resolver depois". Explique: (1) o que foi encontrado; (2) por que é ambíguo; (3) alternativas; (4) qual decisão precisa ser tomada.
+
+| Risco | Critério | Regra |
+|---|---|---|
+| LOW | mudança localizada, sem impacto em comportamento/dados/segurança/contrato | pode implementar seguindo specs |
+| MEDIUM | mudança comportamental/estrutural com impacto controlado | pode exigir validação adicional |
+| HIGH | schema, migrations, RLS, RPC, autorização, segurança, dados destrutivos, regras de negócio, arquitetura, secrets/environment, contratos externos | decisão humana ANTES da implementação, salvo autorização explícita por spec aprovada |
+
+(Matrizes completas: [`CONVENTIONS.md`](.ai/specs/CONVENTIONS.md) seções 13–14.)
+
+## 9. Padrões de implementação
+
+- **Frontend:** siga os padrões documentados em [`current/frontend/`](.ai/specs/current/frontend/) (camadas page→hook→service, DTOs, AppError, skeletons, padrões visuais observados). Não invente novos padrões de layout/loading/error/empty/forms/modals/hooks/services quando já existe padrão estabelecido; se for necessário criar um, avalie se é decisão estrutural.
+- **Backend:** siga [`current/backend/`](.ai/specs/current/backend/) e os padrões existentes (Edge Functions, RPCs, error handling, auth, authorization).
+- **Testing:** toda mudança de comportamento precisa de testes apropriados — consulte [`testing-strategy.md`](.ai/specs/current/testing/testing-strategy.md) e os testes existentes antes de criar. Priorize comportamento, regras de negócio, segurança, erros, edge cases e regressões — não busque cobertura percentual cegamente; coverage % não é prova de qualidade. Execute os testes relevantes (suite completa quando apropriado). Não altere testes existentes para "passar".
+- **Escrever docs:** use os templates de [`.ai/specs/templates/`](.ai/specs/templates/) — não invente estrutura paralela. Se o template não atender: **STOP** e registre a necessidade de evolução do Specification System.
+
+## 10. Documentação sincronizada (obrigatório)
+
+Após qualquer mudança de comportamento: revise as specs afetadas usando a matriz de Change Synchronization ([`CONVENTIONS.md`](.ai/specs/CONVENTIONS.md) seção 11). **REVIEW ≠ UPDATE** — altere uma spec apenas se o comportamento factual documentado mudou. Avalie: Feature · Business Rules · camadas · Security · Testing · Architecture/ADR · System Map. Não atualize tudo indiscriminadamente. Specs viajam no MESMO commit da mudança de comportamento.
+
+## 11. Escopo e proibições
+
+- **Scope control:** mantenha a mudança focada. Não aproveite a tarefa para refatorar arquivos não relacionados, atualizar dependências, reorganizar diretórios, corrigir problemas antigos ou melhorar UI alheia. Descobertas relevantes → registrar como proposta/gap.
+- **O agente NÃO deve:** inventar requisitos/regras/decisões · preencher UNKNOWN por conveniência · implementar Proposed não aprovado · alterar segurança/schema sem autorização · criar migrations desnecessárias · duplicar padrões · ignorar testes ou documentação · alterar specs apenas para justificar código · fazer mudanças fora do objetivo · refactors oportunistas · expandir escopo silenciosamente.
+- **Descobertas de melhoria:** "seria melhor" NÃO é "deve ser implementado". Se não autorizado: registre como proposta (verifique antes [`proposed/index.md`](.ai/specs/proposed/index.md) para não duplicar) ou solicite aprovação.
+
+## 12. Git e ambiente
+
+- Branch de desenvolvimento oficial: **`development`**. Não use `fix/security-rls-rpc` para trabalho novo. Não troque de branch sem autorização.
+- Verifique branch e working tree antes de trabalhar.
+- **Não** faça commit, push ou tag automaticamente — somente se explicitamente solicitado.
+- `.ai/.temp/analyses/` é o laboratório local (NÃO versionar, não é fonte primária; relatórios de trabalho vão para lá). Mudanças permanentes no Specification System vão para `.ai/specs/`.
+
+## 13. Completion checklist (antes de declarar concluído)
+
+- [ ] objetivo original atendido; escopo respeitado
+- [ ] Current Specs consultadas; regras de negócio verificadas; segurança avaliada
+- [ ] testes existentes consultados; testes relevantes executados/criados
+- [ ] documentação sincronizada (REVIEW ≠ UPDATE); System Map avaliado
+- [ ] Proposed não confundido com Current; nenhuma decisão não autorizada tomada
+- [ ] nenhuma mudança HIGH RISK sem aprovação; nenhuma alteração não relacionada introduzida
+
+## 14. Fluxo de trabalho ideal
+
+```
+USER REQUEST → UNDERSTAND → LOCATE SPEC → LOAD RELEVANT CONTEXT → CHECK RULES
+→ CHECK SECURITY → CHECK TESTS → CHECK DECISION BOUNDARY
+→ IMPLEMENT OR STOP → TEST → SYNC DOCUMENTATION → VALIDATE → REPORT
+```
