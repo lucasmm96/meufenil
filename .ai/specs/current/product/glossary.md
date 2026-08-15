@@ -1,6 +1,6 @@
 # Glossário — MeuFenil
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0002)
 
 Termos como REALMENTE usados no sistema. Definições derivadas das fontes (código, banco, UI, README) — sem definições médicas externas além do que o próprio sistema afirma.
 
@@ -34,7 +34,7 @@ Termos como REALMENTE usados no sistema. Definições derivadas das fontes (cód
 | **Referência ativa / inativa** | estado `is_ativa` (default `true`); inativa não pode ser usada em novos registros; exibida riscada com "(Inativa)"; pode ser reativada | soft delete | database, UI `[CONFIRMED: database, UI]` | Registro, Favorito |
 | **Referência favorita** | marcação pessoal do usuário em `referencias_favoritas` (1 por par usuário/referência); favoritas aparecem primeiro na lista do modal | estrela na UI | database, UI `[CONFIRMED: database, UI]` | Referência |
 | **Registro (de consumo)** | consumo diário: data, alimento (referência), peso em gramas e fenilalanina em mg; sem edição (só criar/excluir) | tabela `registros` | database `[CONFIRMED: database]` | Referência, Limite diário |
-| **Limite diário** | teto pessoal de fenilalanina em mg/dia (`usuarios.limite_diario_mg`); default da coluna 500; novos usuários recebem 150 via trigger; editável no Perfil | indicadores do Dashboard | database, migration, UI `[CONFIRMED: database, migration, UI]` | Fenilalanina, Percentual de consumo |
+| **Limite diário** | teto pessoal de fenilalanina em mg/dia (`usuarios.limite_diario_mg`); default 500 para novos usuários (default da coluna; trigger não define — DEBT-0002); editável no Perfil | indicadores do Dashboard | database, migration, UI `[CONFIRMED: database, migration, UI]` | Fenilalanina, Percentual de consumo |
 
 ## Saúde
 

@@ -1,6 +1,6 @@
 # Product Overview — MeuFenil
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0002)
 
 ## Propósito do produto
 
@@ -40,7 +40,7 @@ Usuário · Referência · Registro de consumo · Exame PKU · Delegação de ac
 
 ## Principais fluxos do produto
 
-1. Primeiro acesso e login (Google OAuth → perfil criado automaticamente com limite 150 mg)
+1. Primeiro acesso e login (Google OAuth → perfil criado automaticamente com limite 500 mg)
 2. Consentimento LGPD (modal obrigatório até aceite)
 3. Registrar consumo (busca alimento → peso → cálculo → registro)
 4. Acompanhar o dia (dashboard com limite)

@@ -1,6 +1,6 @@
 # Tabela public.usuarios
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
 **DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 201–275); políticas consolidadas ("Usuário vê/atualiza/cria próprio perfil"): `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001). Também presente no legado `migrations/usuarios.sql`
 
 ## Propósito
@@ -62,12 +62,12 @@ Notas factuais:
 ## Regras de negócio associadas
 
 - Papel de administrador = `usuarios.role = 'admin'` (implementado em `is_admin_user` — ver [rpc.md](rpc.md)).
-- Limite diário: o default da COLUNA é `500`, mas o trigger `handle_new_user` insere `150` em novos usuários (ver [triggers.md](triggers.md)) — ambos são fatos do schema atual.
+- Limite diário: o default da COLUNA é `500`; o trigger `handle_new_user` não define limite no sign-up — o default vale para todo novo usuário (DEBT-0002, decisão B) (ver [triggers.md](triggers.md)).
 - Delegação de acesso referencia esta tabela em `delegacoes_acesso` (ver spec própria e `../security/security-model.md` — Fase 3).
 
 ## Lifecycle
 
-- **Criação:** pelo trigger `on_auth_user_created` (`handle_new_user`) no sign-up — `nome` = `raw_user_meta_data->>'full_name'` ou `email`, `role = 'user'`, `timezone = 'America/Sao_Paulo'`, `limite_diario_mg = 150`; `on conflict (id) do nothing` `[CONFIRMED: migration, baseline linhas 120–148]`.
+- **Criação:** pelo trigger `on_auth_user_created` (`handle_new_user`) no sign-up — `nome` = `raw_user_meta_data->>'full_name'` ou `email`, `role = 'user'`, `timezone = 'America/Sao_Paulo'`, `limite_diario_mg = 500` (default da coluna; o trigger não define) `on conflict (id) do nothing` `[CONFIRMED: migration — 20260815000000 (DEBT-0002); baseline linhas 206 e 120–148]`.
 - **Atualização:** pelo próprio usuário (página Perfil: limite diário, timezone) sob a política "Usuário atualiza próprio perfil"; `consentimento_lgpd_em` definido pela aplicação (componente `ConsentimentoLGPD`) `[CONFIRMED: code — usuarios.service.ts, ConsentimentoLGPD.tsx]`.
 - **Exclusão:** cascata a partir de `auth.users` (FK CASCADE). A edge function `delete-account` exclui `registros` do usuário antes de `usuarios` `[CONFIRMED: code — supabase/functions/delete-account/index.ts:61,70]`.
 - **Leitura por admin:** via `admin_can_select_all_usuarios` (painel administrativo) `[CONFIRMED: code — admin.service.ts]`.

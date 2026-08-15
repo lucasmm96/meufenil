@@ -1,6 +1,6 @@
 # Database — Visão Geral
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod; catálogo conferido nos dois ambientes)
+**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
 
 ## Propósito
 
@@ -52,6 +52,7 @@ Este diretório documenta o estado REAL do banco de dados PostgreSQL (Supabase) 
 | `20260810000000_background_job_monitoring.sql` | 2026-08-11 | Função `is_admin_user` + política admin de consulta aos jobs |
 | `20260811210456_fix_security_rls_rpc.sql` | 2026-08-11 | Correções de segurança: drop `debug_allow_all`, política `admin_can_select_all_usuarios`, endurecimento de `ativar_referencia` e `remover_ou_desativar_referencia` |
 | `20260814000000_baseline_objetos_nao_versionados.sql` | 2026-08-14 | **DEBT-0001:** baseline idempotente dos objetos sem DDL versionado — tabelas `delegacoes_acesso` e `referencias_favoritas`, coluna `referencias.is_ativa`, função/trigger de favoritos, consolidação das políticas RLS (cria 27 vigentes + remove as obsoletas do baseline) |
+| `20260815000000_limite_diario_default_500.sql` | 2026-08-15 | **DEBT-0002:** `handle_new_user` deixa de definir `limite_diario_mg` no sign-up — default da coluna (500) passa a valer para novos usuários |
 
 Aplicação via `scripts/apply-supabase-migrations.sh` (obrigatório `--env development|production`; nunca os dois juntos). Baseline: versão `20260103015052` `[CONFIRMED: code, script]`.
 

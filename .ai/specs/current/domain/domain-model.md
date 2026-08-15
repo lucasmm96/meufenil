@@ -1,6 +1,6 @@
 # Domain Model — MeuFenil
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0002)
 
 Modelo conceitual reconstruído a partir do sistema atual (banco, código, UI e testes). O modelo descreve conceitos — as tabelas são apenas parte da persistência deles.
 
@@ -31,7 +31,7 @@ Nota: `EXECUCAO_JOB` (background_job_executions) é uma entidade isolada do dom�
 - **Identity:** o `id` É o id do Supabase Auth (não gerado pela aplicação) `[CONFIRMED: database]`.
 - **Ownership:** é dono de registros, exames, referências (criadas por ele), favoritos; concede/revoga delegações `[CONFIRMED: database, security]`.
 - **Estados:** papel `user` ↔ `admin` (atualizável apenas fora da UI; coluna editável pelo próprio usuário via RLS — fato); consentimento: ausente → presente (data) `[CONFIRMED: database]`.
-- **Lifecycle:** criado por trigger no sign-up (limite 150, role user, timezone America/Sao_Paulo) → atualiza perfil → excluído via edge function (registros → usuarios → auth) ou cascata `[CONFIRMED: migration, code]`.
+- **Lifecycle:** criado por trigger no sign-up (limite 500 via default da coluna, role user, timezone America/Sao_Paulo) → atualiza perfil → excluído via edge function (registros → usuarios → auth) ou cascata `[CONFIRMED: migration, code]`.
 
 ### Referencia (alimento de referência)
 

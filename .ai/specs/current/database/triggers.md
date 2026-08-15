@@ -1,6 +1,6 @@
 # Triggers — Inventário
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
 
 Inventário dos 4 triggers confirmados no catálogo dos bancos dev e prod (2026-08-13): 3 no schema `public` + 1 em `auth.users` `[CONFIRMED: database — information_schema.triggers]`. Não há outros triggers em `public`.
 
@@ -42,8 +42,8 @@ Inventário dos 4 triggers confirmados no catálogo dos bancos dev e prod (2026-
 - **Tabela:** `auth.users` (schema do Supabase Auth)
 - **Evento/timing:** AFTER INSERT, FOR EACH ROW `[CONFIRMED: database, migration — baseline linha 680]`
 - **Função:** `handle_new_user()` (plpgsql, SECURITY DEFINER, sem `search_path` configurado)
-- **Finalidade observada:** no sign-up (Auth), cria o perfil correspondente em `public.usuarios` — `nome` (full_name do OAuth ou email), `email`, `role = 'user'`, `timezone = 'America/Sao_Paulo'`, `limite_diario_mg = 150`; `on conflict (id) do nothing` `[CONFIRMED: migration, baseline linhas 120–148]`
-- **Evidências:** baseline linha 680; catálogo dev/prod `[CONFIRMED: migration, database]`
+- **Finalidade observada:** no sign-up (Auth), cria o perfil correspondente em `public.usuarios` — `nome` (full_name do OAuth ou email), `email`, `role = 'user'`, `timezone = 'America/Sao_Paulo'`, `limite_diario_mg` **não definido** (vale o default da coluna = 500); `on conflict (id) do nothing` `[CONFIRMED: migration — 20260815000000 (DEBT-0002); baseline linhas 120–148 (definição original com 150)]`
+- **Evidências:** baseline linha 680 (trigger); migration 20260815000000 (corpo da função); catálogo dev/prod `[CONFIRMED: migration, database]`
 
 ---
 

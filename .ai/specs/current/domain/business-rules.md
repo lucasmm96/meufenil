@@ -1,6 +1,6 @@
 # Business Rules — MeuFenil
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0002)
 
 Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o formato: Given / When / Then + Evidence + Implementation + Tests + Related Specs + Status. Status: `Confirmed + tested` · `Confirmed + partially tested` · `Confirmed + untested` · `Inferred` · `Unknown`. Regras em que a evidência não permite confirmação NÃO são listadas como fatos.
 
@@ -220,12 +220,12 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tests:** T2.2/T2.3/T2.4, T3.3 (RPCs); trigger sem teste
 - **Status:** Confirmed + partially tested
 
-### BR-025 — Novo usuário recebe limite 150 e timezone São Paulo
+### BR-025 — Novo usuário recebe limite 500 e timezone São Paulo
 - **Tipo:** lifecycle
 - **Given:** sign-up (INSERT em auth.users)
 - **When:** trigger `on_auth_user_created`
-- **Then:** perfil criado com `limite_diario_mg = 150`, `role = 'user'`, `timezone = 'America/Sao_Paulo'`, nome = full_name ou email (default da COLUNA limite é 500 — ambos fatos)
-- **Evidence:** `[CONFIRMED: migration — baseline linhas 120-148; database]`
+- **Then:** perfil criado com `limite_diario_mg = 500` (default da coluna — o trigger não define), `role = 'user'`, `timezone = 'America/Sao_Paulo'`, nome = full_name ou email
+- **Evidence:** `[CONFIRMED: migration — 20260815000000 (DEBT-0002, decisão B); baseline linhas 206 e 120-148; database]`
 - **Tests:** exercitado indiretamente pelas suítes de segurança (criação de usuários de teste); sem teste direto do trigger
 - **Status:** Confirmed + partially tested
 
