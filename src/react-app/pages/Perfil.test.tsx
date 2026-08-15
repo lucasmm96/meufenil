@@ -71,7 +71,9 @@ function queryChain(result: { data: unknown; error: unknown } = { data: null, er
 describe("Perfil page", () => {
   const useAuthMock = useAuth as unknown as ReturnType<typeof vi.fn>;
   const usePerfilMock = usePerfil as unknown as ReturnType<typeof vi.fn>;
-  const fromMock = vi.mocked(supabase.from);
+  const fromMock = vi.mocked(supabase.from) as unknown as ReturnType<
+    typeof vi.fn
+  >;
   const getSessionMock = vi.mocked(supabase.auth.getSession);
   const signOutMock = vi.mocked(supabase.auth.signOut);
   let fetchMock: ReturnType<typeof vi.fn>;

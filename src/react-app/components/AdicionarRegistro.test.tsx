@@ -84,7 +84,10 @@ describe("AdicionarRegistro component", () => {
 
   function renderComponent() {
     const view = render(
-      <AdicionarRegistro onClose={onClose} onSuccess={onSuccess} />
+      <AdicionarRegistro
+        onClose={onClose as unknown as () => void}
+        onSuccess={onSuccess as unknown as () => void}
+      />
     );
     return view;
   }
