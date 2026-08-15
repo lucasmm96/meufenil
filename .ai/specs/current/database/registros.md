@@ -1,7 +1,7 @@
 # Tabela public.registros
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 186–198, 263–270) — legado: `migrations/registros.sql`
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 186–198, 263–270); políticas consolidadas: `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001). Legado: `migrations/registros.sql`
 
 ## Propósito
 
@@ -49,7 +49,7 @@ Registro diário de consumo alimentar: o usuário informa o peso consumido de um
 
 Notas factuais:
 - **NÃO existe política de UPDATE**: registros não podem ser alterados via RLS por nenhum papel — a aplicação só cria, lista e remove `[CONFIRMED: database × code]`.
-- As políticas do baseline "usuario ve registros" e "usuario cria registro" NÃO existem no banco real — substituídas pelas versões "dono ou delegado" por canal não-versionado `[CONFIRMED: database × migration]`.
+- As políticas do baseline "usuario ve registros" e "usuario cria registro" NÃO existem no banco real — substituídas pelas versões "dono ou delegado", versionadas pela migration 20260814000000 (DEBT-0001) `[CONFIRMED: database × migration]`.
 
 ## Regras de negócio associadas
 

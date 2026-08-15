@@ -1,6 +1,6 @@
 # Modelo de Segurança — MeuFenil
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
 
 Este documento consolida o modelo de segurança ATUAL do MeuFenil (autenticação, autorização, RLS, delegação e RPCs). A definição canônica de cada política RLS permanece nas specs das tabelas em `../database/` — aqui o modelo é explicado, relacionado e sintetizado em matrizes (regra "link, não copie").
 
@@ -124,11 +124,11 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
   5. **Invariantes de negócio no RLS:** INSERT de registro exige referência ativa; DELETE de referência bloqueado com registros vinculados; global só por admin `[CONFIRMED: database]`.
 - **Detalhe por tabela:** policies canônicas em ../database/<tabela>.md (seções "Políticas RLS desta tabela") — não duplicadas aqui.
 - **Políticas redundantes vigentes:** 2 policies SELECT idênticas em `referencias` e 2 policies SELECT equivalentes em `usuarios` (`admin_only` ≡ `Usuário vê próprio perfil`); DELETE de `registros` com 2 policies sobrepostas (dono ⊂ dono/delegado) `[CONFIRMED: database]`.
-- **Políticas do baseline removidas:** ~15 políticas antigas (ex.: `debug_allow_all`, `usuario ve registros`) não existem no banco real; consolidação feita por canal não-versionado (ver ../database/overview.md e seção 13) `[CONFIRMED: database × migration]`.
+- **Políticas do baseline removidas:** ~19 políticas antigas (ex.: `debug_allow_all`, `usuario ve registros`) não existem no banco real; a consolidação foi versionada pela migration 20260814000000 (DEBT-0001) (ver ../database/overview.md e seção 13) `[CONFIRMED: database × migration]`.
 
 ## 9. Delegação de acesso (deep-dive)
 
-**Modelo:** delegação por PAR (concedente → delegado), com estado ativo/revogado; registro persistente em `public.delegacoes_acesso` (DDL não-versionado — ver [../database/delegacoes_acesso.md](../database/delegacoes_acesso.md)).
+**Modelo:** delegação por PAR (concedente → delegado), com estado ativo/revogado; registro persistente em `public.delegacoes_acesso` (DDL versionado pela migration 20260814000000 — ver [../database/delegacoes_acesso.md](../database/delegacoes_acesso.md)).
 
 - **Conceder:** edge function `delegar-acesso` (ação `conceder`) — valida Bearer token (`auth.getUser` com service role), localiza o alvo por `email` em `usuarios`, bloqueia auto-concessão (`Acesso a si mesmo não é permitido`), INSERT `{concedente_id, delegado_id}`. Concessão duplicada ativa viola o índice único parcial `delegacoes_acesso_unique_ativo` (erro no DB; a function não trata o caso — resposta 500 genérica) `[CONFIRMED: code — supabase/functions/delegar-acesso/index.ts:118-157; database]`.
 - **Consultar:** o FRONTEND lista direto via RLS (`listarDelegacoes` com anon client, policy `Listar Delegações`) usando os nomes de FK CORRETOS (`delegacoes_acesso_delegado_fk`/`_concedente_fk`). A ação `listar` da edge function existe, mas referencia nomes de FK INEXISTENTES no catálogo (`delegacoes_acesso_delegado_id_fkey`/`_concedente_id_fkey`) — não é usada pelo frontend `[CONFIRMED: code × database]`.
@@ -187,7 +187,7 @@ Resumo dos aspectos de segurança; especificação completa em [../database/rpc.
 | `debug_allow_all` em `usuarios` (SELECT irrestrito, severidade ALTA) | **Removida** pela migration 20260811 e ausente do banco real `[CONFIRMED: migration, database]` |
 | `ativar_referencia` sem verificação de autorização | **Corrigido** na migration 20260811 (dono/delegado/admin); definição no banco = migration `[CONFIRMED: migration, database]` |
 | `remover_ou_desativar_referencia` sem verificação | **Corrigido** na migration 20260811 (+ proteção de globais e vínculo) `[CONFIRMED: migration, database]` |
-| Políticas redundantes de `usuarios`/`referencias` (severidade BAIXA) | Parcialmente consolidadas no banco (por canal não-versionado); 2 redundâncias SELECT permanecem vigentes em `referencias` (fato — seção 8) `[CONFIRMED: database]` |
+| Políticas redundantes de `usuarios`/`referencias` (severidade BAIXA) | Consolidação versionada pela migration 20260814000000 (DEBT-0001); 2 redundâncias SELECT permanecem vigentes em `referencias` (fato — seção 8) `[CONFIRMED: database, migration]` |
 
 Histórico completo: `.ai/.temp/analyses/02-auditoria-seguranca.md` a `12-aplicacao-migration-seguranca-producao.md` (material de trabalho; validado contra o estado atual).
 

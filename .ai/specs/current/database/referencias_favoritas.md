@@ -1,7 +1,7 @@
 # Tabela public.referencias_favoritas
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**DDL versionado em:** NÃO VERSIONADO — ausente de todas as migrations (raiz e `supabase/migrations/`). DDL abaixo reconstruído a partir do catálogo dos bancos dev e prod (2026-08-13) `[CONFIRMED: database; ausência em migrations CONFIRMADA]`. Origem/canal de criação: `UNKNOWN` (git mostra apenas commits de código da feature de favoritos).
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**DDL versionado em:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) — tabela, constraints, índice e políticas. DDL abaixo conferido contra o catálogo dos bancos dev e prod (2026-08-14) `[CONFIRMED: database × migration]`. Origem/canal de criação: `UNKNOWN` (git mostra apenas commits de código da feature de favoritos).
 
 ## Propósito
 

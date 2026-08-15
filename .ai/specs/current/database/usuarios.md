@@ -1,7 +1,7 @@
 # Tabela public.usuarios
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 201–275) — também presente no legado `migrations/usuarios.sql`
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 201–275); políticas consolidadas ("Usuário vê/atualiza/cria próprio perfil"): `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001). Também presente no legado `migrations/usuarios.sql`
 
 ## Propósito
 
@@ -56,7 +56,7 @@ Perfil do usuário da aplicação: papel (`user`/`admin`), limite diário de fen
 
 Notas factuais:
 - A política de UPDATE não restringe colunas: o RLS permite que o usuário altere qualquer coluna da própria linha, incluindo `role` `[CONFIRMED: database — pg_policies.with_check vazio]`.
-- As políticas do baseline com nomes antigos ("usuario ve seu perfil", "usuarios_select_own", "usuarios_insert_self", "usuarios_update_own", "usuario cria seu perfil", "usuario atualiza seu perfil", "Usuarios podem ler seu próprio perfil", "debug_allow_all") NÃO existem no banco real; o conjunto atual foi consolidado/renomeado por canal não-versionado `[CONFIRMED: database × migration]`.
+- As políticas do baseline com nomes antigos ("usuario ve seu perfil", "usuarios_select_own", "usuarios_insert_self", "usuarios_update_own", "usuario cria seu perfil", "usuario atualiza seu perfil", "Usuarios podem ler seu próprio perfil", "debug_allow_all") NÃO existem no banco real; o conjunto atual foi consolidado/renomeado e versionado pela migration 20260814000000 (DEBT-0001) `[CONFIRMED: database × migration]`.
 - `debug_allow_all` foi removida pela migration de segurança (2026-08-11) `[CONFIRMED: migration]`.
 
 ## Regras de negócio associadas

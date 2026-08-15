@@ -12,7 +12,7 @@
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | FEAT-0014; U-5.2 |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | Divergência Fase 5 |
 | [REF-0002](refactors/REF-0002-rpcs-orfas-dashboard.md) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | Fase 4; O-003 (análise 25) |
-| [DEBT-0001](technical-debt/DEBT-0001-ddl-nao-versionado.md) | DEBT | Versionar objetos sem DDL | PROPOSED | Fase 2; O-002 (análise 25) |
+| [DEBT-0001](technical-debt/DEBT-0001-ddl-nao-versionado.md) | DEBT | Versionar objetos sem DDL | IMPLEMENTED | Fase 2; O-002 (análise 25) — migration 20260814000000 (dev e prod) |
 | [DEBT-0002](technical-debt/DEBT-0002-limite-diario-default-duplicado.md) | DEBT | Limite diário default duplicado (500 × 150) | PROPOSED | R-002 (análise 23); BR-025 |
 | [DEBT-0003](technical-debt/DEBT-0003-atualizar-readme.md) | DEBT | Atualizar README (documentation drift) | PROPOSED | Drift Fases 4 e 7 |
 | [DEBT-0004](technical-debt/DEBT-0004-reconciliar-templates.md) | DEBT | Reconciliar templates e convenções do Specification System | IMPLEMENTED | O-001/R-004/R-001 (análises 23–25) — Fase 12 |

@@ -1,7 +1,7 @@
 # Tabela public.exames_pku
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 158–168, 217–255) — legado: `migrations/exames_pku.sql`
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 158–168, 217–255); políticas consolidadas: `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001). Legado: `migrations/exames_pku.sql`
 
 ## Propósito
 
@@ -45,7 +45,7 @@ Histórico de exames laboratoriais de PKU do usuário: data do exame e resultado
 | `Remover exame como dono ou delegado` | DELETE | public | USING: `usuario_id = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; NÃO versionada |
 
 Notas factuais:
-- As políticas do baseline ("select own exames", "insert own exames", "delete own exames") NÃO existem no banco real — substituídas pelas versões "dono ou delegado" por canal não-versionado `[CONFIRMED: database × migration]`.
+- As políticas do baseline ("select own exames", "insert own exames", "delete own exames") NÃO existem no banco real — substituídas pelas versões "dono ou delegado", versionadas pela migration 20260814000000 (DEBT-0001) `[CONFIRMED: database × migration]`.
 - O baseline não possuía política de UPDATE; a política "Atualizar exame como dono ou delegado" existe apenas no banco real `[CONFIRMED: database × migration]`.
 
 ## Regras de negócio associadas

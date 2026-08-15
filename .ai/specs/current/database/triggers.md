@@ -1,13 +1,13 @@
 # Triggers — Inventário
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
 
 Inventário dos 4 triggers confirmados no catálogo dos bancos dev e prod (2026-08-13): 3 no schema `public` + 1 em `auth.users` `[CONFIRMED: database — information_schema.triggers]`. Não há outros triggers em `public`.
 
 | Trigger | Tabela | Evento | Timing | Função | Versionado? |
 |---|---|---|---|---|---|
 | `trg_normalizar_nome_referencia` | `referencias` | INSERT, UPDATE | BEFORE ROW | `fn_normalizar_nome_referencia` | Sim (baseline) |
-| `trg_remover_favoritos_referencia_inativa` | `referencias` | UPDATE | AFTER ROW | `fn_remover_favoritos_referencia_inativa` | **NÃO** |
+| `trg_remover_favoritos_referencia_inativa` | `referencias` | UPDATE OF `is_ativa` | AFTER ROW | `fn_remover_favoritos_referencia_inativa` | Sim (20260814) |
 | `trg_trim_background_job_executions` | `background_job_executions` | INSERT | AFTER STATEMENT | `fn_trim_background_job_executions` | Sim (20260807) |
 | `on_auth_user_created` | `auth.users` | INSERT | AFTER ROW | `handle_new_user` | Sim (baseline) |
 
@@ -24,10 +24,10 @@ Inventário dos 4 triggers confirmados no catálogo dos bancos dev e prod (2026-
 ## trg_remover_favoritos_referencia_inativa
 
 - **Tabela:** `public.referencias`
-- **Evento/timing:** AFTER UPDATE, FOR EACH ROW `[CONFIRMED: database]`
+- **Evento/timing:** AFTER UPDATE OF `is_ativa`, FOR EACH ROW `[CONFIRMED: database — pg_get_triggerdef, 2026-08-14; migration 20260814000000]`
 - **Função:** `fn_remover_favoritos_referencia_inativa()` (plpgsql, SECURITY INVOKER)
 - **Finalidade observada:** quando uma referência passa de ativa (`old.is_ativa = true`) para inativa (`new.is_ativa = false`), remove os favoritos dela em `referencias_favoritas` `[CONFIRMED: database — pg_get_functiondef]`
-- **Evidências:** catálogo dev/prod; NÃO versionado — ausente de todas as migrations `[CONFIRMED: database; ausência em migrations]`
+- **Evidências:** catálogo dev/prod; versionado pela migration 20260814000000 (DEBT-0001); ausente de todas as migrations anteriores `[CONFIRMED: database; migration]`
 
 ## trg_trim_background_job_executions
 

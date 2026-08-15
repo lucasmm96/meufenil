@@ -1,6 +1,6 @@
 # Database — Visão Geral
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod; catálogo conferido nos dois ambientes)
 
 ## Propósito
 
@@ -22,11 +22,11 @@ Este diretório documenta o estado REAL do banco de dados PostgreSQL (Supabase) 
 | Tabela | Propósito curto | RLS | DDL versionado? |
 |---|---|---|---|
 | `usuarios` | Perfil do usuário (papel, limite diário, timezone, consentimento LGPD) | Sim | Sim (baseline) |
-| `referencias` | Alimentos de referência com fenilalanina por 100g (globais ou do usuário) | Sim | Sim (baseline) + coluna `is_ativa` NÃO versionada |
+| `referencias` | Alimentos de referência com fenilalanina por 100g (globais ou do usuário) | Sim | Sim (baseline) + coluna `is_ativa` (20260814) |
 | `registros` | Registro diário de consumo (peso e fenilalanina) | Sim | Sim (baseline) |
 | `exames_pku` | Exames de PKU do usuário | Sim | Sim (baseline) |
-| `referencias_favoritas` | Favoritos do usuário | Sim | **NÃO** (ver abaixo) |
-| `delegacoes_acesso` | Delegação de acesso entre usuários | Sim | **NÃO** (ver abaixo) |
+| `referencias_favoritas` | Favoritos do usuário | Sim | Sim (20260814) |
+| `delegacoes_acesso` | Delegação de acesso entre usuários | Sim | Sim (20260814) |
 | `background_job_executions` | Execuções de jobs em background | Sim | Sim (20260807) |
 
 ## Convenções observadas no schema
@@ -51,27 +51,28 @@ Este diretório documenta o estado REAL do banco de dados PostgreSQL (Supabase) 
 | `20260807000000_background_job_executions.sql` | 2026-08-06 | Enum `background_job_status`, tabela `background_job_executions`, 3 índices, trigger de retenção |
 | `20260810000000_background_job_monitoring.sql` | 2026-08-11 | Função `is_admin_user` + política admin de consulta aos jobs |
 | `20260811210456_fix_security_rls_rpc.sql` | 2026-08-11 | Correções de segurança: drop `debug_allow_all`, política `admin_can_select_all_usuarios`, endurecimento de `ativar_referencia` e `remover_ou_desativar_referencia` |
+| `20260814000000_baseline_objetos_nao_versionados.sql` | 2026-08-14 | **DEBT-0001:** baseline idempotente dos objetos sem DDL versionado — tabelas `delegacoes_acesso` e `referencias_favoritas`, coluna `referencias.is_ativa`, função/trigger de favoritos, consolidação das políticas RLS (cria 27 vigentes + remove as obsoletas do baseline) |
 
 Aplicação via `scripts/apply-supabase-migrations.sh` (obrigatório `--env development|production`; nunca os dois juntos). Baseline: versão `20260103015052` `[CONFIRMED: code, script]`.
 
-### Objetos existentes no banco SEM migration versionada
+### Objetos que existiam SEM migration versionada (resolvido pela DEBT-0001)
 
-`[CONFIRMED: database × migrations — presentes nos dois ambientes; ausentes de todos os arquivos de migration]`
+Até 2026-08-13, os objetos abaixo existiam nos dois ambientes sem DDL em nenhuma migration (aplicados por canal não-versionado, origem `UNKNOWN`). A migration `20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) os versionou com DDL idempotente conferido contra o catálogo dos dois ambientes (2026-08-14); a aplicação em dev e prod foi um no-op (estado idêntico antes/depois, ver specs das tabelas):
 
 | Objeto | Onde documentado |
 |---|---|
-| Tabela `delegacoes_acesso` (DDL completo recuperado via catálogo) | `delegacoes_acesso.md` |
-| Tabela `referencias_favoritas` (DDL completo recuperado via catálogo) | `referencias_favoritas.md` |
+| Tabela `delegacoes_acesso` | `delegacoes_acesso.md` |
+| Tabela `referencias_favoritas` | `referencias_favoritas.md` |
 | Coluna `referencias.is_ativa boolean NOT NULL default true` | `referencias.md` |
 | Função `fn_remover_favoritos_referencia_inativa` + trigger `trg_remover_favoritos_referencia_inativa` | `rpc.md`, `triggers.md` |
 | Políticas "dono ou delegado" (registros, exames_pku, referencias, referencias_favoritas), políticas de `delegacoes_acesso`, "Inserir registro apenas com referencia ativa" | specs das respectivas tabelas |
 | Consolidação das políticas do baseline (ex.: "usuario cria referencia" → "Usuário cria própria referencia"; remoção das duplicatas do baseline) | specs das respectivas tabelas |
 
-A origem exata (canal de aplicação e datas) desses objetos é `UNKNOWN` — os commits de git associados às features (ex.: `d14b1de`, `e19f43a`, `2e6f540`) adicionaram apenas código, sem arquivo de migration correspondente `[CONFIRMED: git history; aplicação: UNKNOWN]`.
+A origem exata (canal de aplicação e datas) desses objetos é `UNKNOWN` — os commits de git associados às features (ex.: `d14b1de`, `e19f43a`, `2e6f540`) adicionaram apenas código, sem arquivo de migration correspondente `[CONFIRMED: git history; aplicação: UNKNOWN]`. O versionamento baseline NÃO estabelece a origem — apenas fixa o estado atual.
 
 ## Ambientes dev × prod
 
-- **Estrutura lógica IDÊNTICA**: mesmas 7 tabelas, 52 colunas, 19 constraints, 15 índices, 31 políticas, 10 funções, 3 enums e 4 triggers em `public` (+1 em `auth.users`) `[CONFIRMED: database — catálogo dev e prod, 2026-08-13]`.
+- **Estrutura lógica IDÊNTICA**: mesmas 7 tabelas, 52 colunas, 19 constraints, 15 índices, 31 políticas, 10 funções, 1 enum e 3 triggers em `public` (+1 em `auth.users`) `[CONFIRMED: database — catálogo dev e prod, 2026-08-14; correção registrada: a contagem anterior (3 enums, 4 triggers em public) não bate com o catálogo — pg_type/pg_trigger em ambos os ambientes]`.
 - **Diferenças entre ambientes**:
   1. Extensão `pg_graphql` presente em dev, ausente em prod `[CONFIRMED: database]`.
   2. Prod possui uma coluna **dropped** na posição física 8 de `referencias` (artefato de ADD+DROP; o nome original não é recuperável do catálogo — `UNKNOWN`). Dev não possui `[CONFIRMED: database — pg_attribute.attisdropped]`.
@@ -85,11 +86,11 @@ A origem exata (canal de aplicação e datas) desses objetos é `UNKNOWN` — os
 | exames_pku | 4 | 21 |
 | background_job_executions | 6 | 8 |
 
-- **U1 da Fase 0 parcialmente resolvido**: os bancos estão alinhados com as migrations quanto aos objetos versionados; o gap real é o conjunto não-versionado acima, presente de forma idêntica nos DOIS ambientes.
+- **U1 da Fase 0 resolvido**: todos os objetos passaram a ter DDL versionado com a migration 20260814000000 (DEBT-0001); aplicada em dev e prod em 2026-08-14 com verificação de no-op contra o catálogo.
 
 ## Evidências
 
-- E1 — Inventário de tabelas, colunas (52), constraints (19), índices (15), flags RLS, políticas (31), funções (10), enums (3) e triggers: catálogo dos bancos dev e prod via queries somente-leitura (2026-08-13) `[CONFIRMED: database]`.
+- E1 — Inventário de tabelas, colunas (52), constraints (19), índices (15), flags RLS, políticas (31), funções (10), enums (1 em `public`) e triggers (3 em `public` + 1 em `auth.users`): catálogo dos bancos dev e prod via queries somente-leitura (2026-08-14) `[CONFIRMED: database]`.
 - E2 — Conteúdo das 4 migrations em `supabase/migrations/` `[CONFIRMED: migration]`.
 - E3 — Conteúdo das 5 migrations legadas em `migrations/` `[CONFIRMED: migration, git history]`.
 - E4 — Histórico git das migrations (`b9a82c7`, `87aa0ff`, `879a6c0`, `6323664`) `[CONFIRMED: git history]`.

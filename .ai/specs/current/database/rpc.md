@@ -15,7 +15,7 @@ Inventário das 10 funções do schema `public` confirmadas no catálogo dos ban
 | `handle_new_user()` | trigger | Sim | não configurado | Sim (baseline) |
 | `fn_normalizar_nome_referencia()` | trigger | Não | — | Sim (baseline) |
 | `fn_trim_background_job_executions()` | trigger | Sim | `public` | Sim (20260807) |
-| `fn_remover_favoritos_referencia_inativa()` | trigger | Não | — | **NÃO versionada** |
+| `fn_remover_favoritos_referencia_inativa()` | trigger | Não | — | Sim (20260814) |
 
 Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`, `service_role`) possuem EXECUTE em todas as funções; `get_estatisticas_admin` e `is_admin_user` tiveram `REVOKE ... FROM PUBLIC`, mas mantêm grants explícitos (inclusive `anon` via default privileges) `[CONFIRMED: database — role_routine_grants]`.
 
@@ -149,8 +149,8 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 
 ## public.fn_remover_favoritos_referencia_inativa
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** NÃO VERSIONADA — recuperada do catálogo via `pg_get_functiondef` (dev e prod, 2026-08-13) `[CONFIRMED: database; ausência em migrations CONFIRMADA]`
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Definição em:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) — conferida contra `pg_get_functiondef` dev e prod (2026-08-14) `[CONFIRMED: database × migration]`
 
 - **Assinatura:** `fn_remover_favoritos_referencia_inativa() RETURNS trigger` — plpgsql
 - **SECURITY DEFINER?** Não
@@ -159,7 +159,7 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 - **Erros e edge cases:** não aplicável
 - **Chamadores no código:** trigger `trg_remover_favoritos_referencia_inativa` (AFTER UPDATE em `referencias` — ver [triggers.md](triggers.md))
 - **Testes:** nenhum teste identificado `[CONFIRMED: ausência]`
-- **Evidências:** E1 — definição recuperada do catálogo (dev e prod idênticas) `[CONFIRMED: database]`; E2 — ausência em todas as migrations `[CONFIRMED: ausência em migrations]`
+- **Evidências:** E1 — definição recuperada do catálogo (dev e prod idênticas) `[CONFIRMED: database]`; E2 — ausência em todas as migrations até a baseline 20260814000000 (DEBT-0001), que a versiona `[CONFIRMED: migration]`
 
 ---
 

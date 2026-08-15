@@ -1,7 +1,7 @@
 # Tabela public.referencias
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 171–260) — com UMA coluna NÃO versionada (`is_ativa`, ver abaixo). Legado: `migrations/referencias.sql`
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 171–260); coluna `is_ativa` e políticas consolidadas: `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001). Legado: `migrations/referencias.sql`
 
 ## Propósito
 
@@ -21,7 +21,7 @@ Alimentos de referência com quantidade de fenilalanina por 100g. Podem ser glob
 | `created_at` | timestamp with time zone | `now()` | YES | — | |
 | `updated_at` | timestamp with time zone | `now()` | YES | — | |
 | `nome_normalizado` | text | — | NO | UNIQUE (índice) | `lower(trim(nome))` via trigger |
-| `is_ativa` | boolean | `true` | NO | — | **NÃO versionada** — ausente do baseline e do legado `[CONFIRMED: database × migration]` |
+| `is_ativa` | boolean | `true` | NO | — | versionada na migration 20260814000000 (ausente do baseline e do legado) `[CONFIRMED: database × migration]` |
 
 ## Constraints e índices
 
@@ -58,7 +58,7 @@ Alimentos de referência com quantidade de fenilalanina por 100g. Podem ser glob
 | `Admin atualiza referencias` | UPDATE | authenticated | USING: `EXISTS (... role = 'admin')`; WITH CHECK: (vazio) | catálogo; NÃO versionada |
 
 Notas factuais:
-- As políticas do baseline ("usuario ve referencias", "usuario cria referencia", "Usuário pode ler referências", "Usuário pode ver referências globais ou próprias", "admin_can_insert_referencias", "admin_can_select_referencias", "admin_can_update_referencias") NÃO existem com esses nomes no banco real — o conjunto foi recriado/renomeado por canal não-versionado `[CONFIRMED: database × migration]`.
+- As políticas do baseline ("usuario ve referencias", "usuario cria referencia", "Usuário pode ler referências", "Usuário pode ver referências globais ou próprias", "admin_can_insert_referencias", "admin_can_select_referencias", "admin_can_update_referencias") NÃO existem com esses nomes no banco real — o conjunto foi recriado/renomeado e versionado pela migration 20260814000000 (DEBT-0001) `[CONFIRMED: database × migration]`.
 - Existem DUAS políticas SELECT com semântica idêntica ("Usuário lista referências" e "Usuário lista referências globais ou próprias") — ambas vigentes `[CONFIRMED: database]`.
 - O DELETE direto por usuário é bloqueado quando existem `registros` vinculados (o vínculo é preservado — ver [registros.md](registros.md)); a via oficial de remoção é o RPC `remover_ou_desativar_referencia` (soft-delete via `is_ativa`) `[CONFIRMED: database, migration]`.
 

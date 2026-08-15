@@ -1,7 +1,7 @@
 # Tabela public.delegacoes_acesso
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**DDL versionado em:** NÃO VERSIONADO — ausente de todas as migrations (raiz e `supabase/migrations/`). DDL abaixo reconstruído a partir do catálogo dos bancos dev e prod (2026-08-13) `[CONFIRMED: database; ausência em migrations CONFIRMADA]`. Origem/canal de criação: `UNKNOWN` (git: commits `e19f43a` "Adicionar função Supabase para delegação de acesso" e `d14b1de` "Criar tipos e serviços para delegações de acesso" adicionaram código, sem arquivo de migration).
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**DDL versionado em:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) — tabela, constraints, índice e políticas. DDL abaixo conferido contra o catálogo dos bancos dev e prod (2026-08-14) `[CONFIRMED: database × migration]`. Origem/canal de criação: `UNKNOWN` (git: commits `e19f43a` "Adicionar função Supabase para delegação de acesso" e `d14b1de` "Criar tipos e serviços para delegações de acesso" adicionaram código, sem arquivo de migration).
 
 ## Propósito
 
