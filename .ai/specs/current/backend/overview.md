@@ -1,6 +1,6 @@
 # Backend — Visão Geral
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0003)
 
 ## Propósito
 
@@ -112,7 +112,7 @@ Não há um padrão único — cada componente tem seu próprio estilo, document
 - E2 — Código: `api/keepalive.ts`, `src/shared/background-jobs.ts`, `supabase/functions/*`, `scripts/cli/*`, `scripts/apply-supabase-migrations.sh` `[CONFIRMED: code]`
 - E3 — Chamadores: grep de `.rpc(`, `functions.invoke`, `fetch(FUNCTION_URL` (2026-08-13) `[CONFIRMED: code]`
 - E4 — Configuração: `vercel.json`, `supabase/config.toml` `[CONFIRMED: configuration]`
-- E5 — Divergência README × código no keepalive (1 alvo por execução): `api/keepalive.ts:158-166` × `README.md` seção "Keepalive diário" `[CONFIRMED: code × documentation]`
+- E5 — Divergência README × código no keepalive (1 alvo por execução): `api/keepalive.ts:158-166` × `README.md` seção "Keepalive diário" — RESOLVIDA pelo DEBT-0003 (2026-08-15) `[CONFIRMED: code × documentation]`
 
 ## Veja também
 

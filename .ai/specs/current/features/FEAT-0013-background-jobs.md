@@ -3,7 +3,7 @@
 **ID:** FEAT-0013
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0003)
 
 ## Purpose
 
@@ -72,7 +72,7 @@ Infraestrutura server-side de rotinas em background com persistência centraliza
 
 - E1 — `api/keepalive.ts`, `src/shared/background-jobs.ts` `[CONFIRMED: code]`
 - E2 — Migration 20260807 + vercel.json `[CONFIRMED: migration, configuration]`
-- E3 — Divergência README × código (1 alvo por execução) — Fase 4 `[CONFIRMED: code × documentation]`
+- E3 — Divergência README × código (1 alvo por execução) RESOLVIDA — DEBT-0003 (2026-08-15) `[CONFIRMED: code × documentation]`
 
 ## Unknowns
 
