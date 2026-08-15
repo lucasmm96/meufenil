@@ -1,8 +1,9 @@
 # TEST-0001 — Cobertura de testes de páginas e componentes
 
 **Type:** TEST
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Cobertura de testes de páginas e componentes
+**Implemented Through:** `current/testing/testing-strategy.md` (seções 2, 3, 5, 6, 7), `current/frontend/pages/{perfil,referencias,dashboard}.md`, `current/frontend/components/{adicionar-registro,consentimento-lgpd}.md` — testes em `src/react-app/pages/{Perfil,Referencias,Dashboard}.test.tsx` e `src/react-app/components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` (69 testes novos; suíte 128 → 197)
 
 ## Problem
 
@@ -52,11 +53,13 @@ Custo de manutenção de testes de UI; risco de testes quebradiços com mocks ex
 ## Alternatives
 
 A — testes por página com mocks de hooks · B — testes de componentes isolados primeiro · C — coverage-driven (a partir de linhas) · D — manter status quo
-**Decision:** TBD
+**Decision:** A — testes por página com mocks de hooks (aprovado pelo autor em 2026-08-15)
 
 ## Open Questions
 
-Qual ordem de prioridade? Qual nível de mocking aceitável?
+**Resolvidas em 2026-08-15 (decisão do autor):**
+- Ordem de prioridade: ordem da proposta — Perfil/destrutivos → Referencias → Dashboard → AdicionarRegistro → ConsentimentoLGPD.
+- Nível de mocking: mocks de hooks, seguindo o padrão existente em `src/react-app/pages/Admin.test.tsx`.
 
 ## Acceptance Criteria
 

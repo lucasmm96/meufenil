@@ -1,6 +1,6 @@
 # Página Referências
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (commit 0eb2e9b)
 **Rota:** `/referencias` — `src/react-app/App.tsx:19`
 
 ## Propósito
@@ -61,7 +61,7 @@ Labels visíveis, `title` em ícones, `disabled` com feedback; SEM `aria-*`, sem
 
 ## Testes
 
-`useReferencias.test.ts`, `referencias.service.test.ts`. Página sem teste próprio `[CONFIRMED: test, ausência]`.
+`useReferencias.test.ts`, `referencias.service.test.ts`. Página: `Referencias.test.tsx` (25 testes — loading/empty/error, filtros, busca, ordenação, paginação, criar/editar, remover/desativar/reativar, permissões) `[CONFIRMED: test]`.
 
 ## Evidências
 

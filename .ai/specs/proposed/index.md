@@ -17,7 +17,7 @@
 | [DEBT-0003](technical-debt/DEBT-0003-atualizar-readme.md) | DEBT | Atualizar README (documentation drift) | IMPLEMENTED | Drift Fases 4 e 7 — README.md corrigido (2026-08-15) |
 | [DEBT-0004](technical-debt/DEBT-0004-reconciliar-templates.md) | DEBT | Reconciliar templates e convenções do Specification System | IMPLEMENTED | O-001/R-004/R-001 (análises 23–25) — Fase 12 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | Fatos Fase 3 |
-| [TEST-0001](testing/TEST-0001-testes-paginas-componentes.md) | TEST | Cobertura de testes de páginas e componentes | PROPOSED | GAP-001/002/003/010 |
+| [TEST-0001](testing/TEST-0001-testes-paginas-componentes.md) | TEST | Cobertura de testes de páginas e componentes | IMPLEMENTED | GAP-001/002/003/010 — testes de Perfil, Referencias, Dashboard, AdicionarRegistro e ConsentimentoLGPD (2026-08-15) |
 | [TEST-0002](testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | PROPOSED | GAP-007/012 |
 | [TEST-0003](testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED | GAP-005/006/008 |
 | [TEST-0004](testing/TEST-0004-testes-services-faltantes.md) | TEST | Completar testes de services faltantes | PROPOSED | GAP-004/009 |

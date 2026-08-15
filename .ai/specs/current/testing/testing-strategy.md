@@ -1,6 +1,6 @@
 # Testing Strategy — Estado Atual
 
-**Última verificação:** 2026-08-13 (commit 6323664) — suíte executada nesta data (3 execuções); cobertura coletada em 1 execução.
+**Última verificação:** 2026-08-15 (commit 0eb2e9b) — suíte executada nesta data (3 execuções: 1 completa verde, 1 cobertura verde, 1 cobertura com falha transitória das suítes de segurança — ver seção 5).
 
 Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM hoje. A análise de gaps e as recomendações estão no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`) — NÃO aqui.
 
@@ -25,7 +25,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - **Localização:** testes colocalizados ao lado do código (`X.test.ts`/`X.test.tsx` junto de `X.ts`/`X.tsx`) — sem diretório `__tests__` `[CONFIRMED: filesystem]`.
 - **Naming:** `describe("<módulo>")` + `it("descrição em pt-BR")` ("deve ...", "define erro quando ..."); cenários de segurança numerados (`AV.x`, `T1.x`, `T2.x`, `T3.x`) `[CONFIRMED: test]`.
 - **Fixtures:** dados inline nos testes; nenhuma pasta de fixtures `[CONFIRMED: ausência]`.
-- **Mocks:** `vi.mock` de módulos (services mockam o cliente supabase e fazem assertions sobre chamadas — `toHaveBeenCalledWith`); `Admin.test.tsx` mocka 5 módulos (Layout, skeletons, AuthContext, useAdmin, useBackgroundJobsAdmin); `api/keepalive.test.ts` mocka `createClient` e `recordBackgroundJobExecution` `[CONFIRMED: test]`.
+- **Mocks:** `vi.mock` de módulos (services mockam o cliente supabase e fazem assertions sobre chamadas — `toHaveBeenCalledWith`); `Admin.test.tsx` mocka 5 módulos (Layout, skeletons, AuthContext, useAdmin, useBackgroundJobsAdmin); os testes de páginas criados pelo TEST-0001 seguem o mesmo padrão de mocks de hooks (e.g. `Perfil.test.tsx` mocka Layout, skeletons, AuthContext, usePerfil, supabase, react-router-dom; `Referencias.test.tsx` e `Dashboard.test.tsx` mockam os hooks e, no Dashboard, os componentes filhos e o recharts); `api/keepalive.test.ts` mocka `createClient` e `recordBackgroundJobExecution` `[CONFIRMED: test]`.
 - **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied` `[CONFIRMED: test]`.
 - **Snapshots:** nenhum identificado `[CONFIRMED: ausência]`.
 
@@ -36,7 +36,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 | Unit (shared) | `src/shared/background-jobs.test.ts` | helper puro com client mockado |
 | Service (client-side) | 10 arquivos em `services/*.service.test.ts` | mocks do supabase; assertions de chamadas e AppError |
 | Hook | 12 arquivos em `hooks/use*.test.ts(x)` | `renderHook` (Testing Library) + mocks de services/supabase |
-| Component/Page | `pages/Admin.test.tsx` (ÚNICO) | `render` + mocks pesados; 3 cenários |
+| Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 72 testes (3+17+25+12+13+2) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
 | API/Serverless | `api/keepalive.test.ts` | handler Node-style com mocks; 4 cenários |
 | Security (integração real) | `src/shared/security/` — 4 suítes | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll |
 | E2E | **NÃO identificado** `[CONFIRMED: ausência]` | — |
@@ -51,8 +51,15 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - **Skip condicional:** as 4 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente) `[CONFIRMED: test]`.
 - Pré-condição: `isSecurityMigrationApplied()` (exige `admin_can_select_all_usuarios` em pg_policies) `[CONFIRMED: test]`.
 
-## 5. Resultados observados (2026-08-13)
+## 5. Resultados observados
 
+**2026-08-15 (pós-TEST-0001):**
+- **34 arquivos de teste, 197 testes.**
+- Execução 1 (`test:run`): **197/197 passaram** (0 falhas, 0 skips — as 4 suítes de segurança rodaram).
+- Execução 2 (`test:coverage`): **197/197 passaram** — cobertura coletada (seção 6).
+- Execução 3 (`test:coverage`): falha transitória em `rpc-remover-referencia` (`createTestUser`: `status=500 Database error creating new user`) — mesmo mecanismo de não-determinismo identificado na Fase 6 (colisão de email entre workers paralelos); demais suítes verdes. Registrada, não tratada (escopo do TEST-0005).
+
+**2026-08-13 (Fase 6):**
 - **29 arquivos de teste, 128 testes.**
 - Execução 1: **1 suíte falhou** (`rpc-remover-referencia` — erro transitório `422 "A user with this email address has already been registered"` em `createTestUser`); 119 passaram; 9 skipped.
 - Execução 2: **128/128 passaram** (0 falhas, 0 skips).
@@ -60,39 +67,37 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - **Causa identificada:** `uniqueTestEmail()` usa `Date.now()` + contador POR PROCESSO (`test-helpers.ts:112-118`); as suítes `rpc-ativar` e `rpc-remover` rodam em workers paralelos e podem gerar o mesmo email no mesmo milissegundo → colisão. **Não-determinismo sob paralelismo — fato confirmado em 2 de 3 execuções.**
 - Duração típica: ~30–40s (setup 30s; suítes de segurança 4–10s cada).
 
-## 6. Cobertura quantitativa (execução com --coverage, 2026-08-13)
+## 6. Cobertura quantitativa (execução com --coverage, 2026-08-15)
 
-**Overall: 80.7% statements · 65.18% branches · 84.96% functions · 83.2% lines**
+**Overall: 82.46% statements · 71.25% branches · 83.6% functions · 85.39% lines** (Fase 6: 80.7 / 65.18 / 84.96 / 83.2)
 
-Por área (valores capturados da saída; seções de components/context/shared/skeletons truncadas — ver notas):
+Por área:
 
-| Área | % Stmts | % Lines | Observação |
-|---|---|---|---|
-| `api/` | 78.18 | 78.18 | `keepalive.ts` 100% funcs; linhas 51-155,196-202 descobertas |
-| `src/react-app/hooks/` | 89.81 | 91.13 | `useReferencias` 60.86 (mais baixo); 8 hooks com 100% |
-| `src/react-app/lib/` | 100 | 100 | `errors.ts` |
-| `src/react-app/pages/` | 74.66 | 77.61 | **apenas `Admin.tsx` aparece na tabela** — as outras 8 páginas não são importadas por nenhum teste (sem cobertura registrada) |
-| `src/react-app/services/` | 76.24 | 79.59 | `referencias.service` 48.23 (mais baixo; linhas 158,183-270 = update/activate/deleteOrDeactivate/toggleFavorito); `usuarios.service`, `auth.service`, `layout.service`, `exames.service` 100 |
-| `src/react-app/components/` | — | — | **nenhum teste importa componentes** → ausentes da tabela de cobertura |
-| `src/react-app/context/` (AuthContext) | — | — | apenas MOCKADO em `Admin.test.tsx` → não medido |
-| `src/shared/` | (truncado) | (truncado) | `background-jobs.ts` coberto por 3 testes; `security/` exercitado pelas 4 suítes reais |
+| Área | % Stmts | % Branch | % Funcs | % Lines | Observação |
+|---|---|---|---|---|---|
+| `api/` | 78.18 | 74.07 | 100 | 78.18 | `keepalive.ts` inalterado |
+| `src/react-app/components/` | 94.0 | 89.83 | 93.54 | 97.82 | `ConsentimentoLGPD` 100; `AdicionarRegistro` 93.58; `ModalReferencia` e cards login-as exercitados via páginas |
+| `src/react-app/hooks/` | 89.81 | 67.05 | 84.21 | 91.13 | inalterado; `useReferencias` 60.86 (mais baixo) |
+| `src/react-app/lib/` | 100 | 100 | 100 | 100 | `errors.ts` |
+| `src/react-app/pages/` | 80.51 | 74.75 | 72.09 | 84.78 | `Admin` 74.66, `Dashboard` 80.55, `Perfil` 92.75, `Referencias` 77.34 — **4 de 9 páginas na tabela**; as outras 5 não são importadas por nenhum teste (sem cobertura registrada) |
+| `src/react-app/services/` | 76.24 | 64.81 | 86.95 | 79.59 | inalterado; `referencias.service` 48.23 (mais baixo) |
+| `src/shared/` | 100 | 100 | 100 | 100 | `background-jobs.ts`; `security/test-helpers.ts` 70.31 (exercitado pelas 4 suítes reais) |
 
 Notas factuais sobre a medição:
 - A tabela de cobertura lista somente arquivos IMPORTADOS por testes; ausência na tabela = sem cobertura registrada (não aparece com 0%, simplesmente não é listado) `[CONFIRMED: comportamento do relatório observado]`.
-- Valores de `components/`, `context/`, `skeletons/`, `dtos/` e a parte de `shared/` não foram capturados na saída truncada — o que É confirmado por inventário: nenhum teste importa componentes; dtos/skeletons são exercitados indiretamente apenas via mocks/types.
+- `context/` (AuthContext) continua ausente — apenas MOCKADO pelos testes de páginas → não medido `[CONFIRMED: comportamento do relatório observado]`.
 - Nenhum threshold configurado; o percentual é informativo, não um gate `[CONFIRMED: configuration]`.
 
 ## 7. Limitações observadas (fatos)
 
-- Única página testada é Admin (3 cenários, com 5 módulos mockados — o comportamento real de hooks/contextos não é exercitado nela).
-- Zero componentes testados (10 componentes relevantes documentados na Fase 5).
-- `AuthContext` sem teste direto.
+- Páginas sem teste próprio: `Estatisticas`, `Exames`, `Historico`, `Home`, `Sobre` (5 de 9). As 4 testadas (Admin, Perfil, Referencias, Dashboard) usam mocks de hooks — o comportamento real de hooks/contextos não é exercitado nelas.
+- Componentes sem teste direto: `Layout`, `ModalReferencia` e os 5 de `login-as/` — exercitados apenas indiretamente via testes de páginas (ModalReferencia e cards login-as) ou mockados (Layout).
+- `AuthContext` sem teste direto (apenas mockado).
 - `delegacoesAcesso.service` sem teste (único service sem teste).
 - Edge functions (`delegar-acesso`, `delete-account`) sem testes.
 - CLI e script de migrations sem testes.
 - Políticas RLS de `registros`, `exames_pku`, `referencias_favoritas` e `delegacoes_acesso` sem suítes de segurança próprias (as 4 suítes cobrem `usuarios` + 2 RPCs).
 - Triggers do banco (normalização de nome, retenção 365d, limpeza de favoritos) sem teste direto.
-- Operações destrutivas de UI (excluir conta, revogar acesso) sem teste.
 - Testes de segurança dependem do banco development real (dados de teste criados/limpos; estado compartilhado com desenvolvimento).
 
 ## 8. Relação Spec × Test (mecanismo existente)
@@ -103,11 +108,12 @@ Notas factuais sobre a medição:
 
 ## Evidências
 
-- E1 — Inventário: 29 arquivos de teste (find, 2026-08-13) `[CONFIRMED: filesystem]`
-- E2 — Execuções: 3 rodadas em 2026-08-13 (resultados acima; JSON em `.ai/.temp/analyses/fase6-vitest-results.json`) `[CONFIRMED: runtime behavior]`
+- E1 — Inventário: 34 arquivos de teste (find, 2026-08-15); 29 em 2026-08-13 `[CONFIRMED: filesystem]`
+- E2 — Execuções: 3 rodadas em 2026-08-15 (resultados na seção 5; saída completa em `.ai/.temp/test-0001-coverage.txt`) `[CONFIRMED: runtime behavior]`
 - E3 — Configuração: `vitest.config.ts`, `vitest.setup.ts`, `package.json` `[CONFIRMED: configuration]`
 - E4 — Cobertura: saída de `vitest run --coverage` (tabela acima) `[CONFIRMED: runtime behavior]`
 - E5 — Helpers e skips: `test-helpers.ts`, `describeOrSkip` nas 4 suítes `[CONFIRMED: test]`
+- E6 — Testes criados pelo TEST-0001: `pages/{Perfil,Referencias,Dashboard}.test.tsx`, `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` `[CONFIRMED: test]`
 
 ## Veja também
 

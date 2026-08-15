@@ -38,7 +38,7 @@ Bottom-sheet mobile × central desktop; `rounded-t-2xl sm:rounded-2xl`; botões 
 
 ## Testes
 
-Sem teste próprio; coberto indiretamente por `Referencias.test`/`useReferencias.test`? NÃO — nenhum teste de componente identificado `[CONFIRMED: ausência]`.
+Sem teste próprio; exercitado indiretamente (renderização real) por `Referencias.test.tsx`, `Dashboard.test.tsx` e `AdicionarRegistro.test.tsx` (criar/editar referência) `[CONFIRMED: test]`.
 
 ## Evidências
 
