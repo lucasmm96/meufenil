@@ -41,10 +41,10 @@ Registro diário de consumo alimentar: o usuário informa o peso consumido de um
 
 | política | comando | alvo | USING / WITH CHECK | evidência |
 |---|---|---|---|---|
-| `Listar registro como dono ou delegado` | SELECT | public | USING: `usuario_id = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; NÃO versionada |
-| `Adicionar registro como dono ou delegado` | INSERT | public | WITH CHECK: `usuario_id = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; NÃO versionada |
-| `Inserir registro apenas com referencia ativa` | INSERT | public | WITH CHECK: `EXISTS (referencias r WHERE r.id = registros.referencia_id AND r.is_ativa = true)` | catálogo; NÃO versionada |
-| `Remover registro como dono ou delegado` | DELETE | public | USING: `usuario_id = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; NÃO versionada |
+| `Listar registro como dono ou delegado` | SELECT | public | USING: `usuario_id = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; migration 20260814000000 |
+| `Adicionar registro como dono ou delegado` | INSERT | public | WITH CHECK: `usuario_id = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; migration 20260814000000 |
+| `Inserir registro apenas com referencia ativa` | INSERT | public | WITH CHECK: `EXISTS (referencias r WHERE r.id = registros.referencia_id AND r.is_ativa = true)` | catálogo; migration 20260814000000 |
+| `Remover registro como dono ou delegado` | DELETE | public | USING: `usuario_id = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; migration 20260814000000 |
 | `Usuário pode deletar seus próprios registros` | DELETE | public | USING: `usuario_id = auth.uid()` | baseline (linha 283) e catálogo |
 
 Notas factuais:

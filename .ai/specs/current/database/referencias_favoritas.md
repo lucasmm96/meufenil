@@ -39,9 +39,9 @@ Favoritos do usuário: relação N:N entre `usuarios` e `referencias` marcando a
 
 | política | comando | alvo | USING / WITH CHECK | evidência |
 |---|---|---|---|---|
-| `Ver favoritos como dono delegado ou global` | SELECT | public | USING: `usuario_id = auth.uid() AND EXISTS (referencias r WHERE r.id = referencia_id AND (r.is_global = true OR r.criado_por = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono da referência)))` | catálogo; NÃO versionada |
-| `Favoritar referencia como dono delegado ou global` | INSERT | public | WITH CHECK: mesma condição (usuário é dono do favorito E a referência é visível: global, própria ou de concedente) | catálogo; NÃO versionada |
-| `Desfavoritar referencia como dono delegado ou global` | DELETE | public | USING: mesma condição | catálogo; NÃO versionada |
+| `Ver favoritos como dono delegado ou global` | SELECT | public | USING: `usuario_id = auth.uid() AND EXISTS (referencias r WHERE r.id = referencia_id AND (r.is_global = true OR r.criado_por = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono da referência)))` | catálogo; migration 20260814000000 |
+| `Favoritar referencia como dono delegado ou global` | INSERT | public | WITH CHECK: mesma condição (usuário é dono do favorito E a referência é visível: global, própria ou de concedente) | catálogo; migration 20260814000000 |
+| `Desfavoritar referencia como dono delegado ou global` | DELETE | public | USING: mesma condição | catálogo; migration 20260814000000 |
 
 Nota factual: não existe política de UPDATE nesta tabela `[CONFIRMED: database]`.
 
@@ -69,7 +69,7 @@ Nota factual: não existe política de UPDATE nesta tabela `[CONFIRMED: database
 ## Evidências
 
 - E1 — Colunas, constraints, índices, RLS e políticas: catálogo dev e prod (2026-08-13) `[CONFIRMED: database]`
-- E2 — Ausência de DDL em todas as migrations versionadas e legadas `[CONFIRMED: ausência em migrations — grep, 2026-08-13]`
+- E2 — Ausência de DDL em todas as migrations versionadas e legadas até a baseline 20260814000000 (DEBT-0001), que o versiona `[CONFIRMED: ausência em migrations — grep, 2026-08-13; migration 20260814000000]`
 - E3 — Chamadores no código: 5 referências `.from("referencias_favoritas")` em `src/` (favoritos e filtros em `referencias.service.ts:36-59,111`) `[CONFIRMED: code]`
 - E4 — Contagens: não coletadas individualmente (sem contagem dedicada na coleta de 2026-08-13) `[UNKNOWN: evidência necessária — SELECT count(*) na tabela]`
 

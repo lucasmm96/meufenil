@@ -48,9 +48,9 @@ Perfil do usuário da aplicação: papel (`user`/`admin`), limite diário de fen
 
 | política | comando | alvo | USING / WITH CHECK | evidência |
 |---|---|---|---|---|
-| `Usuário vê próprio perfil` | SELECT | public | USING: `id = auth.uid()` | catálogo; NÃO versionada (baseline tinha nomes diferentes, ver nota) |
-| `Usuário atualiza próprio perfil` | UPDATE | public | USING: `id = auth.uid()`; WITH CHECK: (vazio) | catálogo; NÃO versionada |
-| `Usuário cria próprio perfil` | INSERT | public | WITH CHECK: `id = auth.uid()` | catálogo; NÃO versionada |
+| `Usuário vê próprio perfil` | SELECT | public | USING: `id = auth.uid()` | catálogo; migration 20260814000000 (baseline tinha nomes diferentes, ver nota) |
+| `Usuário atualiza próprio perfil` | UPDATE | public | USING: `id = auth.uid()`; WITH CHECK: (vazio) | catálogo; migration 20260814000000 |
+| `Usuário cria próprio perfil` | INSERT | public | WITH CHECK: `id = auth.uid()` | catálogo; migration 20260814000000 |
 | `admin_only` | SELECT | public | USING: `auth.uid() = id` | baseline (linha 313) e catálogo |
 | `admin_can_select_all_usuarios` | SELECT | authenticated | USING: `is_admin_user(auth.uid())` | migration 20260811210456 e catálogo |
 

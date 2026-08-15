@@ -1,6 +1,6 @@
 # Architecture Overview — MeuFenil
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
 
 Índice ARQUITETURAL de alto nível (o índice FUNCIONAL é o [system-map](../system-map.md)). Este documento aponta para as specs especializadas — não duplica conteúdo. Decisões arquiteturais: [decisions](../../decisions/).
 
@@ -47,7 +47,7 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 ## Database
 
-- PostgreSQL Supabase: 7 tabelas, RLS em TODAS, 31 políticas, 10 funções, 4 triggers; 2 tabelas + 1 coluna + ~20 políticas SEM DDL versionado (fato — [database/overview](../database/overview.md)).
+- PostgreSQL Supabase: 7 tabelas, RLS em TODAS, 31 políticas, 10 funções, 3 triggers em `public` (+1 em `auth.users`); todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
 
 ## Authentication / Authorization
 

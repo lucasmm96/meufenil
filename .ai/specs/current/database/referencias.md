@@ -46,16 +46,16 @@ Alimentos de referência com quantidade de fenilalanina por 100g. Podem ser glob
 
 | política | comando | alvo | USING / WITH CHECK | evidência |
 |---|---|---|---|---|
-| `Usuário lista referências` | SELECT | public | USING: `is_global = true OR criado_por = auth.uid()` | catálogo; NÃO versionada |
-| `Usuário lista referências globais ou próprias` | SELECT | public | USING: `is_global = true OR criado_por = auth.uid()` | catálogo; NÃO versionada |
-| `Listar referencia como dono ou delegado` | SELECT | public | USING: `criado_por = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; NÃO versionada |
-| `Usuário cria própria referencia` | INSERT | public | WITH CHECK: `criado_por = auth.uid()` | catálogo; NÃO versionada |
-| `Adicionar referencia como dono ou delegado` | INSERT | public | WITH CHECK: `criado_por = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; NÃO versionada |
-| `Atualizar referencia como dono ou delegado` | UPDATE | public | USING: dono OU delegado OU `auth.jwt()->>'role' = 'admin'`; WITH CHECK: `is_ativa = ANY (ARRAY[true, false])` | catálogo; NÃO versionada |
-| `Remover referencia como dono ou delegado` | DELETE | public | USING: (dono OU delegado OU jwt admin) AND (`is_global = false` OU jwt admin) AND `NOT EXISTS (registros vinculados)` | catálogo; NÃO versionada |
-| `Admin lista referencias` | SELECT | authenticated | USING: `EXISTS (usuarios.id = auth.uid() AND role = 'admin')` | catálogo; NÃO versionada |
-| `Admin adiciona referencias` | INSERT | authenticated | WITH CHECK: `EXISTS (... role = 'admin')` | catálogo; NÃO versionada |
-| `Admin atualiza referencias` | UPDATE | authenticated | USING: `EXISTS (... role = 'admin')`; WITH CHECK: (vazio) | catálogo; NÃO versionada |
+| `Usuário lista referências` | SELECT | public | USING: `is_global = true OR criado_por = auth.uid()` | catálogo; migration 20260814000000 |
+| `Usuário lista referências globais ou próprias` | SELECT | public | USING: `is_global = true OR criado_por = auth.uid()` | catálogo; migration 20260814000000 |
+| `Listar referencia como dono ou delegado` | SELECT | public | USING: `criado_por = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; migration 20260814000000 |
+| `Usuário cria própria referencia` | INSERT | public | WITH CHECK: `criado_por = auth.uid()` | catálogo; migration 20260814000000 |
+| `Adicionar referencia como dono ou delegado` | INSERT | public | WITH CHECK: `criado_por = auth.uid() OR EXISTS (delegacoes_acesso ativa do dono)` | catálogo; migration 20260814000000 |
+| `Atualizar referencia como dono ou delegado` | UPDATE | public | USING: dono OU delegado OU `auth.jwt()->>'role' = 'admin'`; WITH CHECK: `is_ativa = ANY (ARRAY[true, false])` | catálogo; migration 20260814000000 |
+| `Remover referencia como dono ou delegado` | DELETE | public | USING: (dono OU delegado OU jwt admin) AND (`is_global = false` OU jwt admin) AND `NOT EXISTS (registros vinculados)` | catálogo; migration 20260814000000 |
+| `Admin lista referencias` | SELECT | authenticated | USING: `EXISTS (usuarios.id = auth.uid() AND role = 'admin')` | catálogo; migration 20260814000000 |
+| `Admin adiciona referencias` | INSERT | authenticated | WITH CHECK: `EXISTS (... role = 'admin')` | catálogo; migration 20260814000000 |
+| `Admin atualiza referencias` | UPDATE | authenticated | USING: `EXISTS (... role = 'admin')`; WITH CHECK: (vazio) | catálogo; migration 20260814000000 |
 
 Notas factuais:
 - As políticas do baseline ("usuario ve referencias", "usuario cria referencia", "Usuário pode ler referências", "Usuário pode ver referências globais ou próprias", "admin_can_insert_referencias", "admin_can_select_referencias", "admin_can_update_referencias") NÃO existem com esses nomes no banco real — o conjunto foi recriado/renomeado e versionado pela migration 20260814000000 (DEBT-0001) `[CONFIRMED: database × migration]`.
@@ -94,7 +94,7 @@ Notas factuais:
 
 - E1 — Colunas (incluindo `is_ativa`), constraints, índices: catálogo dev e prod (2026-08-13) `[CONFIRMED: database]`
 - E2 — DDL base: baseline linhas 171–260; legado `migrations/referencias.sql` `[CONFIRMED: migration]`
-- E3 — `is_ativa` ausente de todas as migrations versionadas e legadas `[CONFIRMED: ausência em migrations]`
+- E3 — `is_ativa` ausente de todas as migrations versionadas e legadas até a baseline 20260814000000 (DEBT-0001), que a versiona `[CONFIRMED: ausência em migrations; migration 20260814000000]`
 - E4 — Políticas: `pg_policies` dev e prod (2026-08-13) `[CONFIRMED: database]`
 - E5 — Chamadores no código: 11 referências `.from("referencias")` em `src/`; RPCs chamados em `referencias.service.ts:246,263` `[CONFIRMED: code]`
 - E6 — Contagens: dev = 3.164, prod = 2.986 (2026-08-13) `[CONFIRMED: database]`
