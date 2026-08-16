@@ -208,7 +208,7 @@ PROPOSED → SUPERSEDED
 - **Versionado:** `.ai/specs/` (README, CONVENTIONS, templates, current, proposed, archive, decisions) e `CLAUDE.md` quando existir.
 - **NÃO versionado:** `.ai/.temp/` (área temporária local — mantida no `.gitignore`; não remover a entrada).
 - **Commits:** automáticos no escopo do trabalho autorizado (implementação, Specs, documentação) — commits lógicos e pequenos, sem confirmação individual (2026-08-16 — ADR-0012).
-- **Push:** NUNCA automático. Fluxo: implementar → commitar → apresentar resumo (branch, commits, testes, PR proposto) → aguardar autorização explícita → push. Push direto em `development`/`master` não faz parte do workflow do agente.
+- **Push:** NUNCA automático. Fluxo: implementar → commitar → apresentar resumo (branch, commits, testes, PR proposto) → aguardar autorização explícita → push. Push direto em `development`/`master` não faz parte do workflow do agente. `git push` nunca entra na allowlist permanente do Claude Code (`.claude/settings.local.json`): a autorização é pontual, via aprovação do usuário no mecanismo de permissão — sem "autorização temporária" inventada (revisão final D-13).
 - **Branch model:** work branches `<tipo>/<id>-<slug>` (`feature/`, `fix/`, `debt/`, `test/`, `refactor/`, `security/`, `enhancement/`) criadas de `development`; PRs têm `development` como alvo. Release: `development` → `release/vX.Y.Z` → PR → `master` → production. Não alterar sem decisão explícita.
 - **Tags e releases:** criação de tag e publicação de release são sempre humanas; o agente prepara (notas, changelog, draft, relações).
 - Specs viajam **no mesmo commit** da mudança de comportamento; `Última verificação` atualizado.
@@ -264,9 +264,13 @@ O corpo do Issue tem um bloco `<!-- SPEC-PROJECTION:START --> … <!-- SPEC-PROJ
 
 Idempotente e declarativa: executar duas vezes não pode criar duas Issues (chave: `Issue:` do frontmatter ou busca por label `spec:<ID>`) nem comentários duplicados (markers). Divergência entre ação humana no GitHub e a Spec: reportar com opções — nunca reverter nem acatar silenciosamente (protocolo seção 12). Invariantes auditadas: toda Spec ativa com Issue 1:1; todo Issue `spec-driven` no Project; nenhum PR com `Closes #N` em Issue canônica; nenhum arquivo com Status terminal em `proposed/`.
 
-### 18.6 Fechamento de Issue (cadeia de encerramento)
+### 18.6 Fechamento de Issue (decisão × execução mecânica — alinhado à revisão final D-12)
 
-PRs usam `Part of #N` / `Related to #N` — **NUNCA** `Closes #N` em Issue canônica. O fechamento automático do GitHub não é mecanismo principal. Após o merge: verificar ACs com evidência → verificar estado da Spec → verificar evidências (testes, sync de `current/`) → preparar encerramento (comentário com o que foi validado) → **confirmação humana quando exigida** (decisão de negócio/governança ou ambiguidade) → fechar explicitamente com comentário de razão. Fechamento por REJECTED/SUPERSEDED ocorre somente depois da decisão registrada na Spec. Fechamento/reabertura manuais sem Spec correspondente = divergência.
+PRs usam `Part of #N` / `Related to #N` — **NUNCA** `Closes #N` em Issue canônica. O fechamento automático do GitHub não é mecanismo principal. Distinguir a decisão que determina o encerramento da execução mecânica do fechamento:
+
+- **CASO 1 — IMPLEMENTED (fechamento factual derivado do workflow):** PR merged + ACs validadas com evidência + evidências suficientes + Spec `IMPLEMENTED` + `Implemented Through` preenchido + sem ambiguidade nem decisão de negócio/governança pendente → o agente PODE executar o fechamento, sem confirmação adicional exclusiva para o "Close". O fechamento é ação explícita com comentário de encerramento.
+- **CASO 2 — REJECTED / SUPERSEDED / abandono / redirecionamento (decisão humana + execução mecânica):** a decisão de encerrar é exclusivamente humana; depois que a decisão estiver registrada na Spec, o agente executa mecanicamente o fechamento (comentário com a razão).
+- **CASO 3 — Fechamento manual / divergência:** humano fecha Issue sem Spec em estado terminal correspondente → NÃO reverter automaticamente; NÃO aceitar automaticamente; NÃO assumir que a Issue está correta; registrar divergência e solicitar decisão.
 
 ### 18.7 Issues externas (open source)
 
