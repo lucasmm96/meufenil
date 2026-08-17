@@ -2,6 +2,7 @@
 
 **Type:** ENH
 **Status:** PROPOSED
+**Issue:** #10
 **Title:** PWA offline / service worker
 
 ## Problem

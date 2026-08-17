@@ -2,6 +2,7 @@
 
 **Type:** SEC
 **Status:** PROPOSED
+**Issue:** #14
 **Title:** Autorização das funções de consulta sem verificação interna
 
 ## Problem
