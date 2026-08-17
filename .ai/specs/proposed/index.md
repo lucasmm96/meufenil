@@ -12,6 +12,7 @@
 |---|---|---|---|---|---|
 | [FEAT-0001](features/FEAT-0001-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | — (retrofit) | U-7.2; R-003 (análise 23) |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | — (retrofit) | FEAT-0014; U-5.2 |
+| [ENH-0002](enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED | #21 | PRs #4/#5/#20 (autoria `lucasmm96`) — decisão do autor 2026-08-16 |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | — (retrofit) | Divergência Fase 5 |
 | [REF-0002](refactors/REF-0002-rpcs-orfas-dashboard.md) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | — (retrofit) | Fase 4; O-003 (análise 25) |
 | [DEBT-0001](technical-debt/DEBT-0001-ddl-nao-versionado.md) | DEBT | Versionar objetos sem DDL | IMPLEMENTED | — (retrofit) | Fase 2; O-002 (análise 25) — migration 20260814000000 (dev e prod) |
