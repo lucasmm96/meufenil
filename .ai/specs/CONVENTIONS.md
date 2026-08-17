@@ -296,7 +296,7 @@ A matriz completa "uma informação, um lar" (Spec/Issue/Project/Código/PR/Rele
 
 ## Relação entre templates e specs
 
-- `templates/` é a fonte canônica dos formatos: `table-spec` (T1), `rpc-spec` (T2), `page-spec` (T3), `component-spec`, `feature-spec` (T4), `adr-template` (T5), `proposal-template` (T6), `business-rule`, `analysis-report` (T7).
+- `templates/` é a fonte canônica dos formatos: `table-spec` (T1), `rpc-spec` (T2), `page-spec` (T3), `component-spec`, `feature-spec` (T4), `adr-template` (T5), `proposal-template` (T6), `business-rule`, `analysis-report` (T7), `issue-projection` (T8 — corpo da Issue canônica, seção 18.3).
 - Toda spec segue o template aplicável; desvios justificados no próprio arquivo.
 - Alterações em `CONVENTIONS.md`, `README.md` e `templates/`: proposta → aprovação → aplicação (nunca silenciosa).
 
