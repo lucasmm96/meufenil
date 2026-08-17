@@ -16,9 +16,10 @@ function copyFixture(tempBase, rel) {
   return dest
 }
 
-/** Fake da GitHub API (Issues) em memória, com rastreio de chamadas. */
+/** Fake da GitHub API (Issues + Labels) em memória, com rastreio de chamadas. */
 function createFakeApi() {
   const issues = new Map()
+  const labelsSet = new Set()
   let nextNumber = 1
   const calls = []
 
@@ -29,6 +30,18 @@ function createFakeApi() {
     const u = new URL(url)
     const method = init.method ?? 'GET'
     const base = '/repos/o/r'
+
+    const labelSingle = u.pathname.match(/^\/repos\/o\/r\/labels\/([^/]+)$/)
+    if (labelSingle && method === 'GET') {
+      const name = decodeURIComponent(labelSingle[1])
+      return labelsSet.has(name) ? respond(200, { name }) : respond(404, { message: 'Not Found' })
+    }
+    if (method === 'POST' && u.pathname === `${base}/labels`) {
+      const body = JSON.parse(init.body)
+      if (labelsSet.has(body.name)) return respond(422, { message: 'already_exists' })
+      labelsSet.add(body.name)
+      return respond(201, body)
+    }
 
     if (method === 'POST' && u.pathname === `${base}/issues`) {
       const body = JSON.parse(init.body)
@@ -82,7 +95,7 @@ function createFakeApi() {
     issues.set(issue.number, issue)
   }
 
-  return { fetchImpl, issues, calls, seed }
+  return { fetchImpl, issues, calls, labelsSet, seed }
 }
 
 function makeClient(api) {
@@ -129,6 +142,18 @@ describe('sync Spec ↔ Issue', () => {
     expect(issue.body).toContain(MARKER_START)
   })
 
+  it('garante a existência das labels antes de criar Issues', async () => {
+    const api = createFakeApi()
+    const base = tempBase()
+    copyFixture(base, 'proposed/technical-debt/DEBT-0001-ddl-nao-versionado.md')
+
+    await runSync({ client: makeClient(api), baseDir: base })
+
+    expect(api.labelsSet.has('spec-driven')).toBe(true)
+    expect(api.labelsSet.has('spec:DEBT-0001')).toBe(true)
+    expect(api.labelsSet.has('technical-debt')).toBe(true)
+  })
+
   it('é idempotente: segunda execução não cria nem altera nada', async () => {
     const api = createFakeApi()
     const base = tempBase()
@@ -142,7 +167,8 @@ describe('sync Spec ↔ Issue', () => {
     expect(second[0].action).toBe('ok')
     expect(second[0].divergences).toEqual([])
     expect(api.issues.size).toBe(1)
-    expect(api.calls.slice(mutateCalls).filter((c) => !c.init.method || c.init.method !== 'GET').length).toBe(0)
+    const nonReads = api.calls.slice(mutateCalls).filter((c) => !c.init.method || c.init.method !== 'GET')
+    expect(nonReads.length).toBe(0)
   })
 
   it('atualiza o bloco projetado quando a Spec muda, preservando o conteúdo humano', async () => {
@@ -153,10 +179,19 @@ describe('sync Spec ↔ Issue', () => {
     await runSync({ client: makeClient(api), baseDir: base })
 
     const issue = api.issues.get(1)
-    issue.body = issue.body.replace('Discussão operacional:', 'Discussão operacional:\n\nComentário do autor sobre o problema.')
+    issue.body = issue.body.replace(
+      'Discussão operacional:',
+      'Discussão operacional:\n\nComentário do autor sobre o problema.'
+    )
 
-    let text = readFileSync(file, 'utf8')
-    writeFileSync(file, text.replace('Parte do schema real não possui DDL em nenhuma migration.', 'Problema atualizado com novo contexto.'))
+    const text = readFileSync(file, 'utf8')
+    writeFileSync(
+      file,
+      text.replace(
+        'Parte do schema real não possui DDL em nenhuma migration.',
+        'Problema atualizado com novo contexto.'
+      )
+    )
 
     const report = await runSync({ client: makeClient(api), baseDir: base })
     expect(report[0].action).toBe('update')
@@ -190,7 +225,11 @@ describe('sync Spec ↔ Issue', () => {
     const report = await runSync({ client: makeClient(api), baseDir: base })
     expect(report[0].divergences.join(' ')).toContain('CASO 3')
     expect(api.issues.get(5).state).toBe('closed')
-    expect(api.calls.every((c) => c.init.method !== 'POST')).toBe(true)
+    const issuesPath = '/repos/o/r/issues'
+    const createdIssues = api.calls.filter(
+      (c) => c.init.method === 'POST' && new URL(c.url).pathname === issuesPath
+    )
+    expect(createdIssues.length).toBe(0)
   })
 
   it('Spec terminal com Issue aberta → divergência reportada; sync não fecha a Issue (D-12)', async () => {
@@ -198,7 +237,6 @@ describe('sync Spec ↔ Issue', () => {
     const base = tempBase()
     copyFixture(base, 'archive/implemented/technical-debt/DEBT-0004-reconciliar-templates.md')
 
-    const specText = readFileSync(join(base, 'archive/implemented/technical-debt/DEBT-0004-reconciliar-templates.md'), 'utf8')
     const spec = {
       id: 'DEBT-0004',
       type: 'DEBT',
@@ -217,7 +255,6 @@ describe('sync Spec ↔ Issue', () => {
       body: buildBody(spec),
       labels: [{ name: 'spec:DEBT-0004' }, { name: 'spec-driven' }, { name: 'technical-debt' }],
     })
-    void specText
 
     const report = await runSync({ client: makeClient(api), baseDir: base })
     expect(report[0].divergences.join(' ')).toContain('fechamento é ato explícito')

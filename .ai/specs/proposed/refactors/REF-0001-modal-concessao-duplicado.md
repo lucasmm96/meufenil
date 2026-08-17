@@ -2,6 +2,7 @@
 
 **Type:** REF
 **Status:** PROPOSED
+**Issue:** #12
 **Title:** Consolidar modal de concessão duplicado
 
 ## Problem

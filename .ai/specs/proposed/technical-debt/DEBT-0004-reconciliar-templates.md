@@ -2,6 +2,7 @@
 
 **Type:** DEBT
 **Status:** IMPLEMENTED
+**Issue:** #9
 **Implemented Through:** `templates/feature-spec.md` (T4 alinhado à prática real) · `templates/adr-template.md` (T5 com Origin DOCUMENTED/RECONSTRUCTED/UNKNOWN) · `templates/proposal-template.md` (T6 com estrutura da Fase 10 + categorias SEC/TEST) · `templates/component-spec.md` (novo) · `templates/business-rule.md` (novo) · `CONVENTIONS.md` (consolidado — Fase 12)
 **Title:** Reconciliar templates e convenções do Specification System
 

@@ -2,6 +2,7 @@
 
 **Type:** TEST
 **Status:** PROPOSED
+**Issue:** #16
 **Title:** Suítes de segurança para policies não cobertas
 
 ## Problem

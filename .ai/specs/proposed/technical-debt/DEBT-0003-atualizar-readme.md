@@ -2,6 +2,7 @@
 
 **Type:** DEBT
 **Status:** IMPLEMENTED
+**Issue:** #8
 **Implemented Through:** `README.md` corrigido em 2026-08-15 (keepalive 1 alvo por execução; favoritos como funcionalidade implementada; funcionalidades implementadas faltantes adicionadas; env `VITE_APP_ENVIRONMENT` documentado) · specs atualizadas: `current/backend/api-keepalive.md`, `current/backend/overview.md`, `current/features/FEAT-0013-background-jobs.md`, `current/security/secrets-and-environments.md`
 **Title:** Atualizar README (documentation drift)
 

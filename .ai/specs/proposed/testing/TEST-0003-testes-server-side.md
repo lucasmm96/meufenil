@@ -2,6 +2,7 @@
 
 **Type:** TEST
 **Status:** PROPOSED
+**Issue:** #17
 **Title:** Testes server-side (edge functions, triggers, CLI)
 
 ## Problem

@@ -2,6 +2,7 @@
 
 **Type:** FEAT
 **Status:** PROPOSED
+**Issue:** #11
 **Title:** Fluxo de atribuição de papel admin
 
 ## Problem

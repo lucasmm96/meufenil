@@ -2,6 +2,7 @@
 
 **Type:** TEST
 **Status:** IMPLEMENTED
+**Issue:** #15
 **Title:** Cobertura de testes de páginas e componentes
 **Implemented Through:** `current/testing/testing-strategy.md` (seções 2, 3, 5, 6, 7), `current/frontend/pages/{perfil,referencias,dashboard}.md`, `current/frontend/components/{adicionar-registro,consentimento-lgpd}.md` — testes em `src/react-app/pages/{Perfil,Referencias,Dashboard}.test.tsx` e `src/react-app/components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` (69 testes novos; suíte 128 → 197)
 

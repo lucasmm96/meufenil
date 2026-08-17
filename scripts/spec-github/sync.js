@@ -51,34 +51,36 @@ export async function runSync({ token, owner, repo, baseDir, dryRun = false, cli
   const api = client ?? (token ? new GitHubClient({ token, owner, repo }) : null)
   const report = []
 
+  if (api && !dryRun) {
+    const allLabels = [...new Set(specs.flatMap((spec) => labels(spec)))]
+    for (const name of allLabels) await api.ensureLabel(name)
+  }
+
   for (const spec of specs) {
     const entry = { id: spec.id, area: spec.area, action: 'ok', number: spec.issue, divergences: [] }
     const desired = { title: issueTitle(spec), body: buildBody(spec), labels: labels(spec) }
 
     if (!api) {
-      entry.action = spec.issue ? 'local-preview (Issue existente — diff indisponível sem token)' : 'local-preview (criaria Issue)'
+      entry.action = spec.issue
+        ? 'local-preview (Issue existente — diff indisponível sem token)'
+        : 'local-preview (criaria Issue)'
       report.push(entry)
       continue
     }
 
     let existing = null
-    try {
-      if (spec.issue) {
-        existing = await api.getIssue(spec.issue)
-        if (!existing) {
-          entry.divergences.push(`Issue #${spec.issue} do frontmatter não existe no GitHub`)
-          const byLabel = await api.findIssuesByLabel(specLabel(spec.id))
-          if (byLabel.length === 1) existing = byLabel[0]
-          else if (byLabel.length > 1) entry.divergences.push(`múltiplas Issues com label ${specLabel(spec.id)}`)
-        }
-      } else {
+    if (spec.issue) {
+      existing = await api.getIssue(spec.issue)
+      if (!existing) {
+        entry.divergences.push(`Issue #${spec.issue} do frontmatter não existe no GitHub`)
         const byLabel = await api.findIssuesByLabel(specLabel(spec.id))
         if (byLabel.length === 1) existing = byLabel[0]
         else if (byLabel.length > 1) entry.divergences.push(`múltiplas Issues com label ${specLabel(spec.id)}`)
       }
-    } catch (error) {
-      if (error instanceof GitHubApiError) throw error
-      throw error
+    } else {
+      const byLabel = await api.findIssuesByLabel(specLabel(spec.id))
+      if (byLabel.length === 1) existing = byLabel[0]
+      else if (byLabel.length > 1) entry.divergences.push(`múltiplas Issues com label ${specLabel(spec.id)}`)
     }
 
     if (!existing) {
@@ -98,10 +100,14 @@ export async function runSync({ token, owner, repo, baseDir, dryRun = false, cli
     entry.number = existing.number
 
     if (existing.state === 'closed' && !TERMINAL_STATUSES.includes(spec.status)) {
-      entry.divergences.push(`Issue fechada mas Spec está ${spec.status} — D-12 CASO 3: não reverter nem aceitar; decidir com o autor`)
+      entry.divergences.push(
+        `Issue fechada mas Spec está ${spec.status} — D-12 CASO 3: não reverter nem aceitar; decidir com o autor`
+      )
     }
     if (existing.state === 'open' && TERMINAL_STATUSES.includes(spec.status)) {
-      entry.divergences.push(`Spec ${spec.status} mas Issue aberta — fechamento é ato explícito do workflow (D-12), não executado pelo sync`)
+      entry.divergences.push(
+        `Spec ${spec.status} mas Issue aberta — fechamento é ato explícito do workflow (D-12), não executado pelo sync`
+      )
     }
 
     let bodyChanged = false
@@ -114,7 +120,8 @@ export async function runSync({ token, owner, repo, baseDir, dryRun = false, cli
 
     const titleChanged = existing.title !== desired.title
     const labelsChanged =
-      JSON.stringify([...(existing.labels ?? []).map((l) => l.name)].sort()) !== JSON.stringify([...desired.labels].sort())
+      JSON.stringify([...(existing.labels ?? []).map((l) => l.name)].sort()) !==
+      JSON.stringify([...desired.labels].sort())
 
     if (bodyChanged || titleChanged || labelsChanged) {
       if (dryRun) {

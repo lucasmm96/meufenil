@@ -2,6 +2,7 @@
 
 **Type:** TEST
 **Status:** PROPOSED
+**Issue:** #18
 **Title:** Completar testes de services faltantes
 
 ## Problem
