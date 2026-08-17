@@ -1,4 +1,4 @@
-// Cliente mínimo da GitHub REST API (Issues), sem dependências externas.
+// Cliente mínimo da GitHub REST API (Issues e Labels), sem dependências externas.
 // O token é injetado; o cliente é substituível nos testes (fetch impl).
 
 export class GitHubApiError extends Error {
@@ -18,16 +18,20 @@ export class GitHubClient {
     this.baseUrl = baseUrl
   }
 
+  headers() {
+    return {
+      Authorization: `Bearer ${this.token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    }
+  }
+
   async request(method, path, body) {
     const url = `${this.baseUrl}${path}`
     const response = await this.fetchImpl(url, {
       method,
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': 'application/json',
-      },
+      headers: this.headers(),
       body: body === undefined ? undefined : JSON.stringify(body),
     })
     if (response.status === 404) return null
@@ -35,6 +39,26 @@ export class GitHubClient {
       throw new GitHubApiError(`GitHub API ${method} ${path} → HTTP ${response.status}`, response.status)
     }
     return response.json()
+  }
+
+  /** Garante a existência da label (cria quando não existe; 422 = já existe). */
+  async ensureLabel(name) {
+    const existing = await this.request(
+      'GET',
+      `/repos/${this.owner}/${this.repo}/labels/${encodeURIComponent(name)}`
+    )
+    if (existing !== null) return
+
+    const url = `${this.baseUrl}/repos/${this.owner}/${this.repo}/labels`
+    const response = await this.fetchImpl(url, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify({ name, color: 'd4c5f9' }),
+    })
+    if (response.status === 422) return
+    if (!response.ok) {
+      throw new GitHubApiError(`GitHub API POST labels → HTTP ${response.status}`, response.status)
+    }
   }
 
   /** Busca o Issue por número; null quando não existe. */
