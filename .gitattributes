@@ -1,0 +1,3 @@
+# Os scripts do sync Spec↔GitHub exigem LF: line-endings CRLF quebram o transform do
+# vitest/esbuild em arquivos com shebang neste ambiente (Windows + core.autocrlf).
+scripts/spec-github/** text eol=lf
