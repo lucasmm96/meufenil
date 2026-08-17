@@ -11,6 +11,7 @@ Aplicação open source de controle pessoal da ingestão diária de fenilalanina
 - **CURRENT STATE** = implementação atual (código, banco, migrations, testes, configuração) + as specs em [`.ai/specs/current/`](.ai/specs/current/) que a documentam. Em divergência factual, a implementação vence — e a divergência é registrada, nunca resolvida silenciosamente.
 - **PROPOSED STATE** = [`.ai/specs/proposed/`](.ai/specs/proposed/) — possibilidades futuras. NUNCA tratar proposta como comportamento implementado. NÃO alterar Current Specs para refletir uma proposta antes de ela ser realmente implementada.
 - **Governança** = [`.ai/specs/CONVENTIONS.md`](.ai/specs/CONVENTIONS.md). Quando houver conflito entre este arquivo e as specs, siga a governança e investigue a inconsistência — não altere silenciosamente nenhuma fonte.
+- **Camada operacional (ADR-0012):** Spec = fonte de verdade da especificação; GitHub Issue = representação operacional/pública da Spec; Project = dashboard do backlog; PR = unidade de revisão/integração; Release = unidade de entrega. Regras completas em CONVENTIONS.md §18.
 
 ## 3. Navegação — carregue somente o necessário
 
@@ -46,9 +47,11 @@ Não comece editando código.
 ### Nova feature
 
 ```
-Pedido → verificar proposta existente → (não há?) criar Proposed Feature [template feature-spec, Tipo Proposed]
-→ APROVAÇÃO HUMANA → ACCEPTED → Feature Spec → Implementation → Tests
-→ Validation → Update Current Specs → Update Proposed status → System Map → validação da documentação
+Pedido → verificar proposta existente → (não há?) criar Proposed Feature [proposal-template] + Issue canônica + item no Project
+→ APROVAÇÃO HUMANA (Decision na Spec) → ACCEPTED → Feature Spec → work branch feature/<id>-<slug> → Implementation → Tests
+→ Validation → Update Current Specs → Update Proposed status → System Map
+→ PR (Part of #N) → aprovação humana → merge → housekeeping (ACs → IMPLEMENTED → archive/ → Issue fechada → Project)
+→ validação da documentação
 ```
 
 Nenhuma feature sem specification. Se a solicitação vier com especificação completa e autorização explícita, prossiga respeitando segurança/arquitetura/dados.
@@ -64,9 +67,13 @@ Se o comportamento atual contradiz a spec: **STOP** — determine se o código e
 
 ### Implementar uma proposta existente (quando explicitamente solicitado)
 
-1. Abrir a proposta; verificar Status, Open Questions, Acceptance Criteria e impactos.
-2. Se houver Open Question relevante não resolvida: **STOP**.
-3. Implementar → testar → atualizar Current Specs → marcar proposta `IMPLEMENTED` com **Implemented Through** → atualizar `proposed/index.md` → validar documentação.
+1. Abrir a proposta; verificar Status, Decision, Open Questions, Acceptance Criteria e impactos.
+2. Se houver Open Question relevante não resolvida ou Decision ausente: **STOP**.
+3. Localizar a Issue canônica (`Issue: #N` no frontmatter ou label `spec:<ID>`) e o item do Project.
+4. Implementar em work branch `<tipo>/<id>-<slug>` → testar → atualizar Current Specs no mesmo commit.
+5. **PUSH: STOP — solicitar autorização explícita** (resumo: branch, commits, testes, PR proposto) antes de qualquer push.
+6. Após push: criar PR (`Part of #N`, template `.github/pull_request_template.md`) → aprovação humana → merge.
+7. Housekeeping pós-merge: validar ACs → marcar proposta `IMPLEMENTED` com **Implemented Through** → mover para `archive/implemented/<categoria>/` → atualizar `proposed/index.md` → fechar a Issue (cadeia CONVENTIONS §18.6) → atualizar Project → validar documentação.
 
 ## 6. Evidência — nunca transforme UNKNOWN em CONFIRMED sem evidência
 
@@ -99,6 +106,8 @@ Ao parar, NÃO implemente parcialmente "para resolver depois". Explique: (1) o q
 | MEDIUM | mudança comportamental/estrutural com impacto controlado | pode exigir validação adicional |
 | HIGH | schema, migrations, RLS, RPC, autorização, segurança, dados destrutivos, regras de negócio, arquitetura, secrets/environment, contratos externos | decisão humana ANTES da implementação, salvo autorização explícita por spec aprovada |
 
+**Stop conditions operacionais** (além das acima): push necessário → **PARE** e solicite autorização explícita (resumo antes do push) · aprovação de PR / merge → aguarde a aprovação humana (após aprovação explícita, o merge é executado pelo agente) · fechamento de Issue que represente decisão de negócio/governança → aguarde decisão · tag / publicação de release → aguarde confirmação humana · migration/deploy em production → nunca automática · ambiguidade sobre Source of Truth → reporte. **Não pare** para pedir confirmação de ações já autorizadas por este workflow (ex.: commit, atualizar Issue/Project, criar PR, fechar Issue factual — CASO 1 da CONVENTIONS §18.6).
+
 (Matrizes completas: [`CONVENTIONS.md`](.ai/specs/CONVENTIONS.md) seções 13–14.)
 
 ## 9. Padrões de implementação
@@ -120,10 +129,14 @@ Após qualquer mudança de comportamento: revise as specs afetadas usando a matr
 
 ## 12. Git e ambiente
 
-- Branch de desenvolvimento oficial: **`development`**. Não use `fix/security-rls-rpc` para trabalho novo. Não troque de branch sem autorização.
+- Branch de desenvolvimento oficial: **`development`**. Branch default público: **`master`**. Não troque de branch sem autorização.
+- **Branch model:** work branches `<tipo>/<id>-<slug>` (`feature/`, `fix/`, `debt/`, `test/`, `refactor/`, `security/`, `enhancement/`) criadas de `development`; PRs têm `development` como alvo. Release: `development` → `release/vX.Y.Z` → PR → `master` → production. Não altere esse modelo sem decisão explícita.
+- **Commits: automáticos** no escopo do trabalho autorizado — commits lógicos e pequenos (implementação, Specs, documentação), sem confirmação individual.
+- **Push: NUNCA automático.** Sempre apresente primeiro: resumo, branch, commits, testes, arquivos relevantes e o PR proposto; aguarde autorização explícita ("Sim, pode fazer push") antes de executar. Push direto em `development`/`master` não faz parte do workflow do agente. `git push` nunca entra na allowlist permanente (`.claude/settings.local.json`): a autorização é pontual, via mecanismo de permissão do Claude Code (revisão final D-13).
+- **Merge:** apenas após aprovação humana do PR. O agente nunca aprova o próprio PR; após aprovação explícita, executa o merge sem nova confirmação.
+- **Tags e releases:** criação de tag e criação/publicação de release são humanas; o agente prepara (notas, changelog, draft, relações Spec→Issue→PR→Release).
 - Verifique branch e working tree antes de trabalhar.
-- **Não** faça commit, push ou tag automaticamente — somente se explicitamente solicitado.
-- `.ai/.temp/analyses/` é o laboratório local (NÃO versionar, não é fonte primária; relatórios de trabalho vão para lá). Mudanças permanentes no Specification System vão para `.ai/specs/`.
+- `.ai/.temp/` é a área temporária local (MANIFEST + lifecycle com retenção de 7 dias — CONVENTIONS §17). Não é fonte primária; mudanças permanentes no Specification System vão para `.ai/specs/`.
 
 ## 13. Completion checklist (antes de declarar concluído)
 
@@ -133,6 +146,8 @@ Após qualquer mudança de comportamento: revise as specs afetadas usando a matr
 - [ ] documentação sincronizada (REVIEW ≠ UPDATE); System Map avaliado
 - [ ] Proposed não confundido com Current; nenhuma decisão não autorizada tomada
 - [ ] nenhuma mudança HIGH RISK sem aprovação; nenhuma alteração não relacionada introduzida
+- [ ] Issue canônica e Project sincronizados (Status derivado correto; PR com `Part of #N` — nunca `Closes`)
+- [ ] housekeeping executado (arquivo `archive/`, `index.md`, encerramento da Issue conforme CONVENTIONS §18.6)
 
 ## 14. Fluxo de trabalho ideal
 

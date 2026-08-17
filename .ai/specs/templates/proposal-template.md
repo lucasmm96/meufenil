@@ -13,7 +13,7 @@
 
 **Regras:** propostas NUNCA descrevem comportamento atual além do necessário para contextualizar — com link para `current/` em "Current State". Status inicial SEMPRE `PROPOSED`; uma proposta não é aprovada, priorizada ou comprometida por existir. Nada em `proposed/` é implementado sem decisão humana. Seções sem conteúdo recebem **N/A** ou **TBD**.
 
-**Status possíveis (lifecycle — `CONVENTIONS.md`):** `PROPOSED` → `ACCEPTED` → `IMPLEMENTATION` → `IMPLEMENTED`; também `REJECTED` e `SUPERSEDED`.
+**Status possíveis (lifecycle — `CONVENTIONS.md` §8):** `PROPOSED` → `ACCEPTED` → `IMPLEMENTATION` → `IMPLEMENTED`; também `REJECTED` e `SUPERSEDED`. Estados terminais movem o arquivo para `archive/{implemented,rejected,superseded}/<categoria>/` no mesmo commit, com `proposed/index.md` atualizado (nunca apagar linha — ADR-0012). Campos obrigatórios por estado: `Decision:` + `Approved by/on:` (ACCEPTED) · `Implemented Through:` (IMPLEMENTED) · `Rejected on:` + razão (REJECTED) · `Superseded by:` (SUPERSEDED).
 
 ---
 
@@ -22,6 +22,8 @@
 **Type:** FEAT | ENH | REF | DEBT | SEC | TEST
 **Status:** PROPOSED
 **Title:** <Título>
+**Issue:** #N (GitHub — preenchido no mesmo fluxo de criação, via github-manager)
+**Created on:** YYYY-MM-DD
 
 ## Problem
 
@@ -77,7 +79,7 @@
 
 ## Alternatives
 
-[Preencher — alternativas razoáveis SEM escolher; **Decision:** TBD]
+[Preencher — alternativas razoáveis SEM escolher. **Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**]
 
 ## Open Questions
 
@@ -85,8 +87,8 @@
 
 ## Acceptance Criteria
 
-[Preencher — como validar que a proposta foi implementada corretamente; TBD quando depender da alternativa]
+[Preencher — como validar que a proposta foi implementada corretamente; cobrir as alternativas com chance real de decisão, ou permanecer TBD até a decisão]
 
-## Evidence / References
+## References
 
 [Preencher — links para análises/specs que originaram a proposta]

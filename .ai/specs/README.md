@@ -39,9 +39,10 @@ Nenhum documento de `current/` contém propostas; nenhum documento de `proposed/
 │   ├── database/           ← 7 tabelas + rpc + triggers
 │   ├── security/           ← modelo de segurança + secrets/ambientes
 │   └── testing/            ← estratégia de testes (infra e resultados)
-├── decisions/              ← ══ DECISÕES ══ 11 ADRs (Origin: DOCUMENTED/RECONSTRUCTED/UNKNOWN)
-└── proposed/               ← ══ ESTADO PROPOSTO ══ catálogo (index.md) com 14 propostas
-    ├── features/ enhancements/ refactors/ technical-debt/ security/ testing/
+├── decisions/              ← ══ DECISÕES ══ 12 ADRs (Origin: DOCUMENTED/RECONSTRUCTED/UNKNOWN)
+├── proposed/               ← ══ ESTADO PROPOSTO ══ catálogo (index.md) — SOMENTE propostas ativas
+│   ├── features/ enhancements/ refactors/ technical-debt/ security/ testing/
+└── archive/                ← ══ ARQUIVO ══ estados terminais (implemented/ rejected/ superseded)
 ```
 
 ## 5. Como navegar (IA e humanos)
@@ -71,6 +72,7 @@ Regras duras: nunca apresentar sem tag; ausência de evidência = UNKNOWN; **aus
 - **Feature:** Feature → Specification → Review → Implementation Plan → Implementation → Tests → Documentation Update (nenhuma feature sem spec).
 - **Bug:** Bug → Reproduzir → Teste que demonstra o problema → Correção → Teste passa → Avaliar impacto nas specs → Atualizar quando necessário.
 - **Proposta:** PROPOSED → (decisão humana) → ACCEPTED → IMPLEMENTATION → IMPLEMENTED (ou REJECTED/SUPERSEDED) — ver `CONVENTIONS.md` seções 8 e 10.
+- **GitHub Operations (ADR-0012):** Spec → Issue canônica (bloco `SPEC-PROJECTION`) → Project → work branch → PR (`Part of #N`) → aprovação humana → merge → encerramento da Issue (cadeia de verificação) → release (tag/publicação humanas). Regras: `CONVENTIONS.md` §18.
 - **Stop conditions e fronteira de decisão humana** (schema/RLS/RPC/segurança/negócio/arquitetura = parar e pedir aprovação): `CONVENTIONS.md` seções 13 e 14.
 - **Sincronização de mudanças** (o que revisar/atualizar por tipo de mudança): `CONVENTIONS.md` seção 11.
 
@@ -79,6 +81,7 @@ Regras duras: nunca apresentar sem tag; ausência de evidência = UNKNOWN; **aus
 - Specs citam código por caminho relativo com linha; viajam **no mesmo commit** da mudança de comportamento.
 - `.ai/.temp/analyses/` é o laboratório local (**NÃO versionado**, por design): relatórios de fases e investigações — material de trabalho e evidência histórica, nunca fonte primária do Current State.
 - `.ai/specs/` é versionado: é o conhecimento durável do projeto.
+- Camada GitHub: cada proposta tem Issue canônica (projeção pública/operacional) e item no Project (dashboard); PR e Release são as unidades de integração e entrega — a Spec permanece a fonte de verdade (ADR-0012).
 
 ## 9. Links essenciais
 
@@ -87,4 +90,5 @@ Regras duras: nunca apresentar sem tag; ausência de evidência = UNKNOWN; **aus
 - Mapa arquitetural: [`current/architecture/overview.md`](./current/architecture/overview.md)
 - Templates: [`templates/`](./templates/)
 - Catálogo de propostas: [`proposed/index.md`](./proposed/index.md)
+- Arquivo de propostas concluídas: [`archive/`](./archive/)
 - ADRs: [`decisions/`](./decisions/)
