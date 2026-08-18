@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { reconciliation, runReconcile } from './reconcile.js'
+import { parseArgs, reconciliation, runReconcile } from './reconcile.js'
 
 const SPEC = (issue) => `# TEST-0009 — Fixture
 **Type:** TEST
@@ -50,6 +50,20 @@ function makeClient(fakeRest) {
   }
   return { token, rest }
 }
+
+describe('parseArgs (forma do workflow)', () => {
+  it('aceita --issue 26 --action closed --dry-run', () => {
+    expect(parseArgs(['--issue', '26', '--action', 'closed', '--dry-run'])).toMatchObject({
+      issue: 26,
+      action: 'closed',
+      dryRun: true,
+    })
+  })
+
+  it('aceita a forma com =', () => {
+    expect(parseArgs(['--issue=26', '--action=closed'])).toMatchObject({ issue: 26, action: 'closed', dryRun: false })
+  })
+})
 
 describe('reconciliation (D-12 CASO 3 — função pura)', () => {
   it('closed + Spec não terminal → divergência com comentário', () => {

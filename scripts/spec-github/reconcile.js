@@ -18,13 +18,16 @@ const SPECS_DIR = join(REPO_ROOT, '.ai', 'specs')
 const TERMINAL_STATUSES = new Set(['IMPLEMENTED', 'REJECTED', 'SUPERSEDED'])
 const COMMENT_MARKER = '<!-- sync:reconcile -->'
 
-function parseArgs(argv) {
+/** Aceita as duas formas: `--issue=26` e `--issue 26` (o workflow usa a segunda). */
+export function parseArgs(argv) {
   const args = { dryRun: false, issue: null, action: null, repo: 'lucasmm96/meufenil' }
-  for (const arg of argv) {
+  const value = (arg, i) => (arg.includes('=') ? arg.split('=')[1] : argv[i + 1])
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
     if (arg === '--dry-run') args.dryRun = true
-    else if (arg.startsWith('--issue=')) args.issue = Number(arg.slice('--issue='.length))
-    else if (arg.startsWith('--action=')) args.action = arg.slice('--action='.length)
-    else if (arg.startsWith('--repo=')) args.repo = arg.slice('--repo='.length)
+    else if (arg.startsWith('--issue')) args.issue = Number(value(arg, i))
+    else if (arg.startsWith('--action')) args.action = value(arg, i)
+    else if (arg.startsWith('--repo')) args.repo = value(arg, i)
   }
   return args
 }
