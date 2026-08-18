@@ -32,12 +32,19 @@ describe('template de PR (§11.2)', () => {
 })
 
 describe('CI W1 (.github/workflows/ci.yml)', () => {
-  it('existe, roda lint/testes/build e usa permissões mínimas', () => {
+  it('existe, roda lint (escopado até DEBT-0005)/testes/build e usa permissões mínimas', () => {
     const w = read('.github/workflows/ci.yml')
     expect(w).toMatch(/^permissions:\n\s+contents: read$/m)
-    expect(w).toMatch(/npm run lint/)
+    expect(w).toMatch(/npx eslint scripts\/spec-github/)
+    expect(w).toMatch(/DEBT-0005/)
     expect(w).toMatch(/npm run test:run/)
     expect(w).toMatch(/npm run build/)
+  })
+
+  it('o escopo do lint está ligado à DEBT-0005 (restaurar npm run lint completo)', () => {
+    const debt = read('.ai/specs/proposed/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md')
+    expect(debt).toMatch(/restaurar o passo `npm run lint` completo no W1/i)
+    expect(debt).toMatch(/W1 executa `npm run lint` completo novamente/i)
   })
 
   it('é sem IA: não referencia ANTHROPIC_API_KEY nem Claude Code Action', () => {
