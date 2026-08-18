@@ -11,6 +11,7 @@
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
 | [FEAT-0001](features/FEAT-0001-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | — (retrofit) | U-7.2; R-003 (análise 23) |
+| [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | — | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | — (retrofit) | FEAT-0014; U-5.2 |
 | [ENH-0002](enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED | #21 | PRs #4/#5/#20 (autoria `lucasmm96`) — decisão do autor 2026-08-16 |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | — (retrofit) | Divergência Fase 5 |
