@@ -87,4 +87,13 @@ export class GitHubClient {
   setLabels(number, labels) {
     return this.request('PUT', `/repos/${this.owner}/${this.repo}/issues/${number}/labels`, { labels })
   }
+
+  /** Lista comentários do Issue (mais recentes por último). */
+  listComments(number) {
+    return this.request('GET', `/repos/${this.owner}/${this.repo}/issues/${number}/comments?per_page=100`)
+  }
+
+  addComment(number, body) {
+    return this.request('POST', `/repos/${this.owner}/${this.repo}/issues/${number}/comments`, { body })
+  }
 }
