@@ -18,7 +18,7 @@ function copyFixture(tempBase, rel) {
 
 /** Fake GraphQL (Projects v2) com estado em memória. */
 function createFakeGql() {
-  const state = { projects: [], fields: [], items: [], calls: [] }
+  const state = { projects: [], fields: [], items: [], views: [], calls: [] }
   const json = (payload) => ({ ok: true, json: async () => payload })
 
   const transport = async (endpoint, init) => {
@@ -37,6 +37,17 @@ function createFakeGql() {
       state.fields.push(field)
       return json({ data: { createProjectV2Field: { projectV2Field: field } } })
     }
+    if (query.includes('updateProjectV2Field')) {
+      const field = state.fields.find((f) => f.id === variables.input.fieldId)
+      field.name = variables.input.name
+      field.options = (variables.input.singleSelectOptions ?? []).map((o, i) => ({ id: `O_${o.name}_${i}`, name: o.name }))
+      return json({ data: { updateProjectV2Field: { projectV2Field: field } } })
+    }
+    if (query.includes('createProjectV2View')) {
+      const view = { id: 'PVTV_1', name: variables.input.name, layout: variables.input.layout, groupBy: { nodes: [] } }
+      state.views.push(view)
+      return json({ data: { createProjectV2View: { projectV2View: view } } })
+    }
     if (query.includes('createProjectV2')) {
       const project = { id: 'PVT_1', number: 1, title: variables.input.title }
       state.projects.push(project)
@@ -53,6 +64,15 @@ function createFakeGql() {
     }
     if (query.includes('fieldValueByName')) {
       return json({ data: { node: { items: { nodes: state.items } } } })
+    }
+    if (query.includes('views(first: 20)')) {
+      return json({ data: { node: { views: { nodes: state.views } } } })
+    }
+    if (query.includes('updateProjectV2View')) {
+      const view = state.views.find((v) => v.id === variables.input.viewId)
+      view.name = variables.input.name
+      view.layout = variables.input.layout
+      return json({ data: { updateProjectV2View: { projectV2View: view } } })
     }
     if (query.includes('addProjectV2ItemById')) {
       const item = {
@@ -151,6 +171,136 @@ describe('project-sync', () => {
     expect(actions.some((a) => a.includes('item-added'))).toBe(true)
   })
 
+  /** Project novo como o GitHub entrega: campo Status padrão (Todo/In Progress/Done). */
+  function seedGitHubDefaultStatus(gqlApi) {
+    gqlApi.state.projects.push({ id: 'PVT_1', number: 1, title: 'MeuFenil — Spec-Driven Backlog' })
+    gqlApi.state.fields.push({
+      id: 'F_Status',
+      name: 'Status',
+      options: [
+        { id: 'O_Todo', name: 'Todo' },
+        { id: 'O_IP', name: 'In Progress' },
+        { id: 'O_Done', name: 'Done' },
+      ],
+    })
+  }
+
+  it('substitui o Status padrão do GitHub pelo Status custom do Blueprint §10.2', async () => {
+    const gqlApi = createFakeGql()
+    const base = tempBase()
+    seedFixtures(base)
+    const { rest, gql } = makeClient(gqlApi, NODE_IDS)
+    seedGitHubDefaultStatus(gqlApi)
+
+    await runProjectSync({ token: 'test-token', rest, gql, baseDir: base })
+
+    const updates = gqlApi.state.calls.filter((c) => c.query.includes('updateProjectV2Field'))
+    expect(updates.length).toBe(1)
+    expect(gqlApi.state.calls.filter((c) => c.query.includes('createProjectV2(')).length).toBe(0)
+    const statusField = gqlApi.state.fields.find((f) => f.name === 'Status')
+    expect(statusField.options.map((o) => o.name)).toEqual([
+      'Backlog',
+      'Aprovado',
+      'Em andamento',
+      'Bloqueado',
+      'Concluído',
+      'Encerrado',
+    ])
+    const testItem = gqlApi.state.items.find((i) => i.content.id === 'N_42')
+    expect(testItem.status.name).toBe('Backlog')
+  })
+
+  it('não deleta o Status padrão quando há item usando o campo', async () => {
+    const gqlApi = createFakeGql()
+    const base = tempBase()
+    seedFixtures(base)
+    const { rest, gql } = makeClient(gqlApi, NODE_IDS)
+    seedGitHubDefaultStatus(gqlApi)
+    gqlApi.state.items.push({
+      id: 'PVTI_N_42',
+      content: { id: 'N_42', number: 42 },
+      status: { name: 'Todo', optionId: 'O_Todo' },
+      priority: null,
+    })
+
+    const report = await runProjectSync({ token: 'test-token', rest, gql, baseDir: base })
+
+    const updates = gqlApi.state.calls.filter((c) => c.query.includes('updateProjectV2Field'))
+    expect(updates.length).toBe(0)
+    const entry = report.find((e) => e.id === 'TEST-0002')
+    expect(entry.divergences.join(' ')).toContain('ausente no campo Status')
+  })
+
+  it('não altera Status com opções personalizadas por humano', async () => {
+    const gqlApi = createFakeGql()
+    const base = tempBase()
+    seedFixtures(base)
+    const { rest, gql } = makeClient(gqlApi, NODE_IDS)
+    gqlApi.state.projects.push({ id: 'PVT_1', number: 1, title: 'MeuFenil — Spec-Driven Backlog' })
+    gqlApi.state.fields.push({
+      id: 'F_Status',
+      name: 'Status',
+      options: [{ id: 'O_Custom', name: 'Custom' }],
+    })
+
+    const report = await runProjectSync({ token: 'test-token', rest, gql, baseDir: base })
+
+    const updates = gqlApi.state.calls.filter((c) => c.query.includes('updateProjectV2Field'))
+    expect(updates.length).toBe(0)
+    const entry = report.find((e) => e.id === 'TEST-0002')
+    expect(entry.divergences.join(' ')).toContain('ausente no campo Status')
+  })
+
+  it('atualiza a view padrão TABLE para Kanban BOARD', async () => {
+    const gqlApi = createFakeGql()
+    const base = tempBase()
+    seedFixtures(base)
+    const { rest, gql } = makeClient(gqlApi, NODE_IDS)
+    gqlApi.state.projects.push({ id: 'PVT_1', number: 1, title: 'MeuFenil — Spec-Driven Backlog' })
+    gqlApi.state.views.push({ id: 'PVTV_1', name: 'View 1', layout: 'TABLE_LAYOUT', groupBy: { nodes: [] } })
+
+    await runProjectSync({ token: 'test-token', rest, gql, baseDir: base })
+
+    const updates = gqlApi.state.calls.filter((c) => c.query.includes('updateProjectV2View'))
+    expect(updates.length).toBe(1)
+    expect(gqlApi.state.views[0]).toMatchObject({ name: 'Kanban', layout: 'BOARD_LAYOUT' })
+  })
+
+  it('cria view Kanban quando o Project não tem views', async () => {
+    const gqlApi = createFakeGql()
+    const base = tempBase()
+    seedFixtures(base)
+    const { rest, gql } = makeClient(gqlApi, NODE_IDS)
+    gqlApi.state.projects.push({ id: 'PVT_1', number: 1, title: 'MeuFenil — Spec-Driven Backlog' })
+
+    await runProjectSync({ token: 'test-token', rest, gql, baseDir: base })
+
+    const creates = gqlApi.state.calls.filter((c) => c.query.includes('createProjectV2View'))
+    expect(creates.length).toBe(1)
+    expect(gqlApi.state.views[0]).toMatchObject({ name: 'Kanban', layout: 'BOARD_LAYOUT' })
+  })
+
+  it('não altera view Kanban já configurada com groupBy Status', async () => {
+    const gqlApi = createFakeGql()
+    const base = tempBase()
+    seedFixtures(base)
+    const { rest, gql } = makeClient(gqlApi, NODE_IDS)
+    gqlApi.state.projects.push({ id: 'PVT_1', number: 1, title: 'MeuFenil — Spec-Driven Backlog' })
+    gqlApi.state.views.push({
+      id: 'PVTV_1',
+      name: 'Kanban',
+      layout: 'BOARD_LAYOUT',
+      groupBy: { nodes: [{ name: 'Status' }] },
+    })
+
+    await runProjectSync({ token: 'test-token', rest, gql, baseDir: base })
+
+    const mutations = gqlApi.state.calls.filter(
+      (c) => c.query.includes('updateProjectV2View') || c.query.includes('createProjectV2View'),
+    )
+    expect(mutations.length).toBe(0)
+  })
+
   it('é idempotente: segunda execução não adiciona items nem regrava valores', async () => {
     const gqlApi = createFakeGql()
     const base = tempBase()
@@ -168,6 +318,8 @@ describe('project-sync', () => {
     expect(addsAfterFirst).toBe(2)
     expect(addsAfterSecond).toBe(2)
     expect(setsAfterSecond).toBe(setsAfterFirst)
+    expect(gqlApi.state.calls.filter((c) => c.query.includes('updateProjectV2Field')).length).toBe(0)
+    expect(gqlApi.state.projects.length).toBe(1)
     expect(gqlApi.state.items.length).toBe(2)
     expect(second.every((e) => e.action === 'ok')).toBe(true)
   })

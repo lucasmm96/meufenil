@@ -17,6 +17,8 @@ import { GraphQLClient, GraphQLError } from './lib/graphql.js'
 import { loadProjectsToken } from './lib/env.js'
 import {
   DEFAULT_PRIORITY,
+  DEFAULT_STATUS_OPTIONS,
+  KANBAN_VIEW_NAME,
   PRIORITY_FIELD,
   PRIORITY_OPTIONS,
   PROJECT_TITLE,
@@ -43,10 +45,14 @@ const QUERIES = {
   createProject: `mutation($input: CreateProjectV2Input!) { createProjectV2(input: $input) { projectV2 { id number title } } }`,
   linkRepository: `mutation($input: LinkProjectV2ToRepositoryInput!) { linkProjectV2ToRepository(input: $input) { repository { name } } }`,
   fields: `query($projectId: ID!) { node(id: $projectId) { ... on ProjectV2 { fields(first: 50) { nodes { ... on ProjectV2Field { id name dataType } ... on ProjectV2SingleSelectField { id name dataType options { id name } } } } } } }`,
-  createField: `mutation($input: CreateProjectV2FieldInput!) { createProjectV2Field(input: $input) { projectV2Field { id name } } }`,
+  createField: `mutation($input: CreateProjectV2FieldInput!) { createProjectV2Field(input: $input) { projectV2Field { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } } } }`,
+  updateField: `mutation($input: UpdateProjectV2FieldInput!) { updateProjectV2Field(input: $input) { projectV2Field { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } } } }`,
   items: `query($projectId: ID!) { node(id: $projectId) { ... on ProjectV2 { items(first: 100) { nodes { id content { ... on Issue { id number } } status: fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name optionId } } priority: fieldValueByName(name: "Priority") { ... on ProjectV2ItemFieldSingleSelectValue { name optionId } } } } } } }`,
   addItem: `mutation($input: AddProjectV2ItemByIdInput!) { addProjectV2ItemById(input: $input) { item { id } } }`,
   setField: `mutation($input: UpdateProjectV2ItemFieldValueInput!) { updateProjectV2ItemFieldValue(input: $input) { projectV2Item { id } } }`,
+  views: `query($projectId: ID!) { node(id: $projectId) { ... on ProjectV2 { views(first: 20) { nodes { id name layout groupBy(first: 10) { nodes { name } } } } } } }`,
+  updateView: `mutation($input: UpdateProjectV2ViewInput!) { updateProjectV2View(input: $input) { projectV2View { id name layout } } }`,
+  createView: `mutation($input: CreateProjectV2ViewInput!) { createProjectV2View(input: $input) { projectV2View { id name layout } } }`,
 }
 
 function findProject(viewerData, title) {
@@ -89,7 +95,7 @@ export async function runProjectSync({ token, rest, gql, baseDir, dryRun = false
 
   // 1. Localizar (ou criar) o Project pelo título — idempotente.
   const viewer = await gql.query(QUERIES.viewer)
-  let project = findProject(viewer, PROJECT_TITLE)
+  let project = findProject(viewer.viewer, PROJECT_TITLE)
   if (!project) {
     const created = await gql.query(QUERIES.createProject, {
       input: { ownerId: viewer.viewer.id, title: PROJECT_TITLE },
@@ -110,37 +116,48 @@ export async function runProjectSync({ token, rest, gql, baseDir, dryRun = false
   }
 
   // 3. Garantir campos Status e Priority (idempotente).
+  //    Projects v2 novos já vêm com um campo Status built-in (Todo/In Progress/Done) que a
+  //    GraphQL não deixa deletar nem criar por cima. updateProjectV2Field aceita built-ins,
+  //    então o padrão intacto é atualizado com as opções do Blueprint §10.2 (a Board view
+  //    padrão agrupa por esse campo). Campo personalizado por humano ou com item usando
+  //    valor nunca é alterado (a divergência é reportada no passo 4). Obs.: a API exige
+  //    `description` em cada opção single-select.
+  const createSingleSelect = async (name, options) => {
+    await gql.query(QUERIES.createField, {
+      input: { projectId: project.id, name, dataType: 'SINGLE_SELECT', singleSelectOptions: options },
+    })
+    fields = await gql.query(QUERIES.fields, { projectId: project.id })
+    return findField(fields, name)
+  }
+
+  const values = await gql.query(QUERIES.items, { projectId: project.id })
+  const currentItems = values?.node?.items?.nodes ?? []
   let fields = await gql.query(QUERIES.fields, { projectId: project.id })
   let statusField = findField(fields, STATUS_FIELD)
+
   if (!statusField) {
-    await gql.query(QUERIES.createField, {
-      input: {
-        projectId: project.id,
-        name: STATUS_FIELD,
-        dataType: 'SINGLE_SELECT',
-        singleSelectOptions: STATUS_OPTIONS,
-      },
-    })
-    fields = await gql.query(QUERIES.fields, { projectId: project.id })
-    statusField = findField(fields, STATUS_FIELD)
+    statusField = await createSingleSelect(STATUS_FIELD, STATUS_OPTIONS)
+  } else if (!statusField.options?.some((o) => STATUS_OPTIONS.some((s) => s.name === o.name))) {
+    const names = (statusField.options ?? []).map((o) => o.name)
+    const isGitHubDefault =
+      names.length === DEFAULT_STATUS_OPTIONS.length &&
+      DEFAULT_STATUS_OPTIONS.every((n) => names.includes(n))
+    const itemsUseStatus = currentItems.some((i) => i.status?.name)
+    if (isGitHubDefault && !itemsUseStatus) {
+      await gql.query(QUERIES.updateField, {
+        input: { fieldId: statusField.id, name: STATUS_FIELD, singleSelectOptions: STATUS_OPTIONS },
+      })
+      fields = await gql.query(QUERIES.fields, { projectId: project.id })
+      statusField = findField(fields, STATUS_FIELD)
+    }
   }
+
   let priorityField = findField(fields, PRIORITY_FIELD)
   if (!priorityField) {
-    await gql.query(QUERIES.createField, {
-      input: {
-        projectId: project.id,
-        name: PRIORITY_FIELD,
-        dataType: 'SINGLE_SELECT',
-        singleSelectOptions: PRIORITY_OPTIONS,
-      },
-    })
-    fields = await gql.query(QUERIES.fields, { projectId: project.id })
-    priorityField = findField(fields, PRIORITY_FIELD)
+    priorityField = await createSingleSelect(PRIORITY_FIELD, PRIORITY_OPTIONS)
   }
 
   // 4. Items: adicionar Issues canônicas e aplicar Status/Priority derivados.
-  const values = await gql.query(QUERIES.items, { projectId: project.id })
-  const currentItems = values?.node?.items?.nodes ?? []
 
   for (const spec of specs) {
     const entry = { id: spec.id, issue: spec.issue, action: 'ok', divergences: [] }
@@ -200,6 +217,26 @@ export async function runProjectSync({ token, rest, gql, baseDir, dryRun = false
     }
 
     report.push(entry)
+  }
+
+  // 5. View Kanban (idempotente): garantir BOARD_LAYOUT com nome "Kanban".
+  //    O groupBy (colunas por Status) não é exposto pela GraphQL — configurar uma única
+  //    vez na UI ("Group by Status"); a nota abaixo lembra até isso ser feito.
+  const viewsData = await gql.query(QUERIES.views, { projectId: project.id })
+  const views = viewsData?.node?.views?.nodes ?? []
+  const kanban = views.find((v) => v.name === KANBAN_VIEW_NAME) ?? views[0] ?? null
+  const groupedByStatus = Boolean(kanban?.groupBy?.nodes?.some((g) => g.name === STATUS_FIELD))
+  if (!kanban) {
+    await gql.query(QUERIES.createView, {
+      input: { projectId: project.id, name: KANBAN_VIEW_NAME, layout: 'BOARD_LAYOUT' },
+    })
+  } else if (kanban.name !== KANBAN_VIEW_NAME || kanban.layout !== 'BOARD_LAYOUT') {
+    await gql.query(QUERIES.updateView, {
+      input: { viewId: kanban.id, name: KANBAN_VIEW_NAME, layout: 'BOARD_LAYOUT' },
+    })
+  }
+  if (!groupedByStatus) {
+    console.log('NOTA: view "Kanban" sem groupBy Status — a GraphQL não expõe groupBy; configure "Group by Status" na UI.')
   }
 
   return report
