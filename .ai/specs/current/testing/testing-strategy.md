@@ -17,7 +17,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 | Aliases | `@` → `./src`, `@skeletons` → skeletons/index | `vitest.config.ts`, `tsconfig.json` |
 | Scripts npm | `test` (vitest watch), `test:run` (vitest run), `test:coverage` (vitest run --coverage) | `package.json` |
 | Thresholds de coverage | **NENHUM configurado** (`vitest.config.ts` não possui `coverage.thresholds`) | `vitest.config.ts` |
-| CI | **NÃO existe** (sem `.github/`) | filesystem |
+| CI | W1 — `.github/workflows/ci.yml` (push/PR: lint → `test:run` → build; sem IA; `contents: read`; suítes de segurança pulam sem `SUPABASE_SERVICE_ROLE_KEY`) | `.github/workflows/ci.yml` |
 | Exclusões de coverage | nenhuma configuração explícita | `vitest.config.ts` |
 
 ## 2. Organização e convenções
