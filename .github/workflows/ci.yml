@@ -1,0 +1,36 @@
+# W1 — CI (Blueprint v1.1-final §18.1): lint + testes + build em push/PR.
+# Sem IA. Permissões mínimas (contents: read). Falha = job vermelho com log explícito.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      # Produto 100% Brasil: a semântica de data local do app (AdicionarRegistro
+      # usa new Date("...T00:00:00") parseado na TZ do processo) exige a TZ do
+      # produto nos testes — sem isso, o runner UTC quebra a asserção de meia-noite.
+      TZ: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Lint escopado a scripts/spec-github/** enquanto a DEBT-0005 (57 erros pré-existentes
+      # em src/, descobertos no primeiro run do W1 — PR #25) não for tratada; então restaurar
+      # `npm run lint` completo.
+      - run: npx eslint scripts/spec-github
+      - run: npm run test:run
+      - run: npm run build

@@ -19,6 +19,7 @@
 | [DEBT-0002](technical-debt/DEBT-0002-limite-diario-default-duplicado.md) | DEBT | Limite diário default duplicado (500 × 150) | IMPLEMENTED | — (retrofit) | R-002 (análise 23); BR-025 — migration 20260815000000 (dev e prod) |
 | [DEBT-0003](technical-debt/DEBT-0003-atualizar-readme.md) | DEBT | Atualizar README (documentation drift) | IMPLEMENTED | — (retrofit) | Drift Fases 4 e 7 — README.md corrigido (2026-08-15) |
 | [DEBT-0004](technical-debt/DEBT-0004-reconciliar-templates.md) | DEBT | Reconciliar templates e convenções do Specification System | IMPLEMENTED | — (retrofit) | O-001/R-004/R-001 (análises 23–25) — Fase 12 |
+| [DEBT-0005](technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | PROPOSED | — | CI W1 (PR #25, run 32089115404) — 2026-08-17 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | — (retrofit) | Fatos Fase 3 |
 | [TEST-0001](testing/TEST-0001-testes-paginas-componentes.md) | TEST | Cobertura de testes de páginas e componentes | IMPLEMENTED | — (retrofit) | GAP-001/002/003/010 — testes de Perfil, Referencias, Dashboard, AdicionarRegistro e ConsentimentoLGPD (2026-08-15) |
 | [TEST-0002](testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | PROPOSED | — (retrofit) | GAP-007/012 |
