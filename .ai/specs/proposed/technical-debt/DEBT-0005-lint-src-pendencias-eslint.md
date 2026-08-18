@@ -3,7 +3,7 @@
 **Type:** DEBT
 **Status:** PROPOSED
 **Title:** Pendências de lint em src/ (57 erros pré-existentes)
-**Issue:** —
+**Issue:** #26
 **Created on:** 2026-08-17
 
 ## Problem
