@@ -44,12 +44,19 @@ describe('W2 — spec-sync', () => {
     expect(w).toMatch(/^permissions:\n\s+contents: read\n\s+issues: write$/m)
   })
 
-  it('roda os scripts determinísticos; passo de Project condicional ao secret', () => {
+  it('roda os scripts determinísticos; passo de Project condicional ao secret (shell)', () => {
     const w = read('.github/workflows/spec-sync.yml')
     expect(w).toMatch(/node scripts\/spec-github\/sync\.js/)
     expect(w).toMatch(/node scripts\/spec-github\/project-sync\.js/)
-    expect(w).toMatch(/GITHUB_PROJECTS_TOKEN != ''/)
+    expect(w).toMatch(/if \[ -n "\$GITHUB_PROJECTS_TOKEN" \]/)
+    expect(w).not.toMatch(/secrets\.GITHUB_PROJECTS_TOKEN != ''/)
     expect(w).not.toMatch(/anthropics\/claude-code-action/)
+  })
+
+  it('não usa secrets em condicionais if (schema do Actions rejeita)', () => {
+    for (const name of WORKFLOWS) {
+      expect(read(`.github/workflows/${name}`)).not.toMatch(/^\s*if: .*secrets\./m)
+    }
   })
 })
 

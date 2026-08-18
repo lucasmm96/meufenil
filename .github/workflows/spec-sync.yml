@@ -15,6 +15,7 @@ on:
   push:
     branches: [development]
     paths: ['.ai/specs/**']
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -38,6 +39,13 @@ jobs:
           node-version: 22
       - name: Spec ↔ Issue
         run: node scripts/spec-github/sync.js
+      # `secrets` não é permitido em condicionais `if` (o schema do Actions rejeita o
+      # workflow) — o passo de Project é condicional via shell: roda quando o secret
+      # GITHUB_PROJECTS_TOKEN existe (o GITHUB_TOKEN do Actions não acessa Projects v2).
       - name: Project sync (requer GITHUB_PROJECTS_TOKEN)
-        if: ${{ secrets.GITHUB_PROJECTS_TOKEN != '' }}
-        run: node scripts/spec-github/project-sync.js
+        run: |
+          if [ -n "$GITHUB_PROJECTS_TOKEN" ]; then
+            node scripts/spec-github/project-sync.js
+          else
+            echo "GITHUB_PROJECTS_TOKEN ausente — passo de Project pulado (setup humano pendente)."
+          fi
