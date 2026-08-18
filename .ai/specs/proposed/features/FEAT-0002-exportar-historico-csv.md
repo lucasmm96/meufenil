@@ -3,7 +3,7 @@
 **Type:** FEAT
 **Status:** PROPOSED
 **Title:** Exportar o histórico de medições em CSV
-**Issue:** —
+**Issue:** #31
 **Created on:** 2026-08-17
 
 ## Problem
