@@ -1,0 +1,43 @@
+# W2 — spec-sync (Blueprint v1.1-final §18.1): espelha .ai/specs/** → Issues canônicas e
+# GitHub Project em push de development.
+#
+# Determinístico — os scripts idempotentes das Fases 2/3 implementam os mecanismos dos
+# agentes github-manager/project-manager sem roundtrip de LLM (desvio justificado da
+# coluna "IA: Sim" do §18.1, autorizado pelo autor em 2026-08-17).
+#
+# Este workflow NUNCA faz push; nunca fecha Issues (D-12). Tokens: os scripts leem
+# GITHUB_TOKEN / GITHUB_PROJECTS_TOKEN de variáveis de ambiente (secrets do repo,
+# nunca versionados). O passo de Project roda apenas quando o secret
+# GITHUB_PROJECTS_TOKEN existe (o GITHUB_TOKEN do Actions não acessa Projects v2).
+name: spec-sync
+
+on:
+  push:
+    branches: [development]
+    paths: ['.ai/specs/**']
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: spec-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  spec-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_PROJECTS_TOKEN: ${{ secrets.GITHUB_PROJECTS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Spec ↔ Issue
+        run: node scripts/spec-github/sync.js
+      - name: Project sync (requer GITHUB_PROJECTS_TOKEN)
+        if: ${{ secrets.GITHUB_PROJECTS_TOKEN != '' }}
+        run: node scripts/spec-github/project-sync.js

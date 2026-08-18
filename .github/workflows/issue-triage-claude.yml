@@ -1,0 +1,46 @@
+# W3 — issue-triage-claude (Blueprint v1.1-final §18.1/§19): executa a triagem com o
+# Claude Code Action (modo automação, prompt fixo em .github/prompts/issue-triage.md).
+#
+# Pré-requisitos (setup humano, registrado no handoff): Claude GitHub App instalado no
+# repositório + secret ANTHROPIC_API_KEY (ou CLAUDE_CODE_OAUTH_TOKEN). Sem eles, este
+# workflow falha no run — a simulação do piloto (matriz F6) cobre o fluxo enquanto o
+# setup não acontece.
+#
+# Operações do agente via `gh` CLI (pré-instalada no runner, GITHUB_TOKEN) em Bash
+# restrito — o MCP GitHub do .mcp.json é o canal do modo interativo. O push de work
+# branch é feito pelo próprio Action como GitHub App; NUNCA push em development/master
+# (§18.1). PR criado via `gh pr create` com `Related to #M` (nunca `Closes`).
+name: issue-triage-claude
+
+on:
+  repository_dispatch:
+    types: [issue-triage]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+  actions: read
+
+concurrency:
+  group: issue-triage-claude-${{ github.event.client_payload.issue }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Execute a triagem da Issue externa #${{ github.event.client_payload.issue }} deste
+            repositório seguindo EXATAMENTE o prompt fixo em .github/prompts/issue-triage.md.
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(gh:*)"

@@ -1,0 +1,31 @@
+# W4 — issue-reconcile (Blueprint v1.1-final §18.1): evento de Issue canônica
+# (closed/reopened) em desacordo com o Status da Spec → registro de divergência
+# (D-12 CASO 3). NUNCA fecha, NUNCA reabre, NUNCA reverte — apenas comenta pedindo
+# decisão humana. Script determinístico com marker de dedup.
+name: issue-reconcile
+
+on:
+  issues:
+    types: [closed, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: issue-reconcile-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Registrar divergência (CASO 3)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/spec-github/reconcile.js --issue ${{ github.event.issue.number }} --action ${{ github.event.action }}
