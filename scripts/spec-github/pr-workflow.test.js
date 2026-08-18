@@ -37,6 +37,7 @@ describe('CI W1 (.github/workflows/ci.yml)', () => {
     expect(w).toMatch(/^permissions:\n\s+contents: read$/m)
     expect(w).toMatch(/npx eslint scripts\/spec-github/)
     expect(w).toMatch(/DEBT-0005/)
+    expect(w).toMatch(/TZ: America\/Sao_Paulo/)
     expect(w).toMatch(/npm run test:run/)
     expect(w).toMatch(/npm run build/)
   })
