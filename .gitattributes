@@ -4,3 +4,5 @@ scripts/spec-github/** text eol=lf
 # Agentes Claude: manter LF consistente com o release-notes.md já versionado
 # (evita conversão CRLF do core.autocrlf no próximo checkout).
 .claude/agents/*.md text eol=lf
+# Template de PR e workflows (YAML sensível a line-ending no Windows).
+.github/** text eol=lf
