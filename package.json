@@ -52,6 +52,8 @@
     "supabase:migrations:apply": "bash scripts/apply-supabase-migrations.sh",
     "cli": "node scripts/cli/index.js",
     "spec:github:sync": "node scripts/spec-github/sync.js",
-    "spec:github:sync:dry": "node scripts/spec-github/sync.js --dry-run"
+    "spec:github:sync:dry": "node scripts/spec-github/sync.js --dry-run",
+    "spec:project:sync": "node scripts/spec-github/project-sync.js",
+    "spec:project:sync:dry": "node scripts/spec-github/project-sync.js --dry-run"
   }
 }
