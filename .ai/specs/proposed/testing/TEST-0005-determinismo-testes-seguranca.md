@@ -2,6 +2,7 @@
 
 **Type:** TEST
 **Status:** PROPOSED
+**Issue:** #19
 **Title:** Determinismo dos testes de segurança
 
 ## Problem

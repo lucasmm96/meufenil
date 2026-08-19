@@ -2,6 +2,7 @@
 
 **Type:** REF
 **Status:** PROPOSED
+**Issue:** #13
 **Title:** Destino das RPCs órfãs `dashboard_hoje` e `dashboard_ultimos_dias`
 
 ## Problem

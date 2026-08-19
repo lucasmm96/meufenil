@@ -1,6 +1,6 @@
 # Funções SQL (RPC) — Schema public
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
 
 Inventário das 10 funções do schema `public` confirmadas no catálogo dos bancos dev e prod (2026-08-13) `[CONFIRMED: database — pg_proc]`. Não há outras funções em `public` além das listadas.
 
@@ -15,7 +15,7 @@ Inventário das 10 funções do schema `public` confirmadas no catálogo dos ban
 | `handle_new_user()` | trigger | Sim | não configurado | Sim (baseline) |
 | `fn_normalizar_nome_referencia()` | trigger | Não | — | Sim (baseline) |
 | `fn_trim_background_job_executions()` | trigger | Sim | `public` | Sim (20260807) |
-| `fn_remover_favoritos_referencia_inativa()` | trigger | Não | — | **NÃO versionada** |
+| `fn_remover_favoritos_referencia_inativa()` | trigger | Não | — | Sim (20260814) |
 
 Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`, `service_role`) possuem EXECUTE em todas as funções; `get_estatisticas_admin` e `is_admin_user` tiveram `REVOKE ... FROM PUBLIC`, mas mantêm grants explícitos (inclusive `anon` via default privileges) `[CONFIRMED: database — role_routine_grants]`.
 
@@ -107,17 +107,17 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 
 ## public.handle_new_user
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** baseline `20260103015052_remote_schema.sql` (linhas 120–148) `[CONFIRMED: migration, database]`
+**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
+**Definição em:** baseline `20260103015052_remote_schema.sql` (linhas 120–148, original com 150) + migration `20260815000000_limite_diario_default_500.sql` (DEBT-0002 — corpo atual) `[CONFIRMED: migration, database]`
 
 - **Assinatura:** `handle_new_user() RETURNS trigger` — plpgsql
 - **SECURITY DEFINER?** Sim — `search_path` não configurado
 - **Autorização implementada:** função de trigger — executa no evento de criação em `auth.users`
-- **Efeitos:** INSERT em `usuarios` com `id = new.id`, `nome = coalesce(raw_user_meta_data->>'full_name', email)`, `email = new.email`, `role = 'user'`, `timezone = 'America/Sao_Paulo'`, `limite_diario_mg = 150`, timestamps `now()`; `on conflict (id) do nothing`
+- **Efeitos:** INSERT em `usuarios` com `id = new.id`, `nome = coalesce(raw_user_meta_data->>'full_name', email)`, `email = new.email`, `role = 'user'`, `timezone = 'America/Sao_Paulo'`, `limite_diario_mg` não definido (default da coluna = 500), timestamps `now()`; `on conflict (id) do nothing`
 - **Erros e edge cases:** conflito de id é ignorado (`do nothing`)
 - **Chamadores no código:** trigger `on_auth_user_created` em `auth.users` (ver [triggers.md](triggers.md))
 - **Testes:** nenhum teste direto identificado `[CONFIRMED: ausência]`
-- **Evidências:** E1 — definição no banco = baseline `[CONFIRMED: database, migration]`
+- **Evidências:** E1 — definição no banco = baseline + 20260815000000 `[CONFIRMED: database, migration]`
 
 ## public.fn_normalizar_nome_referencia
 
@@ -149,8 +149,8 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 
 ## public.fn_remover_favoritos_referencia_inativa
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** NÃO VERSIONADA — recuperada do catálogo via `pg_get_functiondef` (dev e prod, 2026-08-13) `[CONFIRMED: database; ausência em migrations CONFIRMADA]`
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Definição em:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) — conferida contra `pg_get_functiondef` dev e prod (2026-08-14) `[CONFIRMED: database × migration]`
 
 - **Assinatura:** `fn_remover_favoritos_referencia_inativa() RETURNS trigger` — plpgsql
 - **SECURITY DEFINER?** Não
@@ -159,7 +159,7 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 - **Erros e edge cases:** não aplicável
 - **Chamadores no código:** trigger `trg_remover_favoritos_referencia_inativa` (AFTER UPDATE em `referencias` — ver [triggers.md](triggers.md))
 - **Testes:** nenhum teste identificado `[CONFIRMED: ausência]`
-- **Evidências:** E1 — definição recuperada do catálogo (dev e prod idênticas) `[CONFIRMED: database]`; E2 — ausência em todas as migrations `[CONFIRMED: ausência em migrations]`
+- **Evidências:** E1 — definição recuperada do catálogo (dev e prod idênticas) `[CONFIRMED: database]`; E2 — ausência em todas as migrations até a baseline 20260814000000 (DEBT-0001), que a versiona `[CONFIRMED: migration]`
 
 ---
 

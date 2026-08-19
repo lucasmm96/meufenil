@@ -30,17 +30,20 @@ Atualmente, o MeuFenil oferece:
 - Cadastro e login
 - Registro diário de consumo alimentar
 - Cálculo automático de fenilalanina ingerida
+- Catálogo de referências alimentares com busca, filtros e favoritos
 - Definição de limite diário personalizado
 - Relatórios por período
 - Gráficos de acompanhamento
 - Registro e acompanhamento de exames de PKU
 - Exportação de dados
+- Delegação de acesso a cuidadores
 - Suporte a múltiplos dispositivos (PWA / mobile)
+- Painel administrativo (para administradores)
 
 ### Funcionalidades planejadas
 
 - Melhorias no gerenciamento de alimentos personalizados
-- Interface para alimentos favoritos e/ou mais consumidos
+- Interface para alimentos mais consumidos
 
 ## 🧱 Stack técnica
 
@@ -94,6 +97,7 @@ Crie os arquivos `.env.development` e `.env.production` na raiz do projeto com a
 ```env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_APP_ENVIRONMENT=dev_or_prod
 SUPABASE_PROJECT_ID=your_project_id
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 SUPABASE_DATABASE_URL=your_database_url
@@ -190,29 +194,23 @@ Monitoramento no painel administrativo:
 - a tela inclui filtros por job, status e período
 - o histórico fica paginado e protegido por RLS, visível apenas para administradores
 
-Para testar manualmente:
+Para testar manualmente (cada execução acessa apenas o banco do ambiente resolvido — em execução local, `VERCEL_ENV` não é `production`, então o alvo é o banco de dev):
 
 ```bash
-# carregue os dois arquivos e crie aliases temporários para o keepalive
+# carregue o arquivo do ambiente e crie aliases temporários para o keepalive
 set -a
 source .env.development
 export KEEPALIVE_DEV_SUPABASE_URL="$VITE_SUPABASE_URL"
 export KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
 set +a
 
-set -a
-source .env.production
-export KEEPALIVE_SUPABASE_URL="$VITE_SUPABASE_URL"
-export KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
-set +a
-
 vercel dev
 curl http://localhost:3000/api/keepalive
 ```
 
-Na Vercel, a resposta `200` indica que os dois bancos foram acessados com sucesso. Se algum projeto falhar, a rota retorna `500` e o payload mostra qual banco apresentou erro.
+Na Vercel (produção), o alvo é o banco de produção, com `KEEPALIVE_SUPABASE_URL`/`KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY` — ou o fallback automático já descrito acima.
 
-Se você quiser testar apenas um ambiente isolado, também funciona deixando disponíveis apenas `VITE_SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` do ambiente correspondente, porque a rota agora aceita esses nomes como fallback.
+A resposta `200` indica que o banco-alvo foi acessado com sucesso. Se a leitura falhar, a rota retorna `500` e o payload indica o erro.
 
 Para consultar o histórico:
 

@@ -1,6 +1,6 @@
 # Página Perfil
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (commit 0eb2e9b)
 **Rota:** `/perfil` — `src/react-app/App.tsx:25`
 
 ## Propósito
@@ -51,7 +51,7 @@ Labels visíveis; sem `aria-*` `[CONFIRMED: ausência]`.
 
 ## Testes
 
-`usePerfil.test.ts`, `useLayoutPerfil.test.ts`, `usuarios.service.test.ts`. Página sem teste próprio `[CONFIRMED: test, ausência]`.
+`usePerfil.test.ts`, `useLayoutPerfil.test.ts`, `usuarios.service.test.ts`. Página: `Perfil.test.tsx` (17 testes — loading, perfil nulo, modo delegado, salvar, delegações, exportação, exclusão de conta) `[CONFIRMED: test]`.
 
 ## Evidências
 

@@ -14,6 +14,7 @@ Este documento é a GOVERNANÇA do Specification System — regras de escrita, e
 - Não preencher lacunas com conhecimento genérico; não assumir intencionalidade de decisões apenas porque existem no código.
 - Quando documentação e implementação divergem: a implementação vence; a divergência é registrada e tratada (seção 12).
 - Documentação existente (README, análises) é evidência secundária — validar contra o estado atual antes de incorporar.
+- **Camada GitHub (ADR-0012, seção 18):** Spec = fonte de verdade da especificação; Issue = representação operacional/pública da Spec; Project = dashboard operacional; código = implementação; PR = unidade de revisão/integração; Release = unidade de entrega.
 
 ## 2. Current vs Proposed
 
@@ -120,7 +121,9 @@ PROPOSED → SUPERSEDED
 ```
 
 - Status inicial: **PROPOSED** (uma proposta pode permanecer PROPOSED indefinidamente — não é aprovada, priorizada ou comprometida por existir).
-- Transições exigem decisão humana; nenhuma transição automática.
+- **Decisões são humanas; transições de execução são registros fiéis do workflow** (atualizado em 2026-08-16 — ADR-0012): PROPOSED→ACCEPTED, →REJECTED, →SUPERSEDED e reabertura exigem decisão humana; ACCEPTED→IMPLEMENTATION (início efetivo: work branch + 1º commit) e IMPLEMENTATION→IMPLEMENTED (PR merged + ACs validadas com evidência + Current Specs sincronizadas no PR) são registradas pelo agente como consequência de eventos do workflow.
+- Campos de decisão obrigatórios: `Decision:` (alternativa escolhida — obrigatória em ACCEPTED/IMPLEMENTED) · `Approved by/on:` (em ACCEPTED) · `Implemented Through:` (em IMPLEMENTED) · `Rejected on:` + razão (em REJECTED) · `Superseded by:` (em SUPERSEDED).
+- Protocolo de descoberta: (a) **já implementado** → ACs satisfeitas pelo código existente (com evidência) → IMPLEMENTED com `Implemented Through` apontando o código; não satisfeitas → REJECTED com razão; (b) **parcialmente implementado** → reescrever `Current State`/`Scope` para o resíduo e re-decidir (continuar → ACCEPTED; encerrar → REJECTED); (c) **abandonada/morta** → REJECTED com razão.
 - Vocabulário de status por contexto:
   - **Propostas:** PROPOSED / ACCEPTED / IMPLEMENTATION / IMPLEMENTED / REJECTED / SUPERSEDED.
   - **ADRs:** Accepted / Proposed / Superseded / Rejected.
@@ -136,8 +139,9 @@ PROPOSED → SUPERSEDED
 
 ## 10. Proposal Promotion
 
-- **FEAT:** PROPOSED → ACCEPTED → implementação + testes → spec migrada para `current/features/` (checklist: converter seções de requisito em descrição com evidências · atualizar system-map · atualizar todos os links · atualizar specs de camada afetadas · marcar propostas consumidas · ADR se houver decisão).
-- **ENH/REF/DEBT/SEC/TEST:** não criam diretório equivalente em current. Ao concluir: atualizar as Current Specs afetadas · atualizar `proposed/index.md` · marcar a proposta `Status: IMPLEMENTED` com **Implemented Through** (lista de specs que absorveram o resultado) · NÃO apagar a proposta (histórico de evolução).
+- **FEAT:** PROPOSED → ACCEPTED → implementação + testes → spec migrada para `current/features/` (checklist: converter seções de requisito em descrição com evidências · atualizar system-map · atualizar todos os links · atualizar specs de camada afetadas · marcar propostas consumidas · ADR se houver decisão). O arquivo original de `proposed/` vai para `archive/implemented/features/` marcado `IMPLEMENTED` + `Implemented Through` (seção 18).
+- **ENH/REF/DEBT/SEC/TEST:** não criam diretório equivalente em current. Ao concluir: atualizar as Current Specs afetadas · atualizar `proposed/index.md` (linha preservada, caminho atualizado — nunca apagar linha) · marcar a proposta `Status: IMPLEMENTED` com **Implemented Through** (lista de specs que absorveram o resultado) · mover o arquivo para `archive/implemented/<categoria>/` no mesmo commit (histórico preservado pelo git e pelo catálogo único).
+- `proposed/` contém SOMENTE propostas ativas (PROPOSED / ACCEPTED / IMPLEMENTATION). Estados terminais vivem em `archive/{implemented,rejected,superseded}/<categoria>/` (atualizado em 2026-08-16 — ADR-0012).
 
 ## 11. Change Synchronization (REVIEW ≠ UPDATE)
 
@@ -173,6 +177,10 @@ PROPOSED → SUPERSEDED
 | Nova decisão arquitetural | **STOP** — propor ADR (Origin Contemporary) |
 | Mudança de regra de negócio (BR) | **STOP** — solicitar aprovação |
 | Proposta sem aprovação | **STOP** — não implementar |
+| Push de branch necessário | **STOP** — solicitar autorização explícita (seção 16) |
+| Merge de PR necessário | **STOP** — aguardar aprovação humana do PR (seção 18) |
+| Fechamento de Issue que represente decisão de negócio/governança | **STOP** — solicitar decisão (seção 18) |
+| Criação de tag / publicação de release | **STOP** — aguardar confirmação humana (seção 18) |
 | Mudança da governança do próprio Specification System | **STOP** — solicitar decisão |
 | Erro factual trivial (typo/link) com evidência inequívoca | Continue — corrigir E registrar a alteração |
 
@@ -186,6 +194,7 @@ PROPOSED → SUPERSEDED
 
 - **Regra adicional (D-02):** qualquer alteração que possa afetar segurança, dados, autorização, regra de negócio ou contrato externo é ALTO RISCO — a IA não implementa automaticamente só porque a alteração parece tecnicamente pequena.
 - LOW/MEDIUM/HIGH não justificam mudanças de negócio ou segurança sem aprovação.
+- **Fronteiras operacionais do ecossistema GitHub** (ADR-0012, seção 18): commits são automáticos no escopo autorizado; push exige autorização explícita; merge apenas após aprovação humana do PR; fechamento de Issue segue a cadeia de verificação da seção 18; tag e publicação de release são sempre humanas.
 
 ## 15. Documentation Drift (processo de detecção)
 
@@ -196,20 +205,116 @@ PROPOSED → SUPERSEDED
 
 ## 16. Git Rules
 
-- **Versionado:** `.ai/specs/` (README, CONVENTIONS, templates, current, proposed, decisions) e `CLAUDE.md` quando existir.
-- **NÃO versionado:** `.ai/.temp/analyses/` (laboratório local — mantido no `.gitignore`; não remover a entrada).
+- **Versionado:** `.ai/specs/` (README, CONVENTIONS, templates, current, proposed, archive, decisions) e `CLAUDE.md` quando existir.
+- **NÃO versionado:** `.ai/.temp/` (área temporária local — mantida no `.gitignore`; não remover a entrada).
+- **Commits:** automáticos no escopo do trabalho autorizado (implementação, Specs, documentação) — commits lógicos e pequenos, sem confirmação individual (2026-08-16 — ADR-0012).
+- **Push:** NUNCA automático. Fluxo: implementar → commitar → apresentar resumo (branch, commits, testes, PR proposto) → aguardar autorização explícita → push. Push direto em `development`/`master` não faz parte do workflow do agente. `git push` nunca entra na allowlist permanente do Claude Code (`.claude/settings.local.json`): a autorização é pontual, via aprovação do usuário no mecanismo de permissão — sem "autorização temporária" inventada (revisão final D-13).
+- **Branch model:** work branches `<tipo>/<id>-<slug>` (`feature/`, `fix/`, `debt/`, `test/`, `refactor/`, `security/`, `enhancement/`) criadas de `development`; PRs têm `development` como alvo. Release: `development` → `release/vX.Y.Z` → PR → `master` → production. Não alterar sem decisão explícita.
+- **Tags e releases:** criação de tag e publicação de release são sempre humanas; o agente prepara (notas, changelog, draft, relações).
+- Specs viajam **no mesmo commit** da mudança de comportamento; `Última verificação` atualizado.
 - Specs não citam análises como evidência primária — citam código, migrations, testes e git.
 
-## 17. .ai/.temp/analyses rule
+## 17. .ai/.temp rule (lifecycle — atualizado em 2026-08-16, ADR-0012)
 
-- Área de trabalho NÃO versionada: relatórios numerados `NN-descricao.md`, material de investigação e evidência histórica.
-- NÃO são fonte de verdade quando conflitam com o estado atual; toda informação incorporada a uma spec de `current/` deve ser validada contra o sistema atual.
-- Não apagar nem renomear relatórios anteriores.
+- Área de trabalho NÃO versionada com subáreas: `analyses/` (relatórios `NN-…`), `decisions/` (minutas de decisão), `plans/` (planos de implementação), `reviews/` (revisões) + `MANIFEST.md` (índice operacional).
+- NÃO é segunda fonte de verdade; toda informação incorporada a uma spec de `current/` deve ser validada contra o sistema atual.
+- Lifecycle de cada artefato (header do arquivo + MANIFEST): `PENDING` → `APPROVED`/`REJECTED` (decisão humana) → `RESOLVED` (quando o artefato cumpriu seu papel) → **retenção de 7 dias** (arquivo intacto no lugar) → `CLEANUP`. A limpeza é interativa (início de sessão), nunca via GitHub Actions, e só remove artefatos `RESOLVED` há mais de 7 dias.
+- Quando uma decisão exigir contexto grande: gerar o artefato em `decisions/` e apresentar apenas um resumo curto + caminho no prompt.
+- Arquivos anteriores à vigência desta regra (2026-08-16) são classificados `LEGACY` no MANIFEST: isentos de cleanup automático; não são apagados nem renomeados. Artefatos novos nascem `PENDING`.
+
+---
+
+## 18. GitHub Operations (ADR-0012 — adicionada em 2026-08-16)
+
+Camada operacional/pública do Specification System. A Spec continua sendo a fonte de verdade da especificação; o GitHub é projeção e operação.
+
+### 18.1 Artefatos e papéis
+
+| Artefato | Papel |
+|---|---|
+| Spec (`proposed/`, `archive/`) | fonte de verdade da especificação (conteúdo, ACs, Status, decisão) |
+| GitHub Issue | representação operacional/pública da Spec |
+| GitHub Project | dashboard operacional do backlog (Status derivado + Priority) |
+| Código | fonte de verdade da implementação |
+| PR | unidade de revisão/integração |
+| Release | unidade de entrega |
+
+### 18.2 Ligação Spec ↔ Issue (1:1, auditável)
+
+- Spec → Issue: campo `Issue: #N` no frontmatter (preenchido no mesmo fluxo de criação da Spec).
+- Issue → Spec: label `spec:<ID>` + bloco `SPEC-PROJECTION` no body (ID, caminho, status).
+- Todo item real de `proposed/` possui Issue canônica; criar Spec sem Issue (ou vice-versa) é estado inválido, corrigível por auditoria.
+
+### 18.3 Bloco SPEC-PROJECTION
+
+O corpo do Issue tem um bloco `<!-- SPEC-PROJECTION:START --> … <!-- SPEC-PROJECTION:END -->` gerado a partir da Spec (Problema, Estado proposto, ACs, Decisão). O agente atualiza APENAS esse bloco. Conteúdo fora dele — especialmente discussão humana — NUNCA é sobrescrito. Comentários de sincronização carregam marker `<!-- sync:… -->` para deduplicação (idempotência). Formato canônico: `templates/issue-projection.md`.
+
+### 18.4 Projeções de estado (Issue e Project NUNCA transicionam por conta própria)
+
+| Spec Status | Issue | Project Status |
+|---|---|---|
+| PROPOSED | open | `Backlog` |
+| ACCEPTED | open | `Aprovado` |
+| IMPLEMENTATION | open | `Em andamento` |
+| — (override operacional) | open | `Bloqueado` (razão em comentário do Issue) |
+| IMPLEMENTED | closed | `Concluído` |
+| REJECTED / SUPERSEDED | closed | `Encerrado` |
+
+### 18.5 Sincronização
+
+Idempotente e declarativa: executar duas vezes não pode criar duas Issues (chave: `Issue:` do frontmatter ou busca por label `spec:<ID>`) nem comentários duplicados (markers). Divergência entre ação humana no GitHub e a Spec: reportar com opções — nunca reverter nem acatar silenciosamente (protocolo seção 12). Invariantes auditadas: toda Spec ativa com Issue 1:1; todo Issue `spec-driven` no Project; nenhum PR com `Closes #N` em Issue canônica; nenhum arquivo com Status terminal em `proposed/`.
+
+### 18.6 Fechamento de Issue (decisão × execução mecânica — alinhado à revisão final D-12)
+
+PRs usam `Part of #N` / `Related to #N` — **NUNCA** `Closes #N` em Issue canônica. O fechamento automático do GitHub não é mecanismo principal. Distinguir a decisão que determina o encerramento da execução mecânica do fechamento:
+
+- **CASO 1 — IMPLEMENTED (fechamento factual derivado do workflow):** PR merged + ACs validadas com evidência + evidências suficientes + Spec `IMPLEMENTED` + `Implemented Through` preenchido + sem ambiguidade nem decisão de negócio/governança pendente → o agente PODE executar o fechamento, sem confirmação adicional exclusiva para o "Close". O fechamento é ação explícita com comentário de encerramento.
+- **CASO 2 — REJECTED / SUPERSEDED / abandono / redirecionamento (decisão humana + execução mecânica):** a decisão de encerrar é exclusivamente humana; depois que a decisão estiver registrada na Spec, o agente executa mecanicamente o fechamento (comentário com a razão).
+- **CASO 3 — Fechamento manual / divergência:** humano fecha Issue sem Spec em estado terminal correspondente → NÃO reverter automaticamente; NÃO aceitar automaticamente; NÃO assumir que a Issue está correta; registrar divergência e solicitar decisão.
+
+### 18.7 Issues externas (open source)
+
+Issue externa = intake/discussão original — **preservada**, nunca apagada/substituída. Fluxo: análise → possível Proposed Spec → Issue canônica → Project → decisão humana → implementação. Relação explícita `External #N → SPEC-ID → Canonical #M` registrada nos dois Issues. Labels do fluxo: `triage` → `spec-created` / `duplicate` (fechamento operacional com comentário) / `not-planned` (decisão do mantenedor). A Issue externa sozinha nunca autoriza implementação.
+
+### 18.8 Merge e PR
+
+O agente prepara PRs e nunca aprova o próprio PR. A aprovação humana do PR é a Human Decision Boundary; **após aprovação explícita, o agente pode executar o merge** — sem segunda confirmação redundante.
+
+### 18.9 Release
+
+O agente prepara: notas, changelog, tabela de rastreabilidade (Spec → Issue → PR → Release), branch/PR de release, Release DRAFT. **Criação de tag e criação/publicação de Release: confirmação humana explícita.** Alvo de release é registrado em GitHub Milestone.
+
+- Fluxo (Blueprint §12.1): proposta SEMVER + notas (release-manager invoca o especialista release-notes) → confirmação humana da versão → preparação (changelog, tabela, branch/PR de release, DRAFT) → aprovação humana do PR + tag/publicação → pós-publicação (milestone fechado; rastreabilidade verificada — W6 `release-verify`).
+- O corpo da Release inclui as notas no padrão histórico e a tabela de rastreabilidade com formato canônico (um item por Spec da release; `#N` auto-linka no GitHub):
+
+```markdown
+## Rastreabilidade
+| Spec | Issue | PR | Título | Tipo |
+```
+
+Specs arquivadas citam o release no `Implemented Through`.
+
+### 18.10 Agentes e orquestração
+
+Agentes especializados (`.claude/agents/`): spec-manager (Specs) · github-manager (Issues) · project-manager (Project) · pr-manager (PRs) · release-manager (releases) · test-manager (verificação). Agentes NÃO chamam agentes — o Claude principal orquestra; no modo event-driven, workflows de GitHub Actions executam sequências fixas. Cada artefato tem um único agente dono. O agente `release-notes` é especialista de análise invocado pelo release-manager.
+
+### 18.11 Matriz Source of Truth
+
+A matriz completa "uma informação, um lar" (Spec/Issue/Project/Código/PR/Release) está na ADR-0012.
 
 ---
 
 ## Relação entre templates e specs
 
-- `templates/` é a fonte canônica dos formatos: `table-spec` (T1), `rpc-spec` (T2), `page-spec` (T3), `component-spec`, `feature-spec` (T4), `adr-template` (T5), `proposal-template` (T6), `business-rule`, `analysis-report` (T7).
+- `templates/` é a fonte canônica dos formatos: `table-spec` (T1), `rpc-spec` (T2), `page-spec` (T3), `component-spec`, `feature-spec` (T4), `adr-template` (T5), `proposal-template` (T6), `business-rule`, `analysis-report` (T7), `issue-projection` (T8 — corpo da Issue canônica, seção 18.3).
 - Toda spec segue o template aplicável; desvios justificados no próprio arquivo.
 - Alterações em `CONVENTIONS.md`, `README.md` e `templates/`: proposta → aprovação → aplicação (nunca silenciosa).
+
+---
+
+## Histórico de alterações
+
+| Data | Alteração | Origem |
+|---|---|---|
+| 2026-08-13 | Aprovada (Fase 0 v2; consolidada na Fase 12) | Fases 0–12 |
+| 2026-08-16 | Ecossistema Spec-Driven GitHub Operations: camada GitHub (§1) · lifecycle refinado com campos de decisão e protocolo de descoberta (§8) · arquivamento de estados terminais (§10) · stop conditions operacionais (§13) · fronteiras operacionais (§14) · regras de Git — commits automáticos, push autorizado, branch model (§16) · lifecycle de `.ai/.temp` com retenção de 7 dias (§17) · nova seção GitHub Operations (§18) | ADR-0012 — Blueprint v1.1 (`36`/`37-spec-driven-github-operations-blueprint-v1(.1).md`), decisões do autor 2026-08-16 |

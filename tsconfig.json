@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "types": ["vitest/globals", "node"],
+    "types": ["vitest/globals", "node", "@testing-library/jest-dom/vitest"],
 
     "module": "ESNext",
     "moduleResolution": "Bundler",

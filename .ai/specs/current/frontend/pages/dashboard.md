@@ -1,6 +1,6 @@
 # Página Dashboard
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (commit 0eb2e9b)
 **Rota:** `/dashboard` — `src/react-app/App.tsx:18`
 
 ## Propósito
@@ -54,7 +54,7 @@ Textos e botões nativos; sem `aria-*` `[CONFIRMED: ausência]`.
 
 ## Testes
 
-`useDashboard.test.tsx` (hook) e `dashboard.service.test.ts` (service). Página sem teste próprio `[CONFIRMED: test, ausência]`.
+`useDashboard.test.tsx` (hook) e `dashboard.service.test.ts` (service). Página: `Dashboard.test.tsx` (12 testes — cards, limite ultrapassado, consentimento LGPD, modais, dados do gráfico) `[CONFIRMED: test]`.
 
 ## Evidências
 

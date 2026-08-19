@@ -1,6 +1,6 @@
 # Componente ConsentimentoLGPD
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (commit 0eb2e9b)
 **Código:** `src/react-app/components/ConsentimentoLGPD.tsx`
 
 ## Propósito e uso
@@ -35,7 +35,7 @@ Modal padrão (bottom-sheet × central); sem `aria-*`/focus trap `[CONFIRMED: au
 
 ## Testes
 
-Sem teste próprio identificado `[CONFIRMED: ausência]`. Persistência coberta por `dashboard.service.test.ts` (updateConsentimentoLGPD) `[CONFIRMED: test]`.
+Componente: `ConsentimentoLGPD.test.tsx` (2 testes — renderização das seções e aceite fechando o modal) `[CONFIRMED: test]`. Persistência coberta por `dashboard.service.test.ts` (updateConsentimentoLGPD) `[CONFIRMED: test]`.
 
 ## Evidências
 

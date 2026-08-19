@@ -25,7 +25,9 @@ const hasServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 const describeOrSkip = hasServiceRole ? describe : describe.skip;
 
 describeOrSkip("RPC: remover_ou_desativar_referencia (Abordagem B)", () => {
-  const admin = getAdminClient();
+  // O vitest coleta o callback mesmo em describe.skip — sem credenciais, não
+  // instanciar o client na coleta (getAdminClient lança sem as vars de ambiente).
+  const admin = hasServiceRole ? getAdminClient() : (null as unknown as SupabaseClient);
 
   let ownerUser: TestUser;
   let otherUser: TestUser;

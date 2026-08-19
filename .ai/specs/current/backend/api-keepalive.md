@@ -1,6 +1,6 @@
 # API Route — /api/keepalive
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (DEBT-0003)
 **Código:** `api/keepalive.ts` — função Vercel serverless (Node)
 
 ## Propósito
@@ -18,7 +18,7 @@ Manter os projetos Supabase gratuitos fora do estado de pausa por inatividade: e
 - **Um único alvo por execução** (o banco do ambiente atual):
   - prod → label `meufenil`, env `prod` (credenciais: `KEEPALIVE_SUPABASE_URL`/`KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY`, fallback `VITE_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`)
   - dev → label `meufenil-dev`, env `dev` (credenciais: `KEEPALIVE_DEV_*`, mesmo fallback) `[CONFIRMED: code — api/keepalive.ts:50-72]`
-- **Divergência factual:** o README descreve que a rota acessa os DOIS bancos por execução e que `200` indica sucesso em ambos; o código atual (e o teste) executam ping em UM único alvo por execução, respondendo com `projects: [projeto]` (array de 1 elemento) `[CONFIRMED: code — api/keepalive.ts:158-166,193; test — api/keepalive.test.ts; documentation — README.md]`.
+- **Divergência RESOLVIDA:** o README descrevia que a rota acessava os DOIS bancos por execução e que `200` indicava sucesso em ambos; o README foi corrigido pelo DEBT-0003 (2026-08-15) e agora documenta 1 alvo por execução, alinhado ao código `[CONFIRMED: documentation — README.md "Keepalive diário"; code — api/keepalive.ts]`.
 
 ## Sequência de execução
 
@@ -62,7 +62,7 @@ Cada execução gera UMA linha na tabela do banco alvo, com `job_key = "keepaliv
 - E2 — Teste: `api/keepalive.test.ts` `[CONFIRMED: test]`
 - E3 — Cron e rewrite: `vercel.json` `[CONFIRMED: configuration]`
 - E4 — Histórico: `c9a385c` (implementação), `87aa0ff` (logging), `879a6c0` (environment-aware), `930de1b` (testes) `[CONFIRMED: git history]`
-- E5 — Divergência README × código (1 alvo × 2 bancos) `[CONFIRMED: code × documentation]`
+- E5 — Divergência README × código (1 alvo × 2 bancos) RESOLVIDA — DEBT-0003 (2026-08-15) `[CONFIRMED: code × documentation]`
 
 ## Veja também
 

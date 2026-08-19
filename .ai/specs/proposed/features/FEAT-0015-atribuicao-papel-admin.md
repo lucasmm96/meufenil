@@ -1,7 +1,8 @@
-# FEAT-0001 — Fluxo de atribuição de papel admin
+# FEAT-0015 — Fluxo de atribuição de papel admin
 
 **Type:** FEAT
 **Status:** PROPOSED
+**Issue:** #11
 **Title:** Fluxo de atribuição de papel admin
 
 ## Problem
@@ -23,7 +24,7 @@ Avaliar a criação de um fluxo explícito e restrito de atribuição/remoção 
 
 ## Evidence
 
-- U-7.2 (análise 23); R-003 (análise 23); `admin.service.ts` (`toggleRoleUsuario`); security-model.md (fato da política UPDATE).
+- U-7.2 (análise 23); R-003 (análise 23); `admin.service.ts` (`toggleRoleUsuario`); security-model.md (fato da política UPDATE); `.ai/.temp/analyses/23-documentacao-product-domain.md`; `.ai/specs/current/security/security-model.md`.
 
 ## Scope
 
@@ -74,6 +75,3 @@ Quem pode atribuir admin? Papel deve ser revogável pelo próprio admin?
 
 TBD (depende da alternativa escolhida): fluxo documentado; testes; atualização de specs (BR-016, security-model).
 
-## Evidence / References
-
-`.ai/.temp/analyses/23-documentacao-product-domain.md` (U-7.2, R-003); `.ai/specs/current/security/security-model.md`

@@ -2,6 +2,7 @@
 
 **Type:** REF
 **Status:** PROPOSED
+**Issue:** #12
 **Title:** Consolidar modal de concessão duplicado
 
 ## Problem
@@ -10,7 +11,7 @@ Dois componentes de concessão de acesso coexistem: `ModalConcederAcesso` (usado
 
 ## Current State
 
-`Perfil.tsx` importa AMBOS e renderiza apenas `ModalConcederAcesso`; `ConcederAcessoModal` tem validação e textos próprios e nenhum consumidor `[CONFIRMED: code — Fase 5; login-as.md]`.
+`Perfil.tsx` importa apenas `ModalConcederAcesso` (linhas 11 e 263) e o renderiza; `ConcederAcessoModal` tem validação e textos próprios e nenhum consumidor identificado `[CONFIRMED: code — grep; Perfil.tsx inalterado desde af63c41 (2026-03-22)]`.
 
 ## Proposed State
 
@@ -23,7 +24,7 @@ Consolidar em um único modal de concessão (remoção do órfão ou unificaçã
 
 ## Evidence
 
-`.ai/specs/current/frontend/components/login-as.md`; `Perfil.tsx:11,250-257`; grep de consumidores (Fase 5).
+`.ai/specs/current/frontend/components/login-as.md`; `Perfil.tsx:11,263`; grep de consumidores (Fase 5); análise 35 (divergência factual corrigida no retrofit F8).
 
 ## Scope
 

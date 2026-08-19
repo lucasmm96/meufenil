@@ -1,7 +1,7 @@
 # Tabela public.delegacoes_acesso
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**DDL versionado em:** NÃO VERSIONADO — ausente de todas as migrations (raiz e `supabase/migrations/`). DDL abaixo reconstruído a partir do catálogo dos bancos dev e prod (2026-08-13) `[CONFIRMED: database; ausência em migrations CONFIRMADA]`. Origem/canal de criação: `UNKNOWN` (git: commits `e19f43a` "Adicionar função Supabase para delegação de acesso" e `d14b1de` "Criar tipos e serviços para delegações de acesso" adicionaram código, sem arquivo de migration).
+**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**DDL versionado em:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) — tabela, constraints, índice e políticas. DDL abaixo conferido contra o catálogo dos bancos dev e prod (2026-08-14) `[CONFIRMED: database × migration]`. Origem/canal de criação: `UNKNOWN` (git: commits `e19f43a` "Adicionar função Supabase para delegação de acesso" e `d14b1de` "Criar tipos e serviços para delegações de acesso" adicionaram código, sem arquivo de migration).
 
 ## Propósito
 
@@ -42,9 +42,9 @@ Nota factual: os nomes reais das FKs no banco (`delegacoes_acesso_concedente_fk`
 
 | política | comando | alvo | USING / WITH CHECK | evidência |
 |---|---|---|---|---|
-| `Listar Delegações` | SELECT | public | USING: `concedente_id = auth.uid() OR delegado_id = auth.uid()` | catálogo; NÃO versionada |
-| `Usuário concede acesso ao proprio perfil` | INSERT | public | WITH CHECK: `concedente_id = auth.uid() AND delegado_id <> auth.uid()` | catálogo; NÃO versionada |
-| `Usuário revoga acessos concedidos ao proprio perfil` | UPDATE | public | USING: `concedente_id = auth.uid() AND revoked_at IS NULL`; WITH CHECK: `concedente_id = auth.uid()` | catálogo; NÃO versionada |
+| `Listar Delegações` | SELECT | public | USING: `concedente_id = auth.uid() OR delegado_id = auth.uid()` | catálogo; migration 20260814000000 |
+| `Usuário concede acesso ao proprio perfil` | INSERT | public | WITH CHECK: `concedente_id = auth.uid() AND delegado_id <> auth.uid()` | catálogo; migration 20260814000000 |
+| `Usuário revoga acessos concedidos ao proprio perfil` | UPDATE | public | USING: `concedente_id = auth.uid() AND revoked_at IS NULL`; WITH CHECK: `concedente_id = auth.uid()` | catálogo; migration 20260814000000 |
 
 Notas factuais:
 - Não existe política de DELETE — revogação é feita por UPDATE (`revoked_at`) `[CONFIRMED: database]`.
@@ -76,7 +76,7 @@ Notas factuais:
 ## Evidências
 
 - E1 — Colunas, constraints, índice parcial, RLS e políticas: catálogo dev e prod (2026-08-13) `[CONFIRMED: database]`
-- E2 — Ausência de DDL em todas as migrations versionadas e legadas `[CONFIRMED: ausência em migrations — grep, 2026-08-13]`
+- E2 — Ausência de DDL em todas as migrations versionadas e legadas até a baseline 20260814000000 (DEBT-0001), que o versiona `[CONFIRMED: ausência em migrations — grep, 2026-08-13; migration 20260814000000]`
 - E3 — Uso pelos RPCs: migration `20260811210456_fix_security_rls_rpc.sql` linhas 40–45, 90–95 `[CONFIRMED: migration]`
 - E4 — Chamadores no código: 5 referências `.from("delegacoes_acesso")` na edge function `delegar-acesso` e 5 em `src/` `[CONFIRMED: code]`
 - E5 — Contagens: não coletadas individualmente `[UNKNOWN: evidência necessária — SELECT count(*) na tabela]`

@@ -56,7 +56,7 @@ Visão administrativa (somente leitura) do sistema: usuários (totais), uso do b
 
 ## Tests
 
-- `Admin.test.tsx` (3 — ÚNICO teste de página), `useAdmin.test.ts` (100%), `useBackgroundJobsAdmin.test.tsx` (3), `admin.service.test.ts` (5), `background-jobs.service.test.ts` (4)
+- `Admin.test.tsx` (3 — primeiro teste de página; Perfil, Referencias e Dashboard também têm teste desde TEST-0001), `useAdmin.test.ts` (100%), `useBackgroundJobsAdmin.test.tsx` (3), `admin.service.test.ts` (5), `background-jobs.service.test.ts` (4)
 - **Coverage status:** PARTIALLY TESTED (mocks pesados no teste de página; monitoramento testado com dados mockados)
 
 ## Dependencies

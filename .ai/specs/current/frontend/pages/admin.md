@@ -57,7 +57,7 @@ Sem `navigate`/router; sem chamadas diretas ao supabase (tudo via hooks/services
 
 ## Testes
 
-`Admin.test.tsx` (ÚNICO teste de página do projeto), `useAdmin.test.ts`, `useBackgroundJobsAdmin.test.tsx`, `admin.service.test.ts`, `background-jobs.service.test.ts` `[CONFIRMED: test]`.
+`Admin.test.tsx` (primeiro teste de página do projeto; demais páginas testadas: Perfil, Referencias, Dashboard), `useAdmin.test.ts`, `useBackgroundJobsAdmin.test.tsx`, `admin.service.test.ts`, `background-jobs.service.test.ts` `[CONFIRMED: test]`.
 
 ## Evidências
 

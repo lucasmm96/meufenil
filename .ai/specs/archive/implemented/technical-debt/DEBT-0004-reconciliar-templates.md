@@ -2,7 +2,8 @@
 
 **Type:** DEBT
 **Status:** IMPLEMENTED
-**Implemented Through:** `templates/feature-spec.md` (T4 alinhado à prática real) · `templates/adr-template.md` (T5 com Origin DOCUMENTED/RECONSTRUCTED/UNKNOWN) · `templates/proposal-template.md` (T6 com estrutura da Fase 10 + categorias SEC/TEST) · `templates/component-spec.md` (novo) · `templates/business-rule.md` (novo) · `CONVENTIONS.md` (consolidado — Fase 12)
+**Issue:** #9
+**Implemented Through:** `templates/feature-spec.md` (T4 alinhado à prática real) · `templates/adr-template.md` (T5 com Origin DOCUMENTED/RECONSTRUCTED/UNKNOWN) · `templates/proposal-template.md` (T6 com estrutura da Fase 10 + categorias SEC/TEST) · `templates/component-spec.md` (novo) · `templates/business-rule.md` (novo) · `CONVENTIONS.md` (consolidado — Fase 12) — commits `683ed63`/`fb67c5e`/`1180de8` (2026-08-16)
 **Title:** Reconciliar templates e convenções do Specification System
 
 ## Problem

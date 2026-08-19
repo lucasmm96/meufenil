@@ -1,7 +1,9 @@
 # DEBT-0002 — Limite diário default duplicado (500 × 150)
 
 **Type:** DEBT
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
+**Issue:** #7
+**Implemented Through:** migration `supabase/migrations/20260815000000_limite_diario_default_500.sql` (aplicada em dev e prod em 2026-08-15 — commit `5e6467b`) · specs atualizadas: `current/domain/business-rules.md` (BR-025), `current/domain/domain-model.md`, `current/features/FEAT-0001-autenticacao.md`, `current/features/FEAT-0004-limite-diario.md`, `current/database/usuarios.md`, `current/database/triggers.md`, `current/database/rpc.md`, `current/database/overview.md`, `current/product/glossary.md`, `current/product/overview.md`
 **Title:** Limite diário default duplicado (500 × 150)
 
 ## Problem
@@ -56,15 +58,18 @@ Decisão clínica — requer validação com especialista (fora do escopo técni
 ## Alternatives
 
 A — padronizar em 150 · B — padronizar em 500 · C — manter os dois (documentado) com justificativa explícita
-**Decision:** TBD (decisão humana/clínica)
+**Decision:** B — padronizar em 500; decidido pelo solicitante em 2026-08-15
 
 ## Open Questions
 
-Qual valor é clinicamente recomendado como padrão? (U-7.3)
+Resolvida pela decisão B (2026-08-15) — U-7.3 tornou-se irrelevante: o valor 150 deixou de existir no sign-up.
 
 ## Acceptance Criteria
 
-Valor único definido; coluna e trigger alinhados; BR-025 e specs atualizadas; migration se necessário.
+- [x] Valor único definido (500 — decisão B, 2026-08-15)
+- [x] Coluna e trigger alinhados — `handle_new_user` sem `limite_diario_mg` no INSERT; default da coluna vale (migration 20260815000000; verificado em dev: `pg_get_functiondef` sem 150 e usuário de teste criado com limite 500)
+- [x] BR-025 e specs atualizadas (business-rules, domain-model, FEAT-0001/0004, database/usuarios·triggers·rpc·overview, product/glossary·overview)
+- [x] Migration criada e aplicada em dev e prod (2026-08-15; prod verificado read-only via `pg_get_functiondef`)
 
 ## Evidence / References
 

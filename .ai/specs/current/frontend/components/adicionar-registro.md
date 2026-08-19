@@ -1,6 +1,6 @@
 # Componente AdicionarRegistro
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-15 (commit 0eb2e9b)
 **Código:** `src/react-app/components/AdicionarRegistro.tsx`
 
 ## Propósito e uso
@@ -49,7 +49,7 @@ Modal bottom-sheet × central (padrão do overview); dropdown com teclado parcia
 
 ## Testes
 
-`useCreateRegistro.test.tsx`, `useReferencias.test.ts`. Componente sem teste próprio `[CONFIRMED: test, ausência]`.
+`useCreateRegistro.test.tsx`, `useReferencias.test.ts`. Componente: `AdicionarRegistro.test.tsx` (13 testes — busca com debounce, seleção/dropdown, cálculo de fenilalanina, modal de criar referência, submit) `[CONFIRMED: test]`.
 
 ## Evidências
 

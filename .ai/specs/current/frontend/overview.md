@@ -129,13 +129,14 @@ Usa apenas breakpoints default do Tailwind; padrões recorrentes: colunas `grid-
 
 ## Testes de frontend
 
-Localização colocalizada; componentes/hooks/services testados (página Admin incluída; demais páginas sem teste próprio):
+Localização colocalizada; componentes/hooks/services testados; 4 de 9 páginas com teste próprio (Admin, Perfil, Referencias, Dashboard — TEST-0001) e 2 componentes (AdicionarRegistro, ConsentimentoLGPD):
 
 | Grupo | Testes |
 |---|---|
 | services | 12 arquivos `*.service.test.ts` |
 | hooks | 12 arquivos `use*.test.ts(x)` (todos os hooks de dados têm teste) |
-| páginas | `Admin.test.tsx` (único teste de página) |
+| páginas | `Admin.test.tsx`, `Perfil.test.tsx`, `Referencias.test.tsx`, `Dashboard.test.tsx` (Estatisticas, Exames, Historico, Home, Sobre sem teste próprio) |
+| componentes | `AdicionarRegistro.test.tsx`, `ConsentimentoLGPD.test.tsx` |
 | context | sem teste identificado `[CONFIRMED: ausência]` |
 
 Avaliação de suficiência: Fase 6.
