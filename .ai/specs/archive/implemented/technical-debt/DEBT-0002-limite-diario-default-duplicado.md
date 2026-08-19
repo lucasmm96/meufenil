@@ -3,7 +3,7 @@
 **Type:** DEBT
 **Status:** IMPLEMENTED
 **Issue:** #7
-**Implemented Through:** migration `supabase/migrations/20260815000000_limite_diario_default_500.sql` (aplicada em dev e prod em 2026-08-15) · specs atualizadas: `current/domain/business-rules.md` (BR-025), `current/domain/domain-model.md`, `current/features/FEAT-0001-autenticacao.md`, `current/features/FEAT-0004-limite-diario.md`, `current/database/usuarios.md`, `current/database/triggers.md`, `current/database/rpc.md`, `current/database/overview.md`, `current/product/glossary.md`, `current/product/overview.md`
+**Implemented Through:** migration `supabase/migrations/20260815000000_limite_diario_default_500.sql` (aplicada em dev e prod em 2026-08-15 — commit `5e6467b`) · specs atualizadas: `current/domain/business-rules.md` (BR-025), `current/domain/domain-model.md`, `current/features/FEAT-0001-autenticacao.md`, `current/features/FEAT-0004-limite-diario.md`, `current/database/usuarios.md`, `current/database/triggers.md`, `current/database/rpc.md`, `current/database/overview.md`, `current/product/glossary.md`, `current/product/overview.md`
 **Title:** Limite diário default duplicado (500 × 150)
 
 ## Problem

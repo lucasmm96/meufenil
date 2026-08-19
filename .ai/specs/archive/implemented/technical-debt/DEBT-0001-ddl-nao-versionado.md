@@ -3,7 +3,7 @@
 **Type:** DEBT
 **Status:** IMPLEMENTED
 **Issue:** #6
-**Implemented Through:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (migration agregada idempotente, aplicada em dev e prod em 2026-08-14) · specs `current/database/*` e `current/security/security-model.md` atualizadas
+**Implemented Through:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (migration agregada idempotente, aplicada em dev e prod em 2026-08-14 — commits `f1d4af5`/`a4d3017`) · specs `current/database/*` e `current/security/security-model.md` atualizadas
 **Title:** Versionar objetos sem DDL versionado
 
 ## Problem
