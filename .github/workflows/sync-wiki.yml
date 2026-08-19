@@ -2,7 +2,7 @@ name: Sincronizar Wiki
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]  # Dispara apenas quando houver push na branch master
     paths:
       - 'wiki/**'   # Dispara apenas quando algo mudar na pasta wiki/
 
