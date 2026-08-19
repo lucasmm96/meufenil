@@ -1,0 +1,42 @@
+# W6 — release-verify (Blueprint v1.1-final §18.1): evento release.published →
+# verifica a tabela de rastreabilidade §23 do corpo da Release e fecha o milestone
+# pós-publicação (§12.1 passo 6). Determinístico — a verificação da tabela é
+# checklist mecânico (mesmo desvio justificado da coluna "IA: Sim" do §18.1
+# adotado no W2/W4, autorizado em 2026-08-17 para mecanismos determinísticos).
+#
+# NUNCA cria tag, NUNCA publica release, NUNCA faz push (D-7/§12.2). Falha = job
+# vermelho com log explícito — anomalia registrada (ex.: Release sem a tabela §23,
+# Failure Mode #20: humano decide sobre notas retroativas; nunca apagar a tag).
+name: release-verify
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: release-verify-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # O checkout aponta para o commit da tag publicada — as Specs verificadas
+      # são as exatamente do código entregue na release.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Extrair corpo da Release
+        run: jq -r .release.body "$GITHUB_EVENT_PATH" > /tmp/release-body.md
+      - name: Verificar rastreabilidade (§23) e fechar milestone
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/spec-github/release-verify.js --tag "${{ github.event.release.tag_name }}" --body-file /tmp/release-body.md

@@ -96,4 +96,14 @@ export class GitHubClient {
   addComment(number, body) {
     return this.request('POST', `/repos/${this.owner}/${this.repo}/issues/${number}/comments`, { body })
   }
+
+  /** Lista milestones do estado dado (padrão open) — o alvo de release (§18.9). */
+  listMilestones(state = 'open') {
+    return this.request('GET', `/repos/${this.owner}/${this.repo}/milestones?state=${state}&per_page=100`)
+  }
+
+  /** Fecha/reabre um milestone (state: closed|open) — pós-publicação (§12.1 passo 6). */
+  updateMilestone(number, state) {
+    return this.request('PATCH', `/repos/${this.owner}/${this.repo}/milestones/${number}`, { state })
+  }
 }

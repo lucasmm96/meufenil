@@ -284,6 +284,16 @@ O agente prepara PRs e nunca aprova o próprio PR. A aprovação humana do PR é
 
 O agente prepara: notas, changelog, tabela de rastreabilidade (Spec → Issue → PR → Release), branch/PR de release, Release DRAFT. **Criação de tag e criação/publicação de Release: confirmação humana explícita.** Alvo de release é registrado em GitHub Milestone.
 
+- Fluxo (Blueprint §12.1): proposta SEMVER + notas (release-manager invoca o especialista release-notes) → confirmação humana da versão → preparação (changelog, tabela, branch/PR de release, DRAFT) → aprovação humana do PR + tag/publicação → pós-publicação (milestone fechado; rastreabilidade verificada — W6 `release-verify`).
+- O corpo da Release inclui as notas no padrão histórico e a tabela de rastreabilidade com formato canônico (um item por Spec da release; `#N` auto-linka no GitHub):
+
+```markdown
+## Rastreabilidade
+| Spec | Issue | PR | Título | Tipo |
+```
+
+Specs arquivadas citam o release no `Implemented Through`.
+
 ### 18.10 Agentes e orquestração
 
 Agentes especializados (`.claude/agents/`): spec-manager (Specs) · github-manager (Issues) · project-manager (Project) · pr-manager (PRs) · release-manager (releases) · test-manager (verificação). Agentes NÃO chamam agentes — o Claude principal orquestra; no modo event-driven, workflows de GitHub Actions executam sequências fixas. Cada artefato tem um único agente dono. O agente `release-notes` é especialista de análise invocado pelo release-manager.
