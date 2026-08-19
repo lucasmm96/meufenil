@@ -1,0 +1,49 @@
+name: Sincronizar Wiki
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wiki/**'   # Dispara apenas quando algo mudar na pasta wiki/
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Permissão para escrever no repositório da wiki
+    steps:
+      # 1. Baixa o código do seu repositório principal (meufenil)
+      - name: Checkout do repositório principal
+        uses: actions/checkout@v4
+
+      # 2. Baixa o repositório da wiki (meufenil.wiki.git)
+      - name: Checkout da wiki
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki-temp
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 3. Copia todos os arquivos .md da pasta wiki/ (do repo principal) para o clone da wiki
+      - name: Copiar arquivos Markdown
+        run: |
+          # Cria a pasta de destino se não existir
+          mkdir -p wiki-temp
+          # Copia todos os .md da raiz da pasta wiki/ para a raiz da wiki
+          cp wiki/*.md wiki-temp/ || true
+          # O '|| true' faz o script não quebrar se não houver arquivos .md
+
+      # 4. Commit e push para o repositório da wiki
+      - name: Commit e Push para a wiki
+        run: |
+          cd wiki-temp
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          # Verifica se há mudanças para commitar
+          if git diff --staged --quiet; then
+            echo "Nenhuma alteração detectada na wiki."
+          else
+            git commit -m "Sincronização automática da wiki - $(date +'%Y-%m-%d %H:%M:%S')"
+            git push
+          fi
