@@ -24,25 +24,22 @@ jobs:
           path: wiki-temp
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Copia todos os arquivos .md da pasta wiki/ (do repo principal) para o clone da wiki
-      - name: Copiar arquivos Markdown
+      # Sincronização com limpeza
+      - name: Sincronizar arquivos (espelho exato)
         run: |
-          # Cria a pasta de destino se não existir
-          mkdir -p wiki-temp
-          # Copia todos os .md da raiz da pasta wiki/ para a raiz da wiki
+          # Remove todos os .md existentes na wiki
+          rm -f wiki-temp/*.md
+          # Copia os novos .md da pasta wiki/
           cp wiki/*.md wiki-temp/ || true
-          # O '|| true' faz o script não quebrar se não houver arquivos .md
 
-      # 4. Commit e push para o repositório da wiki
       - name: Commit e Push para a wiki
         run: |
           cd wiki-temp
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          # Verifica se há mudanças para commitar
           if git diff --staged --quiet; then
-            echo "Nenhuma alteração detectada na wiki."
+            echo "Nenhuma alteração detectada."
           else
             git commit -m "Sincronização automática da wiki - $(date +'%Y-%m-%d %H:%M:%S')"
             git push
