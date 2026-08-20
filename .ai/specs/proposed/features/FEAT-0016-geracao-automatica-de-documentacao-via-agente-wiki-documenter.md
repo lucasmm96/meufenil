@@ -1,7 +1,7 @@
 # FEAT-0016 — Geração automática da documentação pública via agente wiki-documenter
 
 **Type:** FEAT
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Issue:** #36
 **Title:** Geração automática da documentação pública via agente wiki-documenter
 **Created on:** 2026-08-20
@@ -24,7 +24,7 @@ Criar um agente especializado no Claude Code (`wiki-documenter`) que, sob demand
 - Estrutura definida (Guia do Usuário, Guia do Desenvolvedor, Arquitetura, Funcionalidades, Referências Técnicas, etc.).
 - Sumário automático em páginas longas.
 - Citações de fontes apenas na documentação para devs.
-- Incorporação de documentos antigos (revalidados) e descarte de obsoletos.
+- Revalidação de informações históricas contra as specs atuais (documentos antigos originais não existem mais — sobrescritos pelo espelho da wiki; conhecimento recapturado em `current/`).
 - Menção a propostas futuras (proposed/) em seção de roadmap, com indicação de não implementado.
 
 ## Motivation
@@ -36,7 +36,7 @@ Criar um agente especializado no Claude Code (`wiki-documenter`) que, sob demand
 ## Evidence
 
 - Especificações completas em `.ai/specs/current/` (features, frontend, backend, database, security, testing, domain, architecture).
-- Documentos antigos na wiki (enviados pelo autor) e no repositório (ex: `docs/`).
+- **[CORRIGIDO 2026-08-20]** Documentos antigos (`Supabase-*.md`, `CLI-Interna-*.md`, `Padrões-de-Código.md`) não existem no repositório, no histórico git nem na wiki pública (sobrescritos pelo espelho do `sync-wiki.yml`); o conhecimento foi recapturado nas specs `current/`.
 - Sincronização já implementada via GitHub Actions (`sync-wiki.yml`).
 
 ## Scope
@@ -90,20 +90,22 @@ Criar um agente especializado no Claude Code (`wiki-documenter`) que, sob demand
 - **B.** Gerar tudo do zero a cada execução – maior consumo de tokens e perda de edições manuais.
 - **C.** Agente incremental (proposta) – equilibra custo e precisão.
 
-**Decision:** TBD – a escolha é humana; na aprovação registrar **Approved by:** e **Approved on:**.
+**Decision:** ACCEPTED
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-08-20
 
 ## Open Questions
 
-- Como o agente deve lidar com edições manuais feitas diretamente na pasta `wiki/`? Serão preservadas se as fontes não mudarem.
-- Qual o formato do arquivo de estado (hashes)? Sugestão: `wiki/.wiki-state.json` (não versionado ou versionado? Melhor não versionar, pois é local; mas pode ser versionado para rastrear mudanças? Decisão: não versionar, gerado localmente pelo agente).
+- Como o agente deve lidar com edições manuais feitas diretamente na pasta `wiki/`? **RESOLVIDA (2026-08-20, autor):** páginas com hashes de fontes inalterados não são regeneradas — edições manuais são preservadas. Se as fontes mudaram, a página é sobrescrita pela geração.
+- Qual o formato do arquivo de estado (hashes)? **RESOLVIDA (2026-08-20, autor):** `wiki/.wiki-state.json`, **não versionado** (coberto pelo `.gitignore`), gerado localmente pelo agente.
 
 ## Acceptance Criteria
 
-- [ ] Agente `wiki-documenter` existe e é invocável via `/agent wiki-documenter` no Claude Code.
+- [ ] Agente `wiki-documenter` existe e é invocável via ferramenta Agent (`subagent_type: wiki-documenter`), com convenção de chat `/agent wiki-documenter`.
 - [ ] Ao executar, ele analisa as specs e código, e gera/atualiza as páginas conforme estrutura definida.
 - [ ] Páginas geradas incluem sumário automático (TOC) no topo (quando aplicável).
 - [ ] Citações de fontes aparecem apenas em `Guia-Desenvolvedor.md`, `Arquitetura.md` e `Referencias-Tecnicas.md`.
-- [ ] Documentos antigos fornecidos são incorporados quando válidos; os obsoletos são descartados.
+- [ ] Informações históricas (migrations, edge functions, CLI, padrões de código) são revalidadas contra as specs atuais e incorporadas quando válidas; obsoletas são descartadas. (Documentos antigos originais não existem mais — sobrescritos pelo espelho do sync-wiki; conhecimento recapturado em `current/`.)
 - [ ] Propostas futuras (proposed/) são mencionadas em seção de roadmap, com status PROPOSED.
 - [ ] Execuções subsequentes regeneram apenas páginas afetadas por mudanças nas fontes (comprovado por logs).
 - [ ] A pasta `wiki/` ao final contém todos os arquivos esperados e a wiki pública sincronizada via workflow existente.
@@ -112,6 +114,4 @@ Criar um agente especializado no Claude Code (`wiki-documenter`) que, sob demand
 
 - `.ai/specs/current/`
 - `.ai/specs/archive/`
-- Documentos antigos: `Supabase-*-.md`, `CLI-Interna-*.md`, `Padrões-de-Código.md`
-- `CLAUDE.md` (seção de agentes)
 - `CONVENTIONS.md` (seções 8, 10, 18)

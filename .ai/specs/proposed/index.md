@@ -10,7 +10,7 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
-| [FEAT-0016](features/FEAT-0016-geracao-automatica-de-documentacao-via-agente-wiki-documenter.md) | FEAT | Geração automática da documentação pública via agente wiki-documenter | PROPOSED | #36 | Autor — 2026-08-20 |
+| [FEAT-0016](features/FEAT-0016-geracao-automatica-de-documentacao-via-agente-wiki-documenter.md) | FEAT | Geração automática da documentação pública via agente wiki-documenter | ACCEPTED | #36 | Autor — 2026-08-20 |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
