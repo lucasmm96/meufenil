@@ -1,7 +1,7 @@
 # FEAT-0016 — Geração automática da documentação pública via agente wiki-documenter
 
 **Type:** FEAT
-**Status:** ACCEPTED
+**Status:** IMPLEMENTATION
 **Issue:** #36
 **Title:** Geração automática da documentação pública via agente wiki-documenter
 **Created on:** 2026-08-20
