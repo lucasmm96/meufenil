@@ -1,1 +1,0 @@
-esta é a primeira pagina da wiki
