@@ -183,12 +183,49 @@ O agente deve:
 
 ## Comando de invocação
 
-O agente é invocado pelo Claude principal por meio da ferramenta Agent com `subagent_type: wiki-documenter`, quando o usuário solicitar a geração/atualização da documentação pública. Não existe comando `/agent` no Claude Code: o usuário dispara a execução com um pedido em linguagem natural ao Claude principal (ex.: "gere a documentação da wiki", "execute o wiki-documenter"), que orquestra este agente.
+O usuário invoca no chat com `/agent wiki-documenter` (convenção deste projeto) ou com um pedido em linguagem natural (ex.: "gere a documentação da wiki", "execute o wiki-documenter"). O Claude principal orquestra a execução por meio da ferramenta Agent com `subagent_type: wiki-documenter`.
 
 Modos de uso:
 
 - **Geração completa:** quando `wiki/.wiki-state.json` não existe ou as fontes principais mudaram.
 - **Incremental (padrão):** regenera apenas páginas cujas fontes mudaram (hash-based), preservando edições manuais nas páginas não impactadas.
+
+## Fluxo de execução
+
+1. Verifica se a pasta `wiki/` existe; se não, cria.
+2. Carrega o estado anterior (`wiki/.wiki-state.json`), se existir.
+3. Para cada página alvo, calcula o hash das fontes (lista definida internamente — pode ser adaptada).
+4. Compara com o estado anterior: se mudou, regenera a página; se não, mantém a existente (preservando edições manuais).
+5. Gera o arquivo correspondente na pasta `wiki/`.
+6. Atualiza `_Sidebar.md` com a lista final de páginas.
+7. Salva o novo estado em `wiki/.wiki-state.json`.
+8. Exibe um resumo das páginas geradas/atualizadas/preservadas e se há página obsoleta (que não pertence mais à estrutura) a ser removida manualmente (opcional).
+9. **Não faz push** — encerra com a sugestão: "Revise as alterações na pasta `wiki/` e faça commit/push quando estiver satisfeito."
+
+## Logs e transparência
+
+- Durante a execução, informar quais páginas estão sendo regeneradas e por quê (ex.: "Regenerando `Guia-Usuario.md` porque as features FEAT-0003 e FEAT-0005 foram alteradas.").
+- Ao final, mostrar o resumo.
+
+## Exemplo de uso no Claude Code
+
+```text
+Usuário: /agent wiki-documenter
+Agente:
+[verifica estado]
+[calcula hashes]
+[regenera páginas X, Y, Z]
+[preserva página W]
+[atualiza _Sidebar]
+[salva estado]
+
+Relatório:
+- Páginas regeneradas: Guia-Usuario.md, Funcionalidades.md (fontes alteradas)
+- Páginas preservadas: Home.md, Arquitetura.md, Referencias-Tecnicas.md
+- Páginas obsoletas: nenhuma
+
+A documentação foi atualizada. Por favor, revise os arquivos em `wiki/` e faça commit/push quando quiser.
+```
 
 ## Saídas
 
