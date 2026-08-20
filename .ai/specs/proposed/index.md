@@ -10,7 +10,6 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
-| [FEAT-0016](features/FEAT-0016-geracao-automatica-de-documentacao-via-agente-wiki-documenter.md) | FEAT | Geração automática da documentação pública via agente wiki-documenter | IMPLEMENTATION | #36 | Autor — 2026-08-20 |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
@@ -35,6 +34,7 @@ Propostas em estado terminal, movidas de `proposed/` para `../archive/implemente
 | [DEBT-0003](../archive/implemented/technical-debt/DEBT-0003-atualizar-readme.md) | DEBT | Atualizar README (documentation drift) | IMPLEMENTED | #8 | README.md corrigido (2026-08-15) — commit `0eb2e9b` |
 | [DEBT-0004](../archive/implemented/technical-debt/DEBT-0004-reconciliar-templates.md) | DEBT | Reconciliar templates e convenções do Specification System | IMPLEMENTED | #9 | Fase 12 — commits `683ed63`/`fb67c5e`/`1180de8` |
 | [TEST-0001](../archive/implemented/testing/TEST-0001-testes-paginas-componentes.md) | TEST | Cobertura de testes de páginas e componentes | IMPLEMENTED | #15 | 69 testes novos (suíte 128 → 197) — commit `6645b1a` |
+| [FEAT-0016](../archive/implemented/features/FEAT-0016-geracao-automatica-de-documentacao-via-agente-wiki-documenter.md) | FEAT | Geração automática da documentação pública via agente wiki-documenter | IMPLEMENTED | #36 | PR #37 — merge `cd9b3fa` (2026-08-20) |
 
 
 ## Como usar este catálogo

@@ -1,7 +1,8 @@
 # FEAT-0016 — Geração automática da documentação pública via agente wiki-documenter
 
 **Type:** FEAT
-**Status:** IMPLEMENTATION
+**Status:** IMPLEMENTED
+**Implemented Through:** PR #37 (merge `cd9b3fa`, 2026-08-20) · agente `.claude/agents/wiki-documenter.md` operacional (invocação via ferramenta Agent, convenção `/agent wiki-documenter`, incremental hash-based) · `wiki/` gerada (8 páginas; estado local `wiki/.wiki-state.json` não versionado) · CONVENTIONS §18.10 e `.gitignore` atualizados · ACs 1–8 validados com evidência (incremental provado na 2ª execução)
 **Issue:** #36
 **Title:** Geração automática da documentação pública via agente wiki-documenter
 **Created on:** 2026-08-20
