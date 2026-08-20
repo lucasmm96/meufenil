@@ -296,7 +296,7 @@ Specs arquivadas citam o release no `Implemented Through`.
 
 ### 18.10 Agentes e orquestração
 
-Agentes especializados (`.claude/agents/`): spec-manager (Specs) · github-manager (Issues) · project-manager (Project) · pr-manager (PRs) · release-manager (releases) · test-manager (verificação). Agentes NÃO chamam agentes — o Claude principal orquestra; no modo event-driven, workflows de GitHub Actions executam sequências fixas. Cada artefato tem um único agente dono. O agente `release-notes` é especialista de análise invocado pelo release-manager.
+Agentes especializados (`.claude/agents/`): spec-manager (Specs) · github-manager (Issues) · project-manager (Project) · pr-manager (PRs) · release-manager (releases) · test-manager (verificação) · wiki-documenter (documentação pública). Agentes NÃO chamam agentes — o Claude principal orquestra; no modo event-driven, workflows de GitHub Actions executam sequências fixas. Cada artefato tem um único agente dono. O agente `release-notes` é especialista de análise invocado pelo release-manager.
 
 ### 18.11 Matriz Source of Truth
 
