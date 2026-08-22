@@ -3,7 +3,7 @@
 **Type:** ENH
 **Status:** PROPOSED
 **Title:** Histórico das execuções com seletor de tamanho de página e paginação numerada
-**Issue:** TBD (preenchido no mesmo fluxo de criação, via github-manager)
+**Issue:** #39
 **Created on:** 2026-08-22
 
 ## Problem
