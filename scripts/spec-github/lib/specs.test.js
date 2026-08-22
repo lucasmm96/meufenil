@@ -33,6 +33,45 @@ A — migration de baseline · B — status quo
 N/A
 `
 
+const MULTILINE = [
+  '# ENH-0003 — Histórico das execuções com seletor e paginação numerada',
+  '',
+  '**Type:** ENH',
+  '**Status:** PROPOSED',
+  '**Title:** Histórico das execuções com seletor de tamanho de página e paginação numerada',
+  '',
+  '## Problem',
+  '',
+  'No painel administrativo, a lista "Histórico das execuções" carrega 20 itens por página.',
+  '',
+  '## Proposed State',
+  '',
+  '- **Seletor de tamanho de página (3 / 10 / 20)** com default 3.',
+  '- **Paginação numerada** (números com elisão) além de Anterior/Próxima.',
+  '- Troca de filtro reseta para a página 1.',
+  '- Nenhuma mudança em banco, RLS, RPC ou backend.',
+  '',
+  '## Acceptance Criteria',
+  '',
+  '- [ ] AC1: seletor de page size com opções 3/10/20; default 3.',
+  '- [ ] AC2: a lista exibe no máximo N execuções do conjunto filtrado.',
+  '- [ ] AC3: paginação numerada com elisão + Anterior/Próxima.',
+  '- [ ] AC4: trocar filtro/page size reseta para a página 1.',
+  '- [ ] AC5: nenhuma mudança em banco/RLS/RPC/backend.',
+  '- [ ] AC6: testes atualizados e novos com suíte verde.',
+  '- [ ] AC7: comportamento responsivo mantido (mobile e desktop).',
+  '',
+  '## Alternatives',
+  '',
+  'A — reduzir default · B — paginação numerada · C — botão "Ver mais" · D — seletor',
+  '**Decision:** TBD',
+  '',
+  '## References',
+  '',
+  'N/A',
+].join(String.fromCharCode(10))
+
+
 describe('specs', () => {
   it('extrai header e seções de uma Spec', () => {
     const spec = parseSpec(SAMPLE, 'proposed/technical-debt/DEBT-0001-ddl-nao-versionado.md')
@@ -75,5 +114,15 @@ describe('specs', () => {
     expect(updated).toContain('**Issue:** #8')
     expect(updated).not.toContain('#42')
     void file42
+  })
+
+  it('extrai seções multi-linha por completo (ACs e Proposed State)', () => {
+    const spec = parseSpec(MULTILINE, 'proposed/enhancements/ENH-0003-historico-execucoes-seletor-paginacao.md')
+    expect(spec.problem).toContain('carrega 20 itens por página')
+    expect(spec.proposed.match(/^- /gm)).toHaveLength(4)
+    expect(spec.proposed).toContain('- **Paginação numerada**')
+    expect(spec.proposed).toContain('- Nenhuma mudança em banco')
+    expect(spec.acs.match(/AC[0-9]/g)).toHaveLength(7)
+    expect(spec.acs).toContain('- [ ] AC7:')
   })
 })
