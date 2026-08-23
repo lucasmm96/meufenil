@@ -28,9 +28,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Lint escopado a scripts/spec-github/** enquanto a DEBT-0005 (57 erros pré-existentes
-      # em src/, descobertos no primeiro run do W1 — PR #25) não for tratada; então restaurar
-      # `npm run lint` completo.
-      - run: npx eslint scripts/spec-github
+      # Lint completo (DEBT-0005: 57 erros pré-existentes em src/ corrigidos em 2026-08-23).
+      - run: npm run lint
       - run: npm run test:run
       - run: npm run build
