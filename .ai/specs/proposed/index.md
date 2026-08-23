@@ -18,6 +18,7 @@
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | #12 | Divergência Fase 5 |
 | [REF-0002](refactors/REF-0002-rpcs-orfas-dashboard.md) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | #13 | Fase 4; O-003 (análise 25) |
 | [DEBT-0005](technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | PROPOSED | #26 | CI W1 (PR #25, run 32089115404) — 2026-08-17 |
+| [DEBT-0006](technical-debt/DEBT-0006-restaurar-keepalive-dev.md) | DEBT | Restaurar keepalive do ambiente dev (regressão 879a6c0) | PROPOSED | #40 | solicitação do usuário (draft 003) — 2026-08-23 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | #14 | Fatos Fase 3 |
 | [TEST-0002](testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | PROPOSED | #16 | GAP-007/012 |
 | [TEST-0003](testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED | #17 | GAP-005/006/008 |
