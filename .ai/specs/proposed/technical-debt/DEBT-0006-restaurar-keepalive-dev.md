@@ -1,7 +1,7 @@
 # DEBT-0006 — Restaurar keepalive do ambiente dev (regressão 879a6c0)
 
 **Type:** DEBT
-**Status:** ACCEPTED
+**Status:** IMPLEMENTATION
 **Title:** Restaurar keepalive do ambiente dev (regressão 879a6c0)
 **Issue:** #40
 **Created on:** 2026-08-23
