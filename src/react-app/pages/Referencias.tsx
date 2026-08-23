@@ -5,6 +5,7 @@ import { Star, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Edit2, RotateCcw, Filter
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useUsuarioAtivo } from "@/react-app/hooks/useUsuarioAtivo";
 import { useReferencias } from "@/react-app/hooks/useReferencias";
+import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
 import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { LayoutSkeleton, ReferenciasSkeleton } from "@skeletons";
 import ModalReferencia from "@/react-app/components/ModalReferencia";
@@ -33,7 +34,7 @@ export default function ReferenciasPage() {
   } = useReferencias(usuarioAtivoId ?? undefined);
 
   const [showModal, setShowModal] = useState(false);
-  const [editingReferencia, setEditingReferencia] = useState<any>(null);
+  const [editingReferencia, setEditingReferencia] = useState<ReferenciaDTO | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showInativas, setShowInativas] = useState(false);
   const [onlyFavoritas, setOnlyFavoritas] = useState(false);
@@ -41,24 +42,10 @@ export default function ReferenciasPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  const podeEditarOuRemover = (ref: any) => {
+  const podeEditarOuRemover = (ref: ReferenciaDTO) => {
     if (ref.criado_por === usuarioAtivoId) return true;
     if (isAdmin && ref.is_global) return true;
     return false;
-  };
-
-  const motivoBloqueio = (r: any) => {
-    if (!r.is_ativa) return "Referência inativa";
-
-    if (!podeEditarOuRemover(r)) {
-      if (r.is_global && !isAdmin)
-        return "Apenas administradores podem editar referências globais";
-
-      if (r.criado_por !== usuarioAtivoId)
-        return "Você não pode editar referências de outro usuário";
-    }
-
-    return "";
   };
 
   const handleOpenCreate = () => {
@@ -66,13 +53,13 @@ export default function ReferenciasPage() {
     setShowModal(true);
   };
 
-  const handleOpenEdit = (ref: any) => {
+  const handleOpenEdit = (ref: ReferenciaDTO) => {
     if (!podeEditarOuRemover(ref) || !ref.is_ativa) return;
     setEditingReferencia(ref);
     setShowModal(true);
   };
 
-  const handleDelete = async (ref: any) => {
+  const handleDelete = async (ref: ReferenciaDTO) => {
     if (!podeEditarOuRemover(ref) || !ref.is_ativa) return;
 
     const confirmar = confirm(
@@ -86,8 +73,10 @@ export default function ReferenciasPage() {
       await remove(ref.id);
 
       alert("Referência removida com sucesso.");
-    } catch (err: any) {
-      if (err?.originalError?.code === "23503") {
+    } catch (err) {
+      const originalCode = (err as { originalError?: { code?: string } } | undefined)?.originalError?.code;
+
+      if (originalCode === "23503") {
         await deactivate(ref.id);
         alert(
           "Esta referência possui registros associados.\n\n" +
@@ -127,9 +116,10 @@ export default function ReferenciasPage() {
 
       setShowModal(false);
 
-    } catch (err: any) {
+    } catch (err) {
+      const code = (err as { code?: string } | undefined)?.code;
 
-      if (err?.code === "REFERENCIA_DUPLICADA") {
+      if (code === "REFERENCIA_DUPLICADA") {
         alert("Já existe uma referência com esse nome.");
         return;
       }
@@ -142,9 +132,9 @@ export default function ReferenciasPage() {
     }
   };
 
-  const toggleSort = (campo: "nome" | "fenil" | "tipo") => {
+  const toggleSort = (campo: "nome" | "fenil") => {
     if (ordenarPor === campo) setOrdenarPor(`${campo}_desc`);
-    else setOrdenarPor(campo as any);
+    else setOrdenarPor(campo);
   };
 
   const totalItems = referencias.length;

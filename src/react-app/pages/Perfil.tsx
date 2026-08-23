@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
-import { User, Save, Shield, Download, Trash2, Plus } from "lucide-react";
+import { User, Save, Shield, Download, Trash2 } from "lucide-react";
 import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { supabase } from "@/react-app/lib/supabase";
 import { LayoutSkeleton, PerfilSkeleton } from "@skeletons";

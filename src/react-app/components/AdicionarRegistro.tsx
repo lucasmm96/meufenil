@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Search, Plus, Star } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { useAuth } from "@/react-app/context/AuthContext";
@@ -38,8 +38,6 @@ export default function AdicionarRegistro({
   const registro = useCreateRegistro();
 
   const loading = registro.loading || referenciasLoading;
-
-  if (!ready || !usuarioAtivoId) return null;
 
   useEffect(() => {
     if (!timezone) return;
@@ -83,9 +81,7 @@ export default function AdicionarRegistro({
     };
   }, []);
 
-  const favoritos = useMemo(() => {
-    return referencias.filter((ref) => ref.is_favorita);
-  }, [referencias]);
+  if (!ready || !usuarioAtivoId) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

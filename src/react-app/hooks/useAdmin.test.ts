@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useAdmin } from "./useAdmin";
 import { AppError } from "@/react-app/lib/errors";
 import * as adminService from "@/react-app/services/admin.service";
+import type {
+  UsuarioAdminDTO,
+  EstatisticasAdminDTO,
+} from "@/react-app/services/dtos/admin.dto";
 
 /**
  * Mocks
@@ -40,16 +44,46 @@ describe("useAdmin", () => {
   });
 
   it("carrega dados completos quando usuário é admin", async () => {
-    const perfilAdmin = { id: usuarioId, role: "admin", email: "admin@test.com" };
-    const usuarios = [
-      { id: "1", role: "user" },
-      { id: "2", role: "admin" },
+    const perfilAdmin: UsuarioAdminDTO = {
+      id: usuarioId,
+      role: "admin",
+      email: "admin@test.com",
+      nome: "Admin Test",
+      limite_diario_mg: 0,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    const usuarios: UsuarioAdminDTO[] = [
+      {
+        id: "1",
+        role: "user",
+        email: "u1@test.com",
+        nome: "User 1",
+        limite_diario_mg: 0,
+        created_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "2",
+        role: "admin",
+        email: "u2@test.com",
+        nome: "User 2",
+        limite_diario_mg: 0,
+        created_at: "2026-01-01T00:00:00Z",
+      },
     ];
-    const estatisticas = { totalUsuarios: 2, admins: 1 };
+    const estatisticas: EstatisticasAdminDTO = {
+      usuarios: 2,
+      registros: 0,
+      referencias: { total: 0, globais: 0, personalizadas: 0 },
+      armazenamento: {
+        estimado_mb: 0,
+        limite_gratuito_mb: 500,
+        percentual_usado: 0,
+      },
+    };
 
-    (adminService.getPerfilAdmin as any).mockResolvedValue(perfilAdmin);
-    (adminService.getUsuariosAdmin as any).mockResolvedValue(usuarios);
-    (adminService.getEstatisticasAdmin as any).mockResolvedValue(estatisticas);
+    vi.mocked(adminService.getPerfilAdmin).mockResolvedValue(perfilAdmin);
+    vi.mocked(adminService.getUsuariosAdmin).mockResolvedValue(usuarios);
+    vi.mocked(adminService.getEstatisticasAdmin).mockResolvedValue(estatisticas);
 
     const { result } = renderHook(() => useAdmin(usuarioId));
 
@@ -64,9 +98,16 @@ describe("useAdmin", () => {
   });
 
   it("bloqueia dados administrativos quando usuário não é admin", async () => {
-    const perfilUser = { id: usuarioId, role: "user", email: "user@test.com" };
+    const perfilUser: UsuarioAdminDTO = {
+      id: usuarioId,
+      role: "user",
+      email: "user@test.com",
+      nome: "User Test",
+      limite_diario_mg: 0,
+      created_at: "2026-01-01T00:00:00Z",
+    };
 
-    (adminService.getPerfilAdmin as any).mockResolvedValue(perfilUser);
+    vi.mocked(adminService.getPerfilAdmin).mockResolvedValue(perfilUser);
 
     const { result } = renderHook(() => useAdmin(usuarioId));
 
@@ -82,7 +123,7 @@ describe("useAdmin", () => {
   it("define erro quando ocorre falha inesperada", async () => {
     const error = new Error("Falha crítica");
 
-    (adminService.getPerfilAdmin as any).mockRejectedValue(error);
+    vi.mocked(adminService.getPerfilAdmin).mockRejectedValue(error);
 
     const { result } = renderHook(() => useAdmin(usuarioId));
 
@@ -95,12 +136,29 @@ describe("useAdmin", () => {
   });
 
   it("toggleRole altera role e recarrega dados", async () => {
-    const perfilAdmin = { id: usuarioId, role: "admin" };
+    const perfilAdmin: UsuarioAdminDTO = {
+      id: usuarioId,
+      role: "admin",
+      email: "admin@test.com",
+      nome: "Admin Test",
+      limite_diario_mg: 0,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    const estatisticas: EstatisticasAdminDTO = {
+      usuarios: 0,
+      registros: 0,
+      referencias: { total: 0, globais: 0, personalizadas: 0 },
+      armazenamento: {
+        estimado_mb: 0,
+        limite_gratuito_mb: 500,
+        percentual_usado: 0,
+      },
+    };
 
-    (adminService.getPerfilAdmin as any).mockResolvedValue(perfilAdmin);
-    (adminService.getUsuariosAdmin as any).mockResolvedValue([]);
-    (adminService.getEstatisticasAdmin as any).mockResolvedValue(null);
-    (adminService.toggleRoleUsuario as any).mockResolvedValue(undefined);
+    vi.mocked(adminService.getPerfilAdmin).mockResolvedValue(perfilAdmin);
+    vi.mocked(adminService.getUsuariosAdmin).mockResolvedValue([]);
+    vi.mocked(adminService.getEstatisticasAdmin).mockResolvedValue(estatisticas);
+    vi.mocked(adminService.toggleRoleUsuario).mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useAdmin(usuarioId));
 

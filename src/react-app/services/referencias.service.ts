@@ -89,7 +89,7 @@ export async function getReferencias(
 
     const PAGE_SIZE = 1000;
     let from = 0;
-    let allData: any[] = [];
+    let allData: ReferenciaDTO[] = [];
 
     while (true) {
       const { data, error } = await baseQuery.range(from, from + PAGE_SIZE - 1);
@@ -154,7 +154,7 @@ export async function createReferencia(
     .single();
 
   if (error || !data) {
-    if ((error as any)?.code === "23505") {
+    if (error?.code === "23505") {
       throw new AppError(
         "REFERENCIA_DUPLICADA",
         "Já existe uma referência com esse nome."
@@ -220,7 +220,7 @@ export async function updateReferencia(referenciaId: string, nome: string, fenil
     .select();
 
   if (error) {
-    if ((error as any)?.code === "23505") {
+    if (error?.code === "23505") {
       throw new AppError(
         "REFERENCIA_DUPLICADA",
         "Já existe uma referência com esse nome."
@@ -260,11 +260,10 @@ export async function activateReferencia(id: string) {
 }
 
 export async function deleteOrDeactivateReferencia(id: string) {
-  const { data, error } = await supabase.rpc(
+  const { error } = await supabase.rpc(
     "remover_ou_desativar_referencia",
     { p_referencia_id: id }
   );
-
 
   if (error) {
     throw new AppError(

@@ -82,7 +82,7 @@ describeOrSkip("RPC: ativar_referencia (Abordagem B)", () => {
 
   // Teste do estado ATUAL (pré-migration)
   it("T2.0: ativar_referencia permite ativação por qualquer usuário (vulnerabilidade)", async () => {
-    const { data, error } = await otherClient.rpc("ativar_referencia", {
+    const { error } = await otherClient.rpc("ativar_referencia", {
       p_referencia_id: refOwnerInactive.id,
     });
 
