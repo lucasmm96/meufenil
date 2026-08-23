@@ -1,7 +1,7 @@
 # DEBT-0005 — Pendências de lint em src/ (57 erros pré-existentes)
 
 **Type:** DEBT
-**Status:** ACCEPTED
+**Status:** IMPLEMENTATION
 **Title:** Pendências de lint em src/ (57 erros pré-existentes)
 **Issue:** #26
 **Created on:** 2026-08-17
