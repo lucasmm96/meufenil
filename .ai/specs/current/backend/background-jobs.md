@@ -1,6 +1,6 @@
 # Background Jobs — Infraestrutura de execução
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-08-23 (DEBT-0006)
 **Código:** `src/shared/background-jobs.ts` (+ tipos em `src/react-app/services/dtos/background-jobs.dto.ts`)
 
 ## Propósito
@@ -22,14 +22,14 @@ Infraestrutura reutilizável para registrar execuções de rotinas em background
 
 1. **Início:** o produtor gera `runId` (`crypto.randomUUID()` no keepalive) e mede `startedAt` `[CONFIRMED: code]`.
 2. **Execução:** a rotina roda seu trabalho (no keepalive: ping ao banco) `[CONFIRMED: code]`.
-3. **Persistência:** `recordBackgroundJobExecution` insere a linha; erro no INSERT lança `Error(message)` para o chamador decidir o tratamento (o keepalive loga e não bloqueia) `[CONFIRMED: code — background-jobs.ts:34-37; api/keepalive.ts:168-175]`.
+3. **Persistência:** `recordBackgroundJobExecution` insere a linha; erro no INSERT lança `Error(message)` para o chamador decidir o tratamento (o keepalive loga e não bloqueia) `[CONFIRMED: code — background-jobs.ts:34-37; api/keepalive.ts]`. No keepalive, uma execução gera **uma linha por alvo** (prod e dev), cada uma no banco do próprio alvo, com o mesmo `run_id` `[CONFIRMED: code — api/keepalive.ts]`.
 4. **Status:** `success` | `failure` | `partial` — o keepalive usa apenas success/failure; `partial` existe no enum/contrato mas sem produtor atual que o use `[CONFIRMED: code]`.
 5. **Retenção:** trigger `trg_trim_background_job_executions` remove linhas com mais de 365 dias a cada INSERT `[CONFIRMED: migration — ../database/triggers.md]`.
 6. **Consulta:** painel admin lê via RLS admin-only (Fase 5) `[CONFIRMED: database, code]`.
 
 ## Environment
 
-- O campo `environment` da linha (`prod`/`dev`) é informado pelo produtor — no keepalive, deriva de `VERCEL_ENV` `[CONFIRMED: code]`.
+- O campo `environment` da linha (`prod`/`dev`) é informado pelo produtor — no keepalive, cada execução cobre os DOIS ambientes (uma linha por alvo, mesmo `run_id`) `[CONFIRMED: code — api/keepalive.ts]`.
 - No frontend, o rótulo vem de `VITE_APP_ENVIRONMENT`/`import.meta.env.DEV` (`src/react-app/lib/app-environment.ts`) — usado para exibição/consultas `[CONFIRMED: code]`.
 
 ## Erros e observabilidade

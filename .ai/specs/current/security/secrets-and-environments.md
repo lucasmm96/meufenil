@@ -1,6 +1,6 @@
 # Secrets e Ambientes — MeuFenil
 
-**Última verificação:** 2026-08-15 (DEBT-0003)
+**Última verificação:** 2026-08-23 (DEBT-0006)
 
 > ⚠️ Este documento registra SOMENTE nomes, finalidade, escopo e localização das variáveis. **Nenhum valor real de secret é documentado.**
 
@@ -36,11 +36,11 @@
 |---|---|---|
 | `VERCEL_ENV` | decide ambiente do keepalive (`production` → `prod`; caso contrário `dev`) | `api/keepalive.ts` |
 | `KEEPALIVE_SUPABASE_URL` / `KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY` | credenciais do alvo PROD (override explícito) | `api/keepalive.ts` |
-| `KEEPALIVE_DEV_SUPABASE_URL` / `KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY` | credenciais do alvo DEV | `api/keepalive.ts` |
+| `KEEPALIVE_DEV_SUPABASE_URL` / `KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY` | credenciais do alvo DEV — **obrigatórias, sem fallback** (DEBT-0006) | `api/keepalive.ts` |
 | `VITE_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | fallback (a rota aceita como fallback) | `api/keepalive.ts`, README.md |
 | `SUPABASE_URL` | fallback adicional na resolução | `api/keepalive.ts` |
 
-O keepalive conecta em UM banco por execução — o do ambiente resolvido por `VERCEL_ENV` (prod → `meufenil`; caso contrário → `meufenil-dev`) — usando service role, e grava a execução em `background_job_executions` do banco alvo `[CONFIRMED: code — api/keepalive.ts:46-72]`. (A descrição anterior de acesso aos DOIS ambientes era drift — corrigido pelo DEBT-0003, 2026-08-15.)
+O keepalive conecta nos DOIS bancos por execução (prod `meufenil` e dev `meufenil-dev`), usando service role, e grava uma linha em `background_job_executions` de cada banco com o mesmo `run_id` `[CONFIRMED: code — api/keepalive.ts]`. O alvo dev exige `KEEPALIVE_DEV_*` sem fallback (endurecido pelo DEBT-0006, 2026-08-23). (Histórico: entre 2026-08-11 e 2026-08-23 o código executava 1 alvo por execução — regressão `879a6c0` corrigida pelo DEBT-0006; o DEBT-0003, 2026-08-15, havia codificado o drift na documentação.)
 
 ### Edge Functions (Supabase/Deno — `Deno.env`)
 
@@ -77,7 +77,7 @@ O keepalive conecta em UM banco por execução — o do ambiente resolvido por `
 
 | Local | Modo de uso |
 |---|---|
-| `api/keepalive.ts` | service role para leitura de `usuarios` + escrita em `background_job_executions` no banco do ambiente da execução (1 alvo por execução) |
+| `api/keepalive.ts` | service role para leitura de `usuarios` + escrita em `background_job_executions` nos DOIS bancos por execução (prod e dev, mesmo `run_id`) |
 | `supabase/functions/delegar-acesso/index.ts` | validação de token (`auth.getUser`), escrita em `delegacoes_acesso`, consultas de `usuarios` (bypass de RLS) |
 | `supabase/functions/delete-account/index.ts` | exclusão de `registros`, `usuarios` e `auth.admin.deleteUser` |
 | `src/shared/security/*.test.ts` (+ `test-helpers.ts`) | criação de usuários de teste e validação com JWTs reais |

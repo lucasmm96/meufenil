@@ -43,32 +43,27 @@ function requireEnv(...names: string[]): string {
   throw new Error(`Missing environment variable: ${names.join(" or ")}`);
 }
 
-function resolveKeepaliveEnvironment(): "prod" | "dev" {
-  return process.env.VERCEL_ENV === "production" ? "prod" : "dev";
-}
-
-function resolveKeepaliveTarget(environment: "prod" | "dev"): KeepaliveTarget {
-  if (environment === "prod") {
-    return {
+function resolveKeepaliveTargets(): KeepaliveTarget[] {
+  return [
+    {
       label: "meufenil",
-      environment,
+      environment: "prod",
       url: requireEnv("KEEPALIVE_SUPABASE_URL", "VITE_SUPABASE_URL", "SUPABASE_URL"),
       serviceRoleKey: requireEnv(
         "KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY",
         "SUPABASE_SERVICE_ROLE_KEY"
       ),
-    };
-  }
-
-  return {
-    label: "meufenil-dev",
-    environment,
-    url: requireEnv("KEEPALIVE_DEV_SUPABASE_URL", "VITE_SUPABASE_URL", "SUPABASE_URL"),
-    serviceRoleKey: requireEnv(
-      "KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY",
-      "SUPABASE_SERVICE_ROLE_KEY"
-    ),
-  };
+    },
+    {
+      label: "meufenil-dev",
+      environment: "dev",
+      // DEBT-0006: o alvo dev exige as próprias variáveis, sem fallback para vars de
+      // produção — VITE_SUPABASE_URL/SUPABASE_URL apontam para o banco de prod e
+      // gravariam linhas environment='dev' no banco errado.
+      url: requireEnv("KEEPALIVE_DEV_SUPABASE_URL"),
+      serviceRoleKey: requireEnv("KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY"),
+    },
+  ];
 }
 
 function createSupabaseClient(url: string, serviceRoleKey: string) {
@@ -157,24 +152,69 @@ export default async function handler(req: KeepaliveRequest, res: KeepaliveRespo
 
     const startedAt = Date.now();
     const runId = crypto.randomUUID();
-    const environment = resolveKeepaliveEnvironment();
-    const target = resolveKeepaliveTarget(environment);
+    const targets = resolveKeepaliveTargets();
 
     console.info("[keepalive] run started");
 
-    const project = await pingProject(target);
-    const logClient = createSupabaseClient(target.url, target.serviceRoleKey);
+    const results = await Promise.allSettled(
+      targets.map((target) => pingProject(target))
+    );
+    const projects = results.map((result, index) => {
+      const fallbackTarget = targets[index];
+      const fallbackStartedAt = new Date(startedAt).toISOString();
+      const fallbackFinishedAt = new Date().toISOString();
 
-    try {
-      await persistProjectExecution(logClient, runId, project);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      if (result.status === "fulfilled") {
+        return result.value;
+      }
+
+      const errorMessage =
+        result.reason instanceof Error
+          ? result.reason.message
+          : String(result.reason);
+
       console.error(
-        `[keepalive] failed to persist ${project.environment} result: ${message}`
+        `[keepalive] failed ${fallbackTarget.label} before query: ${errorMessage}`
       );
-    }
 
-    const ok = project.ok;
+      return {
+        label: fallbackTarget.label,
+        environment: fallbackTarget.environment,
+        ok: false,
+        elapsedMs: 0,
+        startedAt: fallbackStartedAt,
+        finishedAt: fallbackFinishedAt,
+        error: errorMessage,
+      };
+    });
+
+    await Promise.all(
+      projects.map(async (project) => {
+        const target = targets.find(
+          (item) => item.environment === project.environment
+        );
+
+        if (!target) {
+          console.error(
+            `[keepalive] missing target for environment ${project.environment}`
+          );
+          return;
+        }
+
+        const logClient = createSupabaseClient(target.url, target.serviceRoleKey);
+
+        try {
+          await persistProjectExecution(logClient, runId, project);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(
+            `[keepalive] failed to persist ${project.environment} result: ${message}`
+          );
+        }
+      })
+    );
+
+    const ok = projects.every((project) => project.ok);
     const durationMs = Date.now() - startedAt;
 
     console.info(
@@ -189,7 +229,7 @@ export default async function handler(req: KeepaliveRequest, res: KeepaliveRespo
         ok,
         runId,
         durationMs,
-        projects: [project],
+        projects,
       })
     );
   } catch (error) {

@@ -33,8 +33,13 @@ function createResponse(): MockResponse {
   };
 }
 
-function prepareClient(result: { error: null } | { error: { message: string } }) {
-  const limitMock = vi.fn().mockResolvedValue(result);
+function prepareClient(
+  results: Array<{ error: null } | { error: { message: string } }>
+) {
+  const limitMock = vi.fn();
+  for (const result of results) {
+    limitMock.mockResolvedValueOnce(result);
+  }
   const selectMock = vi.fn(() => ({ limit: limitMock }));
   const fromMock = vi.fn(() => ({ select: selectMock }));
 
@@ -59,15 +64,27 @@ describe("keepalive handler", () => {
     delete process.env.KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.KEEPALIVE_DEV_SUPABASE_URL;
     delete process.env.KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.VITE_SUPABASE_URL;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   });
 
-  it("usa o ambiente de produção quando VERCEL_ENV é production", async () => {
-    process.env.VERCEL_ENV = "production";
+  function setProdEnv() {
     process.env.KEEPALIVE_SUPABASE_URL = "https://prod.example.supabase.co";
     process.env.KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY = "prod-key";
+  }
 
-    const { fromMock } = prepareClient({ error: null });
-    recordMock.mockResolvedValueOnce(undefined);
+  function setDevEnv() {
+    process.env.KEEPALIVE_DEV_SUPABASE_URL = "https://dev.example.supabase.co";
+    process.env.KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY = "dev-key";
+  }
+
+  it("pinga e persiste nos dois alvos (prod e dev) com o mesmo runId", async () => {
+    setProdEnv();
+    setDevEnv();
+
+    prepareClient([{ error: null }, { error: null }]);
+    recordMock.mockResolvedValue(undefined);
 
     const res = createResponse();
     await handler({ method: "GET" }, res);
@@ -79,83 +96,43 @@ describe("keepalive handler", () => {
         auth: { autoRefreshToken: false, persistSession: false },
       }),
     );
-    expect(fromMock).toHaveBeenCalledWith("usuarios");
-    expect(recordMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        jobKey: "keepalive",
-        environment: "prod",
-        status: "success",
-      }),
-    );
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual(
-      expect.objectContaining({
-        ok: true,
-        projects: [expect.objectContaining({ environment: "prod", ok: true })],
-      }),
-    );
-  });
-
-  it("usa o ambiente de desenvolvimento quando não está em produção", async () => {
-    process.env.VERCEL_ENV = "preview";
-    process.env.KEEPALIVE_DEV_SUPABASE_URL = "https://dev.example.supabase.co";
-    process.env.KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY = "dev-key";
-
-    const { fromMock } = prepareClient({ error: null });
-    recordMock.mockResolvedValueOnce(undefined);
-
-    const res = createResponse();
-    await handler({ method: "GET" }, res);
-
     expect(createClientMock).toHaveBeenCalledWith(
       "https://dev.example.supabase.co",
       "dev-key",
-      expect.any(Object),
-    );
-    expect(fromMock).toHaveBeenCalledWith("usuarios");
-    expect(recordMock).toHaveBeenCalledWith(
-      expect.anything(),
       expect.objectContaining({
-        environment: "dev",
-        status: "success",
+        auth: { autoRefreshToken: false, persistSession: false },
       }),
     );
-    expect(JSON.parse(res.body)).toEqual(
-      expect.objectContaining({
-        ok: true,
-        projects: [expect.objectContaining({ environment: "dev", ok: true })],
-      }),
-    );
-  });
 
-  it("não bloqueia o keepalive se a persistência do log falhar", async () => {
-    process.env.VERCEL_ENV = "production";
-    process.env.KEEPALIVE_SUPABASE_URL = "https://prod.example.supabase.co";
-    process.env.KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY = "prod-key";
+    const calls = recordMock.mock.calls.map(([, input]) => input);
+    const prodCall = calls.find((input) => input.environment === "prod");
+    const devCall = calls.find((input) => input.environment === "dev");
 
-    prepareClient({ error: null });
-    recordMock.mockRejectedValueOnce(new Error("persistência falhou"));
-
-    const res = createResponse();
-    await handler({ method: "GET" }, res);
+    expect(prodCall).toMatchObject({
+      jobKey: "keepalive",
+      environment: "prod",
+      status: "success",
+    });
+    expect(devCall).toMatchObject({
+      jobKey: "keepalive",
+      environment: "dev",
+      status: "success",
+    });
+    expect(prodCall.runId).toBe(devCall.runId);
 
     expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual(
-      expect.objectContaining({
-        ok: true,
-        projects: [expect.objectContaining({ environment: "prod", ok: true })],
-      }),
+    const body = JSON.parse(res.body);
+    expect(body.ok).toBe(true);
+    expect(body.projects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ environment: "prod", ok: true }),
+        expect.objectContaining({ environment: "dev", ok: true }),
+      ]),
     );
   });
 
-  it("retorna erro quando a leitura principal falha", async () => {
-    process.env.VERCEL_ENV = "production";
-    process.env.KEEPALIVE_SUPABASE_URL = "https://prod.example.supabase.co";
-    process.env.KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY = "prod-key";
-
-    prepareClient({ error: { message: "timeout" } });
-    recordMock.mockResolvedValueOnce(undefined);
+  it("retorna 500 com erro explícito quando as variáveis do alvo dev estão ausentes", async () => {
+    setProdEnv();
 
     const res = createResponse();
     await handler({ method: "GET" }, res);
@@ -164,8 +141,84 @@ describe("keepalive handler", () => {
     expect(JSON.parse(res.body)).toEqual(
       expect.objectContaining({
         ok: false,
-        projects: [expect.objectContaining({ ok: false, error: "timeout" })],
+        error: "Missing environment variable: KEEPALIVE_DEV_SUPABASE_URL",
       }),
     );
+    expect(recordMock).not.toHaveBeenCalled();
+  });
+
+  it("falha parcial: alvo dev falha, prod persiste; resposta 500", async () => {
+    setProdEnv();
+    setDevEnv();
+
+    prepareClient([{ error: null }, { error: { message: "timeout" } }]);
+    recordMock.mockResolvedValue(undefined);
+
+    const res = createResponse();
+    await handler({ method: "GET" }, res);
+
+    expect(res.statusCode).toBe(500);
+    const body = JSON.parse(res.body);
+    expect(body.ok).toBe(false);
+    expect(body.projects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ environment: "prod", ok: true }),
+        expect.objectContaining({ environment: "dev", ok: false, error: "timeout" }),
+      ]),
+    );
+
+    const calls = recordMock.mock.calls.map(([, input]) => input);
+    const prodCall = calls.find((input) => input.environment === "prod");
+    const devCall = calls.find((input) => input.environment === "dev");
+
+    expect(prodCall).toMatchObject({ status: "success" });
+    expect(devCall).toMatchObject({ status: "failure" });
+    expect(prodCall.runId).toBe(devCall.runId);
+  });
+
+  it("falha na persistência de um alvo não bloqueia a resposta", async () => {
+    setProdEnv();
+    setDevEnv();
+
+    prepareClient([{ error: null }, { error: null }]);
+    recordMock.mockRejectedValueOnce(new Error("persistência falhou"));
+    recordMock.mockResolvedValueOnce(undefined);
+
+    const res = createResponse();
+    await handler({ method: "GET" }, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual(
+      expect.objectContaining({
+        ok: true,
+        projects: [
+          expect.objectContaining({ environment: "prod", ok: true }),
+          expect.objectContaining({ environment: "dev", ok: true }),
+        ],
+      }),
+    );
+  });
+
+  it("todos os alvos falham → resposta 500 e persistência failure nos dois", async () => {
+    setProdEnv();
+    setDevEnv();
+
+    prepareClient([
+      { error: { message: "timeout" } },
+      { error: { message: "denied" } },
+    ]);
+    recordMock.mockResolvedValue(undefined);
+
+    const res = createResponse();
+    await handler({ method: "GET" }, res);
+
+    expect(res.statusCode).toBe(500);
+    const calls = recordMock.mock.calls.map(([, input]) => input);
+    expect(calls.find((input) => input.environment === "prod")).toMatchObject({
+      status: "failure",
+    });
+    expect(calls.find((input) => input.environment === "dev")).toMatchObject({
+      status: "failure",
+    });
   });
 });

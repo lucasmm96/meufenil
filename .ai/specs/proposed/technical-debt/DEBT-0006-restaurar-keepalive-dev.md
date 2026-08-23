@@ -1,10 +1,12 @@
 # DEBT-0006 — Restaurar keepalive do ambiente dev (regressão 879a6c0)
 
 **Type:** DEBT
-**Status:** PROPOSED
+**Status:** IMPLEMENTATION
 **Title:** Restaurar keepalive do ambiente dev (regressão 879a6c0)
 **Issue:** #40
 **Created on:** 2026-08-23
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-08-23
 
 ## Problem
 
@@ -18,14 +20,14 @@ O keepalive (Vercel Cron → `/api/keepalive`) deixou de registrar execuções n
 - **Antes de `879a6c0`** (até 2026-08-10), o handler pingava **os dois alvos em toda execução** (`targets = [meufenil (prod), meufenil-dev (dev)]` com `Promise.allSettled`), persistindo prod e dev com o mesmo `runId` `[CONFIRMED: git — api/keepalive.ts@879a6c0^]`.
 - **`879a6c0`** (2026-08-11, "feat(jobs): add environment-aware monitoring", incluído no release v1.6.0) trocou o multi-alvo por alvo único resolvido por `VERCEL_ENV` `[CONFIRMED: git — diff api/keepalive.ts]`.
 - A invocação do cron chega ao deployment de **produção** (`environment: production`, `branch: master` — logs Vercel 2026-08-23) `[CONFIRMED: logs do usuário]`; logo, `VERCEL_ENV=production` → o alvo dev é **inalcançável pelo cron** `[INFERRED — Basis: em execução de produção o código resolve sempre `prod`; a ausência de linhas dev desde 2026-08-11 corrobora que o cron não atinge o caminho dev]`.
-- Banco dev sem novas linhas em `background_job_executions` (`environment = 'dev'`) desde 2026-08-11 — mesmo dia do commit `[relato do usuário — draft 003; confirmação direta via consulta sugerida no AC-3]`.
+- Banco dev sem novas linhas em `background_job_executions` (`environment = 'dev'`) desde 2026-08-11 — mesmo dia do commit `[CONFIRMED: consulta direta via CLI local em 2026-08-23 — última linha dev em 2026-08-11T12:38:35, total de 6 linhas]`.
 - Sem commits em `api/keepalive.ts`, `src/shared/background-jobs.ts` ou `vercel.json` entre 2026-08-05 e 2026-08-20 `[CONFIRMED: git]`.
 - Env vars dev (`KEEPALIVE_DEV_SUPABASE_URL`/`KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY`) **existem e estão válidas** no painel Vercel `[CONFIRMED: usuário — 2026-08-23]` — elimina causa raiz de configuração de painel.
 - Documentação atual documenta "1 alvo por execução" como comportamento vigente (README corrigido pelo [DEBT-0003](../../archive/implemented/technical-debt/DEBT-0003-atualizar-readme.md) e `api-keepalive.md`) — ou seja, codifica a regressão como especificação `[CONFIRMED: docs — README.md, current/backend/api-keepalive.md]`.
 
 ## Proposed State
 
-O keepalive volta a manter **ambos os ambientes**: cada execução do cron (em produção) pinga e persiste em prod **e** dev, como no comportamento pré-`879a6c0`, com a documentação sincronizada e testes cobrindo o multi-alvo. A semântica de resposta e o mecanismo exato são decisão humana (ver **Decision** e **Open Questions**).
+O keepalive volta a manter **ambos os ambientes**: cada execução do cron (em produção) pinga e persiste em prod **e** dev, como no comportamento pré-`879a6c0`, com a documentação sincronizada e testes cobrindo o multi-alvo. Resposta `500` se qualquer alvo falhar (OQ-1); alvo dev com resolução endurecida (exige `KEEPALIVE_DEV_*`, sem fallback para vars de prod) — ver **Decision**.
 
 ## Motivation
 
@@ -83,7 +85,7 @@ Nenhuma.
 ## Risks
 
 - **Semântica de resposta com multi-alvo:** falha em um alvo deve ou não tornar a resposta 500? (comportamento pré-`879a6c0`: `ok = projects.every(...)` — 500 se qualquer alvo falhar) — decisão registrada em Open Questions.
-- **Fallback de env perigoso (latente):** se `KEEPALIVE_DEV_*` forem removidas no futuro, o fallback (`VITE_SUPABASE_URL`/`SUPABASE_URL`) aponta para **prod** — uma execução "dev" pingaria prod e gravaria `environment = 'dev'` no banco de produção `[CONFIRMED: code — api/keepalive.ts:66-71]`. Recomenda-se manter as vars dev preenchidas (estado atual) e, em implementação, considerar endurecer a resolução `[sugestão — decisão de implementação]`.
+- **Fallback de env perigoso (latente):** se `KEEPALIVE_DEV_*` forem removidas no futuro, o fallback (`VITE_SUPABASE_URL`/`SUPABASE_URL`) aponta para **prod** — uma execução "dev" pingaria prod e gravaria `environment = 'dev'` no banco de produção. **MITIGADO na aprovação (2026-08-23):** a resolução do alvo dev foi endurecida — exige `KEEPALIVE_DEV_*` (throw se ausentes), sem fallback para vars de prod; conseqüência: execuções em deployments sem as vars dev retornam `500` explícito em vez de poluir o banco errado.
 - **Projeto Supabase dev possivelmente inativo:** sem keepalive desde 2026-08-11, o projeto dev pode ter entrado em estado de pausa por inatividade; primeira execução pós-fix pode falhar até reativação manual `[ASSUMED]`.
 - **Exposição de secrets:** a execução em produção carrega as duas service role keys (prod e dev) — mesmo estado de exposição do período pré-`879a6c0`, sem agravamento `[CONFIRMED: code — api/keepalive.ts]`.
 
@@ -94,13 +96,13 @@ Nenhuma.
 3. **Disparo externo agendado (ex.: GitHub Actions / serviço externo) chamando a URL do deployment dev:** adiciona peça de infraestrutura fora da Vercel; o deployment dev precisa de URL estável.
 4. **Manter o status quo (1 alvo por execução):** dev permanece sem keepalive — contraria o objetivo da proposta (não recomendado).
 
-**Decision:** TBD — a escolha é humana. A direção indicada pelo usuário (Alternativa 1) deve ser registrada com **Approved by/on:** na aprovação.
+**Decision:** Alternativa 1 — multi-alvo por execução (restauração do comportamento pré-`879a6c0`, com endurecimento). Detalhes decididos na aprovação (2026-08-23): (i) OQ-1 → resposta `500` se qualquer alvo falhar (`projects.every`, comportamento pré-`879a6c0`); (ii) alvo dev exige `KEEPALIVE_DEV_SUPABASE_URL`/`KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY` sem fallback para vars de prod (Risks — endurecimento). **Approved by:** Lucas Martins Menezes · **Approved on:** 2026-08-23
 
 ## Open Questions
 
-1. **Semântica de resposta com multi-alvo:** com falha parcial (um alvo ok, outro não), a resposta deve ser 200, 500 ou com corpo indicando o estado por alvo? (pré-`879a6c0`: 500 se qualquer alvo falhar — `projects.every`)
-2. **Estado do projeto Supabase dev:** está ativo (não pausado por inatividade)? Verificação operacional pré-validação do AC-1.
-3. **Confirmação da observação:** consulta ao banco dev (`SELECT` em `background_job_executions` com `environment = 'dev'` e `started_at >= 2026-08-11`) para evidenciar formalmente a ausência de execuções — evidência forte para a Issue/PR.
+1. **Semântica de resposta com multi-alvo:** com falha parcial (um alvo ok, outro não), a resposta deve ser 200, 500 ou com corpo indicando o estado por alvo? **RESOLVIDA (2026-08-23, autor):** `500` se qualquer alvo falhar (`projects.every` — comportamento pré-`879a6c0`); persistência por alvo permanece independente da resposta (AC-4).
+2. **Estado do projeto Supabase dev:** está ativo (não pausado por inatividade)? **RESOLVIDA (2026-08-23):** projeto dev ATIVO — respondeu à consulta de leitura via CLI local (SELECT em `background_job_executions`), não está pausado.
+3. **Confirmação da observação:** consulta ao banco dev (`SELECT` em `background_job_executions` com `environment = 'dev'` e `started_at >= 2026-08-11`) para evidenciar formalmente a ausência de execuções — evidência forte para a Issue/PR. **RESOLVIDA (2026-08-23):** consulta direta confirma ausência desde `2026-08-11T12:38:35` (última linha dev; tabela dev com 6 linhas no total); prod continua com execuções regulares `success` (ex.: 2026-08-23T12:14, 2026-08-22) — evidência anexada à Issue/PR.
 
 ## Acceptance Criteria
 
