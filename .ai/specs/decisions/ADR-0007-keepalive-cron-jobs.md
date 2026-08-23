@@ -39,4 +39,4 @@ Não determinadas a partir das evidências disponíveis.
 ## Related Specs
 
 - [../current/backend/api-keepalive.md](../current/backend/api-keepalive.md), [../current/backend/background-jobs.md](../current/backend/background-jobs.md), [../current/database/background_job_executions.md](../current/database/background_job_executions.md), [../current/features/FEAT-0013-background-jobs.md](../current/features/FEAT-0013-background-jobs.md)
-- [DEBT-0006 — Restaurar keepalive do ambiente dev (regressão 879a6c0)](../../proposed/technical-debt/DEBT-0006-restaurar-keepalive-dev.md)
+- [DEBT-0006 — Restaurar keepalive do ambiente dev (regressão 879a6c0)](../../archive/implemented/technical-debt/DEBT-0006-restaurar-keepalive-dev.md)

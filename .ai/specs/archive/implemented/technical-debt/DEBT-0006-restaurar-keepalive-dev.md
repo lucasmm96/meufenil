@@ -1,12 +1,13 @@
 # DEBT-0006 — Restaurar keepalive do ambiente dev (regressão 879a6c0)
 
 **Type:** DEBT
-**Status:** IMPLEMENTATION
+**Status:** IMPLEMENTED
 **Title:** Restaurar keepalive do ambiente dev (regressão 879a6c0)
 **Issue:** #40
 **Created on:** 2026-08-23
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-08-23
+**Implemented Through:** `api/keepalive.ts` multi-alvo (prod+dev, mesmo runId; alvo dev endurecido) implementado em 2026-08-23 (merge PR #41 — commit `4ac65fa`) · specs atualizadas: `current/backend/api-keepalive.md`, `current/backend/background-jobs.md`, `current/features/FEAT-0013-background-jobs.md`, `current/security/secrets-and-environments.md`, `decisions/ADR-0007` (Consequence 1), `README.md` (seção "Keepalive diário")
 
 ## Problem
 
@@ -106,12 +107,12 @@ Nenhuma.
 
 ## Acceptance Criteria
 
-1. Cada execução do cron pinga e persiste em **prod e dev** — verificável por linhas em `background_job_executions` dos dois bancos com o mesmo `runId` por execução (comportamento pré-`879a6c0`).
-2. O banco dev volta a receber execuções regulares (`environment = 'dev'`, status `success`).
-3. Prod sem regressão: execuções continuam `success` e persistidas (`environment = 'prod'`), com a data/runId das execuções pós-fix registrados como evidência.
-4. Falha em um alvo não impede a persistência do outro; a resposta segue a semântica decidida na Open Question 1.
-5. `api/keepalive.test.ts` cobre o multi-alvo: sucesso em ambos, falha parcial, persistência por alvo.
-6. Documentação sincronizada no mesmo commit: README, `current/backend/api-keepalive.md`, `current/backend/background-jobs.md`, `current/security/secrets-and-environments.md`; ADR-0007 revisado conforme decisão.
+1. Cada execução do cron pinga e persiste em **prod e dev** — verificável por linhas em `background_job_executions` dos dois bancos com o mesmo `runId` por execução (comportamento pré-`879a6c0`). **Validação:** teste unitário "pinga e persiste nos dois alvos com o mesmo runId"; confirmação operacional no cron de 2026-08-24 12:00 UTC (pós-merge).
+2. O banco dev volta a receber execuções regulares (`environment = 'dev'`, status `success`). **Validação:** código corrigido + evidência de base (ausência desde 2026-08-11T12:38:35 confirmada por consulta); retomada observável no cron de 2026-08-24.
+3. Prod sem regressão: execuções continuam `success` e persistidas (`environment = 'prod'`), com a data/runId das execuções pós-fix registrados como evidência. **Validação:** evidência de base prod regular (2026-08-23T12:14, 2026-08-22, ...); runId pós-fix registrado no cron de 2026-08-24.
+4. Falha em um alvo não impede a persistência do outro; a resposta segue a semântica decidida na Open Question 1. **Validação:** testes "falha parcial" e "falha na persistência não bloqueia" (500 se qualquer alvo falhar).
+5. `api/keepalive.test.ts` cobre o multi-alvo: sucesso em ambos, falha parcial, persistência por alvo. **Validação:** 5 cenários implementados, 5/5 passando (suíte completa 324/324).
+6. Documentação sincronizada no mesmo commit: README, `current/backend/api-keepalive.md`, `current/backend/background-jobs.md`, `current/security/secrets-and-environments.md`; ADR-0007 revisado conforme decisão. **Validação:** commit `57c4d68`.
 
 ## References
 

@@ -62,7 +62,7 @@ Cada execução gera DUAS linhas — uma por alvo, no banco de cada alvo — com
 - E2 — Teste: `api/keepalive.test.ts` `[CONFIRMED: test]`
 - E3 — Cron e rewrite: `vercel.json` `[CONFIRMED: configuration]`
 - E4 — Histórico: `c9a385c` (implementação), `87aa0ff` (logging), `879a6c0` (regressão 1 alvo), `930de1b` (testes), DEBT-0006 (restauração multi-alvo) `[CONFIRMED: git history]`
-- E5 — Decisões DEBT-0006: OQ-1 (500 se qualquer alvo falhar) e endurecimento do alvo dev `[CONFIRMED: spec — proposed/technical-debt/DEBT-0006]`
+- E5 — Decisões DEBT-0006: OQ-1 (500 se qualquer alvo falhar) e endurecimento do alvo dev `[CONFIRMED: spec — archive/implemented/technical-debt/DEBT-0006]`
 
 ## Veja também
 
