@@ -1,12 +1,13 @@
 # DEBT-0005 — Pendências de lint em src/ (57 erros pré-existentes)
 
 **Type:** DEBT
-**Status:** IMPLEMENTATION
+**Status:** IMPLEMENTED
 **Title:** Pendências de lint em src/ (57 erros pré-existentes)
 **Issue:** #26
 **Created on:** 2026-08-17
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-08-23
+**Implemented Through:** 57 erros corrigidos em `src/` + W1 restaurado (`npm run lint` completo), implementado em 2026-08-23 (merge PR #42 — commit `9c583ceb`) · lint 0 errors e 324/324 testes; sem mudança de comportamento (tipagem, código morto, config) · nenhuma Current Spec afetada (REVIEW)
 
 ## Problem
 

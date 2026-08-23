@@ -45,7 +45,7 @@ describe('CI W1 (.github/workflows/ci.yml)', () => {
   it('DEBT-0005 concluída: lint completo restaurado no W1', () => {
     const w = read('.github/workflows/ci.yml')
     expect(w).not.toMatch(/npx eslint scripts\/spec-github/)
-    const debt = read('.ai/specs/proposed/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md')
+    const debt = read('.ai/specs/archive/implemented/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md')
     expect(debt).toMatch(/restaurar o passo `npm run lint` completo no W1/i)
     expect(debt).toMatch(/W1 executa `npm run lint` completo novamente/i)
   })
