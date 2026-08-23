@@ -27,11 +27,12 @@ export function ModalConcederAcesso({
       await onConceder(email);
       setEmail("");
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       // 🔎 tenta extrair erro real da API
+      const apiError = (err as { error?: string } | undefined)?.error;
       const message =
-        err?.error ||
-        err?.message ||
+        apiError ||
+        (err instanceof Error ? err.message : undefined) ||
         "Erro ao conceder acesso";
 
       setError(message);

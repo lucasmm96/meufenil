@@ -86,7 +86,7 @@ describe("dashboard.service", () => {
             Promise.resolve({ data: null, error: {} }),
         }),
       }),
-    } as any);
+    } as unknown as ReturnType<typeof supabase.from>);
 
     await expect(
       dashboardService.getDashboardData(userId)
@@ -100,7 +100,7 @@ describe("dashboard.service", () => {
       update: () => ({
         eq: updateMock,
       }),
-    } as any);
+    } as unknown as ReturnType<typeof supabase.from>);
 
     await dashboardService.updateConsentimentoLGPD(userId);
 
@@ -114,7 +114,7 @@ describe("dashboard.service", () => {
       update: () => ({
         eq: updateMock,
       }),
-    } as any);
+    } as unknown as ReturnType<typeof supabase.from>);
 
     await expect(
       dashboardService.updateConsentimentoLGPD(userId)

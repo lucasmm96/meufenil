@@ -40,6 +40,15 @@ export async function createRegistro(
   }
 }
 
+interface RegistroRow {
+  id: string;
+  data: string;
+  peso_g: number;
+  fenil_mg: number;
+  created_at: string;
+  referencias?: { nome: string } | { nome: string }[] | null;
+}
+
 export async function getRegistros(
   usuarioId: string,
   dataInicio?: string,
@@ -71,7 +80,7 @@ export async function getRegistros(
     );
   }
 
-  return (data ?? []).map((r: any) => {
+  return (data ?? []).map((r: RegistroRow) => {
     const referencia = Array.isArray(r.referencias)
       ? r.referencias[0]
       : r.referencias;

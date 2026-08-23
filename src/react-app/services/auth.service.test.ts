@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { AuthError } from "@supabase/supabase-js";
 import { logout } from "@/react-app/services/auth.service";
 import { AppError } from "@/react-app/lib/errors";
 
@@ -21,7 +22,7 @@ describe("logout", () => {
   });
 
   it("encerra a sessão com sucesso", async () => {
-    (supabase.auth.signOut as any).mockResolvedValue({ error: null });
+    vi.mocked(supabase.auth.signOut).mockResolvedValue({ error: null });
 
     await expect(logout()).resolves.toBeUndefined();
 
@@ -29,9 +30,9 @@ describe("logout", () => {
   });
 
   it("lança AppError quando o logout falhar", async () => {
-    const error = new Error("Erro Supabase");
+    const error = new AuthError("Erro Supabase");
 
-    (supabase.auth.signOut as any).mockResolvedValue({ error });
+    vi.mocked(supabase.auth.signOut).mockResolvedValue({ error });
 
     await expect(logout()).rejects.toBeInstanceOf(AppError);
 

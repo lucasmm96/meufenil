@@ -62,7 +62,9 @@ describe("useCreateRegistro hook", () => {
     await act(async () => {
       try {
         await result.current.create(params);
-      } catch (_) {}
+      } catch {
+        // erro esperado — o hook re-lança para o chamador
+      }
     });
 
     await waitFor(() => {
@@ -82,7 +84,9 @@ describe("useCreateRegistro hook", () => {
     await act(async () => {
       try {
         await result.current.create(params);
-      } catch (_) {}
+      } catch {
+        // erro esperado — o hook re-lança para o chamador
+      }
     });
 
     await waitFor(() => {
