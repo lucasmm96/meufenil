@@ -11,4 +11,5 @@ supabase/.branches/
 supabase/.temp/
 tsconfig.tsbuildinfo
 .ai/.temp/
+.ai/specs/proposed/draft/
 wiki/.wiki-state.json

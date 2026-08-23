@@ -16,7 +16,6 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import {
-  getAdminClient,
   getAnonClient,
   createTestUser,
   signInAsTestUser,
@@ -102,7 +101,7 @@ describeOrSkip("Validação de autenticação real (Abordagem B)", () => {
   it("AV.5: debug_allow_all — usuário comum vê múltiplos registros em usuarios", async () => {
     // Este teste CONFIRMA a vulnerabilidade atual
     // Após a migration, deve falhar (retornar apenas 1)
-    const { data, error, count } = await regularClient
+    const { error, count } = await regularClient
       .from("usuarios")
       .select("id", { count: "exact", head: false });
 
@@ -118,7 +117,7 @@ describeOrSkip("Validação de autenticação real (Abordagem B)", () => {
   });
 
   it("AV.6: admin vê todos os registros em usuarios", async () => {
-    const { data, error, count } = await adminClientAuth
+    const { error, count } = await adminClientAuth
       .from("usuarios")
       .select("id", { count: "exact", head: false });
 
@@ -129,7 +128,7 @@ describeOrSkip("Validação de autenticação real (Abordagem B)", () => {
   it("AV.7: usuário comum NÃO vê registro de outro usuário (RLS aplicado)", async () => {
     // Usuário regular tentando acessar o registro do admin por ID
     // APÓS a correção: deve retornar array vazio (RLS bloqueia)
-    const { data: regularSeesAdmin, error } = await regularClient
+    const { data: regularSeesAdmin } = await regularClient
       .from("usuarios")
       .select("id")
       .eq("id", adminUser.id);

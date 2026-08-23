@@ -1,10 +1,13 @@
 # DEBT-0005 — Pendências de lint em src/ (57 erros pré-existentes)
 
 **Type:** DEBT
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Pendências de lint em src/ (57 erros pré-existentes)
 **Issue:** #26
 **Created on:** 2026-08-17
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-08-23
+**Implemented Through:** 57 erros corrigidos em `src/` + W1 restaurado (`npm run lint` completo), implementado em 2026-08-23 (merge PR #42 — commit `9c583ceb`) · lint 0 errors e 324/324 testes; sem mudança de comportamento (tipagem, código morto, config) · nenhuma Current Spec afetada (REVIEW)
 
 ## Problem
 
@@ -69,11 +72,11 @@ Nenhuma
 
 - **A.** Corrigir os 57 erros e restaurar o lint completo no CI (proposta).
 - **B.** Manter o lint escopado indefinidamente (o CI nunca cobre `src/`).
-- **C.** Relaxar regras globalmente no `eslint.config.js` (reduz o valor do gate). **Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
+- **C.** Relaxar regras globalmente no `eslint.config.js` (reduz o valor do gate). **Decision:** Alternativa A — corrigir os 57 erros e restaurar o `npm run lint` completo no W1. **Approved by:** Lucas Martins Menezes · **Approved on:** 2026-08-23
 
 ## Open Questions
 
-- Hooks condicionais de `AdicionarRegistro.tsx`: reordenar os hooks (possível mudança de comportamento) ou manter com `eslint-disable` documentado até refactor maior?
+- Hooks condicionais de `AdicionarRegistro.tsx`: reordenar os hooks (possível mudança de comportamento) ou manter com `eslint-disable` documentado até refactor maior? **RESOLVIDA (2026-08-23, autor):** reordenar — mover o `return null` para depois de todos os hooks (effects têm guards internos); remover o `useMemo` de `favoritos` (código morto, nunca usado no JSX — `listaExibida = referencias`); validar comportamento com `AdicionarRegistro.test.tsx` e a suíte existente.
 
 ## Acceptance Criteria
 

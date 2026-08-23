@@ -11,7 +11,7 @@ export const TERMINAL_STATUSES = ['IMPLEMENTED', 'REJECTED', 'SUPERSEDED']
 const ID_RE = /^([A-Z]+-\d{4})-/
 
 function extractSection(text, name) {
-  const match = text.match(new RegExp(`## ${name}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n---\\s*\\n|$)`, 'm'))
+  const match = text.match(new RegExp(`## ${name}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n---\\s*\\n|$)`))
   if (!match) return null
   const content = match[1].trim()
   return content.length > 0 ? content : null

@@ -13,6 +13,12 @@ declare module "date-fns-tz" {
     date: string | Date,
     timeZone: string,
     formatStr: string,
-    options?: any
+    options?: {
+      locale?: unknown;
+      weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+      firstWeekContainsDate?: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+      useAdditionalDayOfYearTokens?: boolean;
+      useAdditionalWeekYearTokens?: boolean;
+    }
   ): string;
 }

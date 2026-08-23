@@ -2,7 +2,19 @@ import { supabase } from "@/react-app/lib/supabase";
 import { AppError } from "@/react-app/lib/errors";
 import { UsuarioDTO } from "./dtos/usuarios.dto";
 
-function mapUsuarioDTO(data: any): UsuarioDTO {
+type UsuarioRow = {
+  id: string;
+  nome: string | null;
+  email: string | null;
+  role: string;
+  limite_diario_mg: number;
+  timezone: string;
+  consentimento_lgpd_em: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapUsuarioDTO(data: UsuarioRow): UsuarioDTO {
   return {
     id: data.id,
     nome: data.nome,

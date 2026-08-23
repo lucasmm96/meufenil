@@ -8,6 +8,8 @@ import {
   revogarAcesso,
   assumirPerfil,
   sairDoPerfilAssumido,
+  type DelegacaoConcedida,
+  type DelegacaoRecebida,
 } from "@/react-app/services/delegacoesAcesso.service";
 
 const SESSION_KEY = "meufenil:login-as";
@@ -31,8 +33,8 @@ interface AuthContextType {
   isDelegado: boolean;
   owner: LoginAsSession["owner"] | null;
 
-  concedidos: any[];
-  recebidos: any[];
+  concedidos: DelegacaoConcedida[];
+  recebidos: DelegacaoRecebida[];
 
   carregarDelegacoes: () => Promise<void>;
   conceder: (email: string) => Promise<void>;
@@ -52,8 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [loginAs, setLoginAs] = useState<LoginAsSession | null>(null);
 
-  const [concedidos, setConcedidos] = useState<any[]>([]);
-  const [recebidos, setRecebidos] = useState<any[]>([]);
+  const [concedidos, setConcedidos] = useState<DelegacaoConcedida[]>([]);
+  const [recebidos, setRecebidos] = useState<DelegacaoRecebida[]>([]);
 
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

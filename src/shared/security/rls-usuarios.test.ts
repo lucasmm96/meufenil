@@ -13,7 +13,6 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import {
-  getAdminClient,
   createTestUser,
   signInAsTestUser,
   trackForCleanup,
@@ -52,7 +51,7 @@ describeOrSkip("RLS: usuarios (Abordagem B)", () => {
 
   // Testes do estado ATUAL (pré-migration): confirmam a vulnerabilidade
   it("T1.0: debug_allow_all — usuário comum vê múltiplos registros (vulnerabilidade)", async () => {
-    const { data, error, count } = await regularClient
+    const { error, count } = await regularClient
       .from("usuarios")
       .select("id", { count: "exact" });
 
@@ -67,7 +66,7 @@ describeOrSkip("RLS: usuarios (Abordagem B)", () => {
   });
 
   it("T1.0b: admin vê todos os registros (comportamento correto)", async () => {
-    const { data, error, count } = await adminAuthClient
+    const { error, count } = await adminAuthClient
       .from("usuarios")
       .select("id", { count: "exact" });
 

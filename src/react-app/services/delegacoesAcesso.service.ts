@@ -10,6 +10,26 @@ type DelegarAcessoRequest =
   | { acao: "assumir"; delegacao_id: string }
   | { acao: "sair" };
 
+export type DelegacaoConcedida = {
+  id: string;
+  created_at: string;
+  usuario_destino: {
+    id: string;
+    nome?: string;
+    email: string;
+  };
+};
+
+export type DelegacaoRecebida = {
+  id: string;
+  created_at: string;
+  usuario_origem: {
+    id: string;
+    nome?: string;
+    email: string;
+  };
+};
+
 export type AssumirPerfilResponse = {
   usuario_assumido_id: string;
   owner: {
@@ -51,7 +71,12 @@ async function callDelegarAcesso<T>(
  * API pública do service
  * ========================= */
 
-export async function listarDelegacoes(usuarioId: string) {
+export async function listarDelegacoes(
+  usuarioId: string,
+): Promise<{
+  concedidos: DelegacaoConcedida[];
+  recebidos: DelegacaoRecebida[];
+}> {
   const [concedidos, recebidos] = await Promise.all([
     supabase
       .from("delegacoes_acesso")
@@ -91,8 +116,10 @@ export async function listarDelegacoes(usuarioId: string) {
   }
 
   return {
-    concedidos: concedidos.data ?? [],
-    recebidos: recebidos.data ?? [],
+    // Supabase sem tipos gerados infere o embedding como array; o PostgREST
+    // retorna objeto (to-one via FK) — os consumidores acessam .usuario_destino.nome.
+    concedidos: (concedidos.data ?? []) as unknown as DelegacaoConcedida[],
+    recebidos: (recebidos.data ?? []) as unknown as DelegacaoRecebida[],
   };
 }
 

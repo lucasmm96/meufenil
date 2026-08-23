@@ -31,9 +31,11 @@ export function ConcederAcessoModal({
       await onConfirm(email.trim());
       setEmail("");
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       setError(
-        err?.message ?? "Erro ao conceder acesso. Tente novamente.",
+        err instanceof Error
+          ? err.message
+          : "Erro ao conceder acesso. Tente novamente.",
       );
     }
   };

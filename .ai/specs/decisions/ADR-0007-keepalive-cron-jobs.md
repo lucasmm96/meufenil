@@ -26,7 +26,7 @@ DOCUMENTED — README.md ("Keepalive diário" e "Infraestrutura de jobs") + comm
 
 ## Consequences (OBSERVED)
 
-1. Um alvo por execução (ambiente atual), apesar do README descrever acesso aos dois bancos — drift documentado `[CONFIRMED: code × documentation — Fase 4]`.
+1. Cada execução mantém os DOIS alvos (prod e dev) com o mesmo `run_id` — comportamento original, restaurado pelo DEBT-0006 (2026-08-23) após a regressão `879a6c0` (2026-08-11, release v1.6.0) ter limitado a 1 alvo por execução `[CONFIRMED: code — api/keepalive.ts; git]`.
 2. Falha de persistência não bloqueia a resposta do keepalive `[CONFIRMED: code]`.
 3. Leitura das execuções restrita a admins (RLS) `[CONFIRMED: database]`.
 4. Retenção automática de 365 dias a cada INSERT `[CONFIRMED: migration]`.
@@ -39,3 +39,4 @@ Não determinadas a partir das evidências disponíveis.
 ## Related Specs
 
 - [../current/backend/api-keepalive.md](../current/backend/api-keepalive.md), [../current/backend/background-jobs.md](../current/backend/background-jobs.md), [../current/database/background_job_executions.md](../current/database/background_job_executions.md), [../current/features/FEAT-0013-background-jobs.md](../current/features/FEAT-0013-background-jobs.md)
+- [DEBT-0006 — Restaurar keepalive do ambiente dev (regressão 879a6c0)](../../archive/implemented/technical-debt/DEBT-0006-restaurar-keepalive-dev.md)

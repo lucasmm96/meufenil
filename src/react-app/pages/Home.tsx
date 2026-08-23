@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Activity, Vegan, BarChart3, FileText, Shield, Heart, Linkedin, Mail } from "lucide-react";
+import { Activity, BarChart3, FileText, Shield, Heart, Linkedin, Mail } from "lucide-react";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useUser } from "@/react-app/hooks/useUser";
 

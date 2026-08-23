@@ -14,9 +14,11 @@
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
 | [ENH-0002](enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED | #21 | PRs #4/#5/#20 (autoria `lucasmm96`) — decisão do autor 2026-08-16 |
+| [ENH-0003](enhancements/ENH-0003-historico-execucoes-seletor-paginacao.md) | ENH | Histórico das execuções com seletor de tamanho de página e paginação numerada | PROPOSED | #39 | solicitação do usuário (2026-08-22) |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | #12 | Divergência Fase 5 |
 | [REF-0002](refactors/REF-0002-rpcs-orfas-dashboard.md) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | #13 | Fase 4; O-003 (análise 25) |
-| [DEBT-0005](technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | PROPOSED | #26 | CI W1 (PR #25, run 32089115404) — 2026-08-17 |
+| [DEBT-0005](../archive/implemented/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | IMPLEMENTED | #26 | lint verde + W1 restaurado (PR #42, merge `9c583ceb`) — 2026-08-23 |
+| [DEBT-0006](../archive/implemented/technical-debt/DEBT-0006-restaurar-keepalive-dev.md) | DEBT | Restaurar keepalive do ambiente dev (regressão 879a6c0) | IMPLEMENTED | #40 | multi-alvo restaurado (PR #41, merge `4ac65fa`) — 2026-08-23 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | #14 | Fatos Fase 3 |
 | [TEST-0002](testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | PROPOSED | #16 | GAP-007/012 |
 | [TEST-0003](testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED | #17 | GAP-005/006/008 |

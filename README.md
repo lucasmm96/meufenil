@@ -142,21 +142,23 @@ Caso o volume de usuários cresça a ponto de exigir planos pagos para manter a 
 
 Para evitar que o projeto gratuito do Supabase entre em estado de pausa por inatividade, a aplicação expõe uma rota interna em `/api/keepalive`.
 
-Essa rota é executada automaticamente pelo Vercel Cron uma vez por dia e faz uma leitura mínima na tabela `public.usuarios` do banco correspondente ao ambiente atual:
+Essa rota é executada automaticamente pelo Vercel Cron uma vez por dia e, em cada execução, faz uma leitura mínima na tabela `public.usuarios` dos **dois** bancos:
 
-- em desenvolvimento, lê o banco de dev
-- em produção, lê o banco de produção
+- banco de produção (label `meufenil`)
+- banco de dev (label `meufenil-dev`)
 
-Cada execução também persiste um histórico próprio na tabela `public.background_job_executions` do mesmo banco acessado.
+Cada execução também persiste um histórico próprio na tabela `public.background_job_executions` de cada banco acessado, com o mesmo `run_id` para os dois alvos.
 
-A rota usa automaticamente as credenciais do ambiente atual:
+As credenciais vêm de variáveis explícitas no painel da Vercel:
 
 ```env
-VITE_SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
+KEEPALIVE_SUPABASE_URL=...
+KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY=...
+KEEPALIVE_DEV_SUPABASE_URL=...
+KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-Se você já mantiver variáveis explícitas de keepalive no painel da Vercel, elas continuam funcionando como override, mas não são obrigatórias para o fluxo padrão.
+O alvo de produção aceita fallback para `VITE_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` (e `SUPABASE_URL`). O alvo de dev **exige** as próprias variáveis `KEEPALIVE_DEV_*` — sem fallback, para que uma falha de configuração nunca grave registros de "dev" no banco de produção.
 
 Horário do cron:
 
@@ -194,12 +196,14 @@ Monitoramento no painel administrativo:
 - a tela inclui filtros por job, status e período
 - o histórico fica paginado e protegido por RLS, visível apenas para administradores
 
-Para testar manualmente (cada execução acessa apenas o banco do ambiente resolvido — em execução local, `VERCEL_ENV` não é `production`, então o alvo é o banco de dev):
+Para testar manualmente (cada execução acessa os dois alvos — em execução local, aponte os dois pares de variáveis para o ambiente de teste):
 
 ```bash
 # carregue o arquivo do ambiente e crie aliases temporários para o keepalive
 set -a
 source .env.development
+export KEEPALIVE_SUPABASE_URL="$VITE_SUPABASE_URL"
+export KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
 export KEEPALIVE_DEV_SUPABASE_URL="$VITE_SUPABASE_URL"
 export KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
 set +a
@@ -208,9 +212,9 @@ vercel dev
 curl http://localhost:3000/api/keepalive
 ```
 
-Na Vercel (produção), o alvo é o banco de produção, com `KEEPALIVE_SUPABASE_URL`/`KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY` — ou o fallback automático já descrito acima.
+Na Vercel (produção), o alvo de produção usa `KEEPALIVE_SUPABASE_URL`/`KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY` (ou o fallback para `VITE_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`) e o alvo de dev usa `KEEPALIVE_DEV_SUPABASE_URL`/`KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY`.
 
-A resposta `200` indica que o banco-alvo foi acessado com sucesso. Se a leitura falhar, a rota retorna `500` e o payload indica o erro.
+A resposta `200` indica que os dois bancos foram acessados com sucesso. Se algum alvo falhar, a rota retorna `500` e o payload (`projects`) mostra qual banco apresentou erro — o alvo que funcionou é persistido mesmo assim.
 
 Para consultar o histórico:
 
