@@ -1,0 +1,45 @@
+# W7 — release-gate (Blueprint v1.1-final §18.1; ADR-0013): GATE determinístico
+# de produção — nenhuma feature vai a master sem Spec e documentação. Roda em
+# pull_request com base master (PR de release): 1) rastreabilidade §23 íntegra
+# (Spec existe, frontmatter Issue: bate, Issue existe, PR merged — Issue pode
+# estar aberta no pré-merge); 2) docs: release com FEAT/ENH exige diff em wiki/
+# desde a última release publicada. Determinístico, sem IA (IA apenas no modo
+# interativo, acionada pelo dev — ADR-0013).
+#
+# types inclui edited porque a tabela §23 vive no CORPO do PR — corrigir a
+# tabela reavalia o gate. NUNCA cria tag, NUNCA publica release, NUNCA faz push
+# (D-7/§12.2). Falha = check vermelho + comentário no PR (marker de dedup).
+# Recomendado: branch protection em master exigindo este check.
+name: release-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: release-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # fetch-depth: 0 — o diff de docs (wiki/) usa as tags de release anteriores.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Extrair corpo do PR
+        run: jq -r .pull_request.body "$GITHUB_EVENT_PATH" > /tmp/release-gate-body.md
+      - name: Gate de produção (Spec + Documentação)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/spec-github/release-gate.js --body-file /tmp/release-gate-body.md --pr ${{ github.event.pull_request.number }}
