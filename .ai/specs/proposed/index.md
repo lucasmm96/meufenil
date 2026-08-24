@@ -17,6 +17,7 @@
 | [ENH-0003](enhancements/ENH-0003-historico-execucoes-seletor-paginacao.md) | ENH | Histórico das execuções com seletor de tamanho de página e paginação numerada | PROPOSED | #39 | solicitação do usuário (2026-08-22) |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | #12 | Divergência Fase 5 |
 | [REF-0002](refactors/REF-0002-rpcs-orfas-dashboard.md) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | #13 | Fase 4; O-003 (análise 25) |
+| [REF-0003](refactors/REF-0003-fluxos-automaticos-deterministicos.md) | REF | Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação) | PROPOSED | — | decisão do autor 2026-08-24 (IA apenas manual) |
 | [DEBT-0005](../archive/implemented/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | IMPLEMENTED | #26 | lint verde + W1 restaurado (PR #42, merge `9c583ceb`) — 2026-08-23 |
 | [DEBT-0006](../archive/implemented/technical-debt/DEBT-0006-restaurar-keepalive-dev.md) | DEBT | Restaurar keepalive do ambiente dev (regressão 879a6c0) | IMPLEMENTED | #40 | multi-alvo restaurado (PR #41, merge `4ac65fa`) — 2026-08-23 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | #14 | Fatos Fase 3 |
