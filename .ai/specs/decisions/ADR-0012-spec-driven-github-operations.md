@@ -4,6 +4,8 @@
 **Origin:** DOCUMENTED
 **Data da decisão:** 2026-08-16
 
+> **Nota de revisão (2026-08-24):** os itens 8 (Issues externas) e 12 (Automação) foram revisados pela [ADR-0013](ADR-0013-fluxos-automaticos-deterministicos-sem-ia.md) — IA apenas no modo interativo; resposta estática de Issues externas (W3 `issue-responder`) e gate de produção (W7 `release-gate`). Texto original preservado.
+
 ## Context
 
 O MeuFenil é desenvolvido com abordagem Spec-Driven: o Specification System (`.ai/specs/`) registra Current State, Proposed State, ADRs e governança (CONVENTIONS.md). Até 2026-08-16, todo o trabalho era local: as 14 propostas de `proposed/` existiam apenas no repositório (0 Issues públicas, sem GitHub Project, sem CI — `[CONFIRMED: GitHub API, 2026-08-16]`), a regra vigente proibia commits/push automáticos (CLAUDE.md §12), e propostas concluídas permaneciam em `proposed/` com `Status: IMPLEMENTED` (CONVENTIONS §10). O autor do projeto decidiu evoluir o Specification System para um ecossistema operacional integrado ao GitHub (pedido de implementação de 2026-08-16; Blueprint `36`/`37-spec-driven-github-operations-blueprint-v1(.1).md`).

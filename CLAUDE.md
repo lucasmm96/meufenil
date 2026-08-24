@@ -44,6 +44,8 @@ Não comece editando código.
 
 ## 5. Workflows
 
+**Princípio (ADR-0013):** toda interação com IA é acionada MANUALMENTE pelo dev, no modo interativo (sessão local). Fluxos automáticos (GitHub Actions) são DETERMINÍSTICOS, sem IA: proibido `ANTHROPIC_API_KEY`, Claude Code Action ou `repository_dispatch` em automação. Issues externas recebem resposta estática (W3) e produção é protegida por gate (W7) — sem IA em nenhum dos dois.
+
 ### Nova feature
 
 ```
