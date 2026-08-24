@@ -274,7 +274,9 @@ PRs usam `Part of #N` / `Related to #N` — **NUNCA** `Closes #N` em Issue canô
 
 ### 18.7 Issues externas (open source)
 
-Issue externa = intake/discussão original — **preservada**, nunca apagada/substituída. Fluxo: análise → possível Proposed Spec → Issue canônica → Project → decisão humana → implementação. Relação explícita `External #N → SPEC-ID → Canonical #M` registrada nos dois Issues. Labels do fluxo: `triage` → `spec-created` / `duplicate` (fechamento operacional com comentário) / `not-planned` (decisão do mantenedor). A Issue externa sozinha nunca autoriza implementação.
+Issue externa = intake/discussão original — **preservada**, nunca apagada/substituída. Fluxo: triagem MANUAL do mantenedor → possível Proposed Spec → Issue canônica → Project → decisão humana → implementação. Relação explícita `External #N → SPEC-ID → Canonical #M` registrada nos dois Issues. Labels do fluxo: `triage` → `spec-created` / `duplicate` (fechamento operacional com comentário) / `not-planned` (decisão do mantenedor). A Issue externa sozinha nunca autoriza implementação.
+
+**Resposta automática (W3 `issue-responder`, ADR-0013):** ao abrir, a Issue externa recebe 1 comentário estático (marker `<!-- sync:issue-responder -->`, idempotente — `edited` não repete) + label `triage` (POST aditivo). **Nenhum fluxo automático decide elegibilidade, cria Spec ou aplica `spec-created` / `duplicate` / `not-planned`** — essas ações são humanas/interativas (IA apenas no modo interativo, acionada pelo dev — ADR-0013).
 
 ### 18.8 Merge e PR
 
@@ -284,7 +286,7 @@ O agente prepara PRs e nunca aprova o próprio PR. A aprovação humana do PR é
 
 O agente prepara: notas, changelog, tabela de rastreabilidade (Spec → Issue → PR → Release), branch/PR de release, Release DRAFT. **Criação de tag e criação/publicação de Release: confirmação humana explícita.** Alvo de release é registrado em GitHub Milestone.
 
-- Fluxo (Blueprint §12.1): proposta SEMVER + notas (release-manager invoca o especialista release-notes) → confirmação humana da versão → preparação (changelog, tabela, branch/PR de release, DRAFT) → aprovação humana do PR + tag/publicação → pós-publicação (milestone fechado; rastreabilidade verificada — W6 `release-verify`).
+- Fluxo (Blueprint §12.1): proposta SEMVER + notas (release-manager invoca o especialista release-notes) → confirmação humana da versão → preparação (changelog, tabela, branch/PR de release, DRAFT) → **gate de produção — W7 `release-gate`** (Spec + docs `wiki/` obrigatórios; ADR-0013) → aprovação humana do PR + tag/publicação → pós-publicação (milestone fechado; rastreabilidade verificada — W6 `release-verify`).
 - O corpo da Release inclui as notas no padrão histórico e a tabela de rastreabilidade com formato canônico (um item por Spec da release; `#N` auto-linka no GitHub):
 
 ```markdown
@@ -318,3 +320,4 @@ A matriz completa "uma informação, um lar" (Spec/Issue/Project/Código/PR/Rele
 |---|---|---|
 | 2026-08-13 | Aprovada (Fase 0 v2; consolidada na Fase 12) | Fases 0–12 |
 | 2026-08-16 | Ecossistema Spec-Driven GitHub Operations: camada GitHub (§1) · lifecycle refinado com campos de decisão e protocolo de descoberta (§8) · arquivamento de estados terminais (§10) · stop conditions operacionais (§13) · fronteiras operacionais (§14) · regras de Git — commits automáticos, push autorizado, branch model (§16) · lifecycle de `.ai/.temp` com retenção de 7 dias (§17) · nova seção GitHub Operations (§18) | ADR-0012 — Blueprint v1.1 (`36`/`37-spec-driven-github-operations-blueprint-v1(.1).md`), decisões do autor 2026-08-16 |
+| 2026-08-24 | Fluxos automáticos determinísticos sem IA: §18.7 resposta estática de Issues externas (W3 `issue-responder`, triagem manual — nenhum fluxo automático decide elegibilidade) · §18.9 gate de produção (W7 `release-gate` — Spec + docs `wiki/` obrigatórios) · IA apenas no modo interativo | ADR-0013 — REF-0003 (aprovada 2026-08-24) |

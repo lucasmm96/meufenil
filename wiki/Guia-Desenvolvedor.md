@@ -221,7 +221,7 @@ Apenas `delete-account` está declarada no `supabase/config.toml`; a configuraç
 
 ## Como contribuir
 
-1. **Abra uma issue** descrevendo o problema ou a melhoria (ou use uma proposta existente em `.ai/specs/proposed/`).
+1. **Abra uma issue** descrevendo o problema ou a melhoria (ou use uma proposta existente em `.ai/specs/proposed/`). Ao abrir, a issue recebe uma resposta automática informando que o mantenedor avaliará (label `triage`) — sem IA em fluxos automáticos (ADR-0013).
 2. Para mudanças de comportamento: siga o fluxo spec-driven (proposta → aprovação → feature spec → work branch). Nenhuma feature sem specification.
 3. **Convenções de branch:** `<tipo>/<id>-<slug>` (ex.: `feature/FEAT-0001-autenticacao`) a partir de `development`.
 4. **Testes:** toda mudança de comportamento precisa de testes apropriados; rode `npm run test:run` e os testes relevantes.
