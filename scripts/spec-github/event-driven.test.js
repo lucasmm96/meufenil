@@ -57,6 +57,12 @@ describe('W2 — spec-sync', () => {
       expect(read(`.github/workflows/${name}`)).not.toMatch(/^\s*if: .*secrets\./m)
     }
   })
+
+  it('secret de Projects é PROJECTS_TOKEN — o GitHub PROÍBE prefixo GITHUB_ em nomes de secret', () => {
+    const w = read('.github/workflows/spec-sync.yml')
+    expect(w).toMatch(/GITHUB_PROJECTS_TOKEN: \$\{\{ secrets\.PROJECTS_TOKEN \}\}/)
+    expect(w).not.toMatch(/secrets\.GITHUB_PROJECTS_TOKEN/)
+  })
 })
 
 describe('W4 — issue-reconcile', () => {
