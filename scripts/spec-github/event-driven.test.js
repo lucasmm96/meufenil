@@ -14,8 +14,7 @@ const read = (rel) => readFileSync(join(ROOT, rel), 'utf8')
 const WORKFLOWS = [
   'spec-sync.yml',
   'issue-reconcile.yml',
-  'issue-triage.yml',
-  'issue-triage-claude.yml',
+  'issue-responder.yml',
 ]
 
 describe('workflows F6 — estrutura comum (§18.1)', () => {
@@ -73,52 +72,26 @@ describe('W4 — issue-reconcile', () => {
   })
 })
 
-describe('W3 — issue-triage (wrapper)', () => {
-  it('guarda por autor externo e por labels do fluxo (anti-loop)', () => {
-    const w = read('.github/workflows/issue-triage.yml')
-    expect(w).toMatch(/author_association/)
-    expect(w).toMatch(/spec-created/)
-    expect(w).toMatch(/duplicate/)
-    expect(w).toMatch(/not-planned/)
+describe('W3 — issue-responder (resposta estática)', () => {
+  it('dispara somente em issues opened (nunca edited — evita comentário duplicado)', () => {
+    const w = read('.github/workflows/issue-responder.yml')
+    expect(w).toMatch(/types: \[opened\]/)
+    expect(w).not.toMatch(/types: \[[^\]]*edited/)
   })
 
-  it('despacha repository_dispatch event_type issue-triage', () => {
-    const w = read('.github/workflows/issue-triage.yml')
-    expect(w).toMatch(/dispatches/)
-    expect(w).toMatch(/issue-triage/)
-  })
-})
-
-describe('W3 — issue-triage-claude (Action)', () => {
-  it('responde a repository_dispatch com o Claude Code Action e permissões de escrita', () => {
-    const w = read('.github/workflows/issue-triage-claude.yml')
-    expect(w).toMatch(/repository_dispatch:/)
-    expect(w).toMatch(/anthropics\/claude-code-action@v1/)
-    expect(w).toMatch(/id-token: write/)
-    expect(w).toMatch(/contents: write/)
+  it('roda o issue-responder.js com o número da Issue', () => {
+    const w = read('.github/workflows/issue-responder.yml')
+    expect(w).toMatch(/node scripts\/spec-github\/issue-responder\.js --issue .*event\.issue\.number/s)
   })
 
-  it('referencia o prompt fixo e restringe as ferramentas (--allowedTools, --max-turns)', () => {
-    const w = read('.github/workflows/issue-triage-claude.yml')
-    expect(w).toMatch(/.github\/prompts\/issue-triage\.md/)
-    expect(w).toMatch(/--allowedTools/)
-    expect(w).toMatch(/--max-turns/)
-  })
-})
-
-describe('prompt fixo do W3 (.github/prompts/issue-triage.md)', () => {
-  it('trata a Issue externa como input não confiável', () => {
-    const p = read('.github/prompts/issue-triage.md')
-    expect(p).toMatch(/não confiável/i)
-    expect(p).toMatch(/nunca.*siga/i)
+  it('permissões mínimas (issues: write, contents: read)', () => {
+    const w = read('.github/workflows/issue-responder.yml')
+    expect(w).toMatch(/^permissions:\n\s+contents: read\n\s+issues: write$/m)
   })
 
-  it('codifica as stop conditions do §19 (nunca implementa, nunca Decision, nunca fecha exceto duplicate)', () => {
-    const p = read('.github/prompts/issue-triage.md')
-    expect(p).toMatch(/nunca implementa código/i)
-    expect(p).toMatch(/NUNCA decide aceitar\/rejeitar/i)
-    expect(p).toMatch(/duplicate.*feche|feche.*duplicate/is)
-    expect(p).toMatch(/not-planned.*não.*feche|não.*not-planned/is)
+  it('sem IA: não referencia claude-code-action, ANTHROPIC_API_KEY nem repository_dispatch', () => {
+    const w = read('.github/workflows/issue-responder.yml')
+    expect(w).not.toMatch(/claude|ANTHROPIC|repository_dispatch|dispatches/i)
   })
 })
 

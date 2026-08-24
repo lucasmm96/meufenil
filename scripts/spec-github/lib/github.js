@@ -88,6 +88,16 @@ export class GitHubClient {
     return this.request('PUT', `/repos/${this.owner}/${this.repo}/issues/${number}/labels`, { labels })
   }
 
+  /** Adiciona labels ao Issue (POST aditivo — não substitui o conjunto atual). */
+  addLabels(number, labels) {
+    return this.request('POST', `/repos/${this.owner}/${this.repo}/issues/${number}/labels`, { labels })
+  }
+
+  /** Atualiza um comentário existente (PATCH) — update-in-place de comentários com marker. */
+  updateComment(commentId, body) {
+    return this.request('PATCH', `/repos/${this.owner}/${this.repo}/issues/comments/${commentId}`, { body })
+  }
+
   /** Lista comentários do Issue (mais recentes por último). */
   listComments(number) {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/issues/${number}/comments?per_page=100`)
