@@ -3,7 +3,7 @@
 **Type:** REF
 **Status:** PROPOSED
 **Title:** Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação)
-**Issue:** —
+**Issue:** #44
 **Created on:** 2026-08-24
 
 ## Problem
