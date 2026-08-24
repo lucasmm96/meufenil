@@ -1,12 +1,13 @@
 # REF-0003 — Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação)
 
 **Type:** REF
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação)
 **Issue:** #44
 **Created on:** 2026-08-24
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-08-24
+**Implemented Through:** Implementado em 2026-08-24 (merge PR #45 — commit `b7090d4`): W3 `issue-responder` (resposta estática de Issues externas + label `triage`, sem IA) · W7 `release-gate` (gate de produção — Spec + docs `wiki/` obrigatórios) · ADR-0013 (IA apenas no modo interativo; secret `PROJECTS_TOKEN` mapeado) · 366 testes verdes, lint 0 erros, build OK · smoke do gate validado (PASS/FAIL/FAIL) · Project sincronizado (item #44)
 
 ## Problem
 
