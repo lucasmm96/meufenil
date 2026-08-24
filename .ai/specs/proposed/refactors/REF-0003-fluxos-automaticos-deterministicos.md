@@ -1,10 +1,12 @@
 # REF-0003 — Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação)
 
 **Type:** REF
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação)
 **Issue:** #44
 **Created on:** 2026-08-24
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-08-24
 
 ## Problem
 
@@ -80,7 +82,7 @@ Nenhuma.
 - **C — Gate sem exigência de documentação:** deixaria o objetivo ("feature só vai a produção com spec E documentação") incompleto; rejeitada.
 - **D — Emendar ADR-0012 in-place (reescrever itens 8/12):** falsifica o registro histórico; sem precedente em `decisions/`; rejeitada — ADR novo + nota de revisão.
 
-**Decision:** TBD — escolha humana obrigatória para ACCEPTED/IMPLEMENTED.
+**Decision:** A — fluxos automáticos determinísticos sem IA, resposta estática de Issues externas e gate de produção (ver Approved by/on no header).
 
 ## Open Questions
 
