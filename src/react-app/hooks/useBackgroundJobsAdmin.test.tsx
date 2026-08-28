@@ -8,7 +8,7 @@ vi.mock("@/react-app/services/background-jobs.service", () => ({
   getBackgroundJobExecutions: vi.fn(),
   getBackgroundJobOverview: vi.fn(),
   getDefaultBackgroundJobsOverviewLimit: vi.fn(() => 240),
-  getDefaultBackgroundJobsPageSize: vi.fn(() => 20),
+  getDefaultBackgroundJobsPageSize: vi.fn(() => 3),
   getDefaultBackgroundJobsPeriodDays: vi.fn(() => 30),
 }));
 
@@ -75,7 +75,7 @@ describe("useBackgroundJobsAdmin", () => {
       items: executions,
       total: 40,
       page: 1,
-      pageSize: 20,
+      pageSize: 3,
     });
 
     const { result } = renderHook(() => useBackgroundJobsAdmin("user-1", true));
@@ -85,7 +85,7 @@ describe("useBackgroundJobsAdmin", () => {
     expect(result.current.overview).toEqual(overview);
     expect(result.current.executions).toEqual(executions);
     expect(result.current.total).toBe(40);
-    expect(result.current.totalPages).toBe(2);
+    expect(result.current.totalPages).toBe(14);
 
     await act(async () => {
       result.current.setPage(2);
@@ -100,6 +100,37 @@ describe("useBackgroundJobsAdmin", () => {
     await waitFor(() => expect(result.current.page).toBe(1));
     expect(backgroundJobsService.getBackgroundJobOverview).toHaveBeenCalled();
     expect(backgroundJobsService.getBackgroundJobExecutions).toHaveBeenCalled();
+  });
+
+  it("troca o tamanho de página, reseta para a página 1 e refaz a consulta com o novo range", async () => {
+    (backgroundJobsService.getBackgroundJobOverview as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(overview);
+    (backgroundJobsService.getBackgroundJobExecutions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items: executions,
+      total: 40,
+      page: 1,
+      pageSize: 3,
+    });
+
+    const { result } = renderHook(() => useBackgroundJobsAdmin("user-1", true));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      result.current.setPage(2);
+    });
+    await waitFor(() => expect(result.current.page).toBe(2));
+
+    await act(async () => {
+      result.current.setPageSize(10);
+    });
+
+    await waitFor(() => expect(result.current.pageSize).toBe(10));
+    expect(result.current.page).toBe(1);
+    expect(backgroundJobsService.getBackgroundJobExecutions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ jobKey: "keepalive" }),
+      1,
+      10,
+    );
   });
 
   it("normaliza falhas inesperadas em AppError", async () => {

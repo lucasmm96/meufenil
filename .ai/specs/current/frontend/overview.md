@@ -31,7 +31,7 @@ flowchart TB
 ```
 
 - **pages/ (9)** — composição de componentes + hooks; contém estado de UI local (modais, filtros temporários) `[CONFIRMED: code]`.
-- **components/ (5 + 5 login-as)** — reutilizáveis: `Layout`, `AdicionarRegistro`, `ModalReferencia`, `ConsentimentoLGPD` + suíte `login-as/` `[CONFIRMED: filesystem]`.
+- **components/ (6 + 5 login-as)** — reutilizáveis: `Layout`, `AdicionarRegistro`, `ModalReferencia`, `ModalMensagemExecucao`, `ConsentimentoLGPD` + suíte `login-as/` `[CONFIRMED: filesystem]`.
 - **hooks/ (14)** — padrão dominante: **1 hook de dados por página**, assinatura `useX(usuarioId?)`, retorno `{ data, loading, error, ações }`; usam `useState/useCallback/useEffect` com `logger.error` em catch (sem exibição de erro ao usuário) `[CONFIRMED: code]`.
 - **services/ (12)** — funções `export async function` finas sobre `supabase-js` (anon), mapeando snake_case (DB) → camelCase (DTO); erros via `AppError` com código simbólico + mensagem pt-BR `[CONFIRMED: code — ../backend/overview.md classifica como client-side]`.
 - **dtos/ (6)** — interfaces de saída (ver seção DTOs) `[CONFIRMED: filesystem]`.
@@ -119,7 +119,7 @@ Usa apenas breakpoints default do Tailwind; padrões recorrentes: colunas `grid-
 - HTML semântico: `table/thead/th/tbody`, `dl/dt/dd` (Admin), `section`, hierarquia h1–h5, `nav` `[CONFIRMED: code]`.
 - `title` em botões de ícone (paginação, limpar busca, badges) `[CONFIRMED: code]`.
 - Estados `disabled` com feedback visual `[CONFIRMED: code]`.
-- **Não existe:** nenhum `aria-*`, `role=`, focus trap em modais, teclado customizado (exceto ESC para fechar dropdown em AdicionarRegistro) `[CONFIRMED: ausência — grep 2026-08-13]`. Sem declaração de conformidade WCAG `[CONFIRMED: ausência]`.
+- **Não existe:** `role=`, focus trap em modais, teclado customizado (exceto ESC para fechar dropdown em AdicionarRegistro) `[CONFIRMED: ausência — grep 2026-08-13]`. Único `aria-*` do app: `aria-label="Fechar"` no `ModalMensagemExecucao` (ENH-0003, 2026-08-27) `[CONFIRMED: code]`. Sem declaração de conformidade WCAG `[CONFIRMED: ausência]`.
 
 ## PWA
 

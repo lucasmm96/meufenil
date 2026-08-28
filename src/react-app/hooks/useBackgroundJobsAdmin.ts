@@ -36,7 +36,7 @@ export function useBackgroundJobsAdmin(
     periodDays: getDefaultBackgroundJobsPeriodDays(),
   });
 
-  const pageSize = getDefaultBackgroundJobsPageSize();
+  const [pageSize, setPageSizeState] = useState(getDefaultBackgroundJobsPageSize());
   const overviewLimit = getDefaultBackgroundJobsOverviewLimit();
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
@@ -105,6 +105,11 @@ export function useBackgroundJobsAdmin(
     setPage(1);
   }, []);
 
+  const setPageSize = useCallback((newSize: number) => {
+    setPageSizeState(newSize);
+    setPage(1);
+  }, []);
+
   const reload = useCallback(() => {
     return load();
   }, [load]);
@@ -121,6 +126,7 @@ export function useBackgroundJobsAdmin(
     filters,
     setFilters: updateFilters,
     setPage,
+    setPageSize,
     reload,
   };
 }
