@@ -3,7 +3,7 @@
 **Type:** ENH
 **Status:** IMPLEMENTED (2026-08-27 — PR #47 merge `bbda6a1`; decisão formal registrada abaixo)
 **Implemented Through:** PR #47 (merge `856ce92`, 2026-08-27) · DEFAULT_PAGE_SIZE 20→3 (`background-jobs.service.ts:26`); `pageSize` como estado gerenciável no hook com reset de página 1 (`useBackgroundJobsAdmin.ts:39,108-111`); seletor 3/10/20 no rodapé do Histórico (`Admin.tsx:566-577`); contador dinâmico singular/plural (`Admin.tsx:45-47`); botão "Ver mensagem" na coluna + `ModalMensagemExecucao` (`Admin.tsx:494-505,629-634`); paginação numerada removida por decisão do usuário (2026-08-27); ACs 1–7 validadas com evidência; specs sincronizadas no mesmo commit
-**Issue:** #39
+Issue: #39
 **Title:** Histórico das execuções com seletor de tamanho de página
 **Created on:** 2026-08-22
 
