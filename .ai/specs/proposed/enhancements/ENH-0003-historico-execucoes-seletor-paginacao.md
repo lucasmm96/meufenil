@@ -1,8 +1,9 @@
-# ENH-0003 — Histórico das execuções com seletor de tamanho de página e paginação numerada
+# ENH-0003 — Histórico das execuções com seletor de tamanho de página
 
 **Type:** ENH
-**Status:** PROPOSED
-**Title:** Histórico das execuções com seletor de tamanho de página e paginação numerada
+**Status:** IMPLEMENTED (2026-08-26 — implementado via solicitação explícita; Decision formal ainda TBD na proposta original; código atualizado em `development`; refinamentos de layout em 2026-08-27: contador dinâmico singular/plural, paginação movida para o rodapé da lista, coluna "Mensagem" substituída por botão "Ver mensagem" + modal `ModalMensagemExecucao`; paginação numerada removida por decisão do usuário — navegação por Anterior/Próxima + "Página X de Y" no rodapé)
+**Implemented Through:** PR ainda não criada (aguardando autorização de push/PR — Passo 4)
+**Title:** Histórico das execuções com seletor de tamanho de página
 **Issue:** #39
 **Created on:** 2026-08-22
 
@@ -25,8 +26,8 @@ No painel administrativo, a lista "Histórico das execuções" carrega por padr�
 ## Proposed State
 
 - **Seletor de tamanho de página (3 / 10 / 20)** no "Histórico das execuções", com **default 3** — a página inicial mostra as 3 (ou N selecionadas) execuções mais recentes do conjunto **filtrado** (ordem `started_at DESC`, filtros Job/Status/Período vigentes).
-- **Paginação numerada** (números de página com estratégia de elisão para listas longas, ex.: `1 … 5 6 7 … 122`) **além** de Anterior/Próxima.
-- Troca de filtro reseta para a página 1 (comportamento já existente — `useBackgroundJobsAdmin.ts:103-106`); o page size selecionado permanece durante a sessão. Não há persistência da preferência entre sessões — decisão do usuário (2026-08-22): default 3 a cada carregamento (ver Q5).
+- **Navegação Anterior/Próxima** no rodapé da lista (linha única em 3 zonas: "Página {page} de {totalPages}" à esquerda, botões centralizados, seletor à direita). A **paginação numerada** prevista na proposta original foi **removida por decisão do usuário (2026-08-27)** — ver AC3 e Decisão registrada.
+- Troca de filtro reseta para a página 1 (comportamento já existente — `useBackgroundJobsAdmin.ts:103-106`); troca de page size também reseta para a página 1; o page size selecionado permanece durante a sessão. Não há persistência da preferência entre sessões — decisão do usuário (2026-08-22): default 3 a cada carregamento (ver Q5).
 - Nenhuma mudança em banco, RLS, RPC ou backend — a paginação continua server-side via PostgREST (`.range` + `count`).
 
 ## Motivation
@@ -98,7 +99,7 @@ No painel administrativo, a lista "Histórico das execuções" carrega por padr�
 - **C. "Mostrar 3 e botão Ver mais"** (carregamento incremental no cliente) — diverge do modelo server-side atual; **não escolhida**: mais complexa e fora do padrão existente.
 - **D. Seletor de page size (3 / 10 / 20)** — **escolhida** (2026-08-22): flexibilidade para leitura rápida (3) e exploração profunda (20); default 3 atende o pedido original.
 
-**Decisão registrada (2026-08-22, usuário):** combinação **B + D** — seletor 3/10/20 com default 3, paginação numerada, filtros respeitados, escopo restrito ao "Histórico das execuções".
+**Decisão registrada (2026-08-22, usuário):** combinação **B + D** — seletor 3/10/20 com default 3, paginação numerada, filtros respeitados, escopo restrito ao "Histórico das execuções". **Refinamento (2026-08-27, usuário):** a paginação numerada (Alternativa B) foi removida após avaliação da implementação — navegação mantida por Anterior/Próxima + indicador "Página X de Y" no rodapé; paginação numerada pode voltar como proposta futura se a lista crescer além do confortável.
 **Decision:** TBD — a aprovação formal (ACCEPTED, com **Approved by:** e **Approved on:**) permanece pendente e é registrada no fluxo orquestrado; a decisão de design acima não substitui o campo formal de decisão da proposta.
 
 ## Open Questions
@@ -113,13 +114,13 @@ Todas as questões resolvidas (2026-08-22) — nenhuma pendência em aberto para
 
 ## Acceptance Criteria
 
-- [ ] AC1: seletor de page size com opções 3/10/20 visível no "Histórico das execuções"; default 3 ao carregar a página.
-- [ ] AC2: a lista exibe no máximo N execuções (N = seleção), ordenadas por `started_at DESC`, do conjunto filtrado vigente (job/status/período).
-- [ ] AC3: paginação numerada (com elisão quando `totalPages` for grande) + Anterior/Próxima; é possível navegar até a última página e voltar; header "Página {page} de {totalPages}" reflete a contagem correta.
-- [ ] AC4: trocar filtro reseta para a página 1; trocar page size também reseta para a página 1 e dispara refetch com o novo range; page size selecionado permanece durante a sessão.
-- [ ] AC5: nenhuma mudança em banco/RLS/RPC/backend — a consulta permanece server-side (`.range` + `count: "exact"`) com `environment = CURRENT_APP_ENVIRONMENT`.
-- [ ] AC6: testes atualizados (mocks com page size default 3) e novos (seletor, paginação numerada/elisão, reset de página) com suíte completa verde; specs `admin.md`/FEAT-0012 sincronizadas no mesmo commit.
-- [ ] AC7: comportamento responsivo mantido — seletor e paginação numerada funcionais em mobile (cards) e desktop (tabela); painel de detalhes continua selecionando a execução mais recente da página.
+- [x] AC1: seletor de page size com opções 3/10/20 visível no "Histórico das execuções"; default 3 ao carregar a página.
+- [x] AC2: a lista exibe no máximo N execuções (N = seleção), ordenadas por `started_at DESC`, do conjunto filtrado vigente (job/status/período).
+- [x] AC3: Anterior/Próxima; é possível navegar até a última página e voltar; "Página {page} de {totalPages}" no rodapé reflete a contagem correta. A paginação numerada original desta AC foi removida por decisão do usuário (refinamento 2026-08-27).
+- [x] AC4: trocar filtro reseta para a página 1; trocar page size também reseta para a página 1 e dispara refetch com o novo range; page size selecionado permanece durante a sessão.
+- [x] AC5: nenhuma mudança em banco/RLS/RPC/backend — a consulta permanece server-side (`.range` + `count: "exact"`) com `environment = CURRENT_APP_ENVIRONMENT`.
+- [x] AC6: testes atualizados (mocks com page size default 3) e novos (seletor, contador dinâmico, modal de mensagem, reset de página) com suíte completa verde; specs `admin.md`/FEAT-0012 sincronizadas no mesmo commit.
+- [x] AC7: comportamento responsivo mantido — seletor e paginação numerada funcionais em mobile (cards) e desktop (tabela); painel de detalhes continua selecionando a execução mais recente da página.
 
 ## References
 

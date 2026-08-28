@@ -23,7 +23,7 @@ const QUERY_FIELDS = `
   created_at
 `;
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 3;
 const DEFAULT_OVERVIEW_LIMIT = 240;
 const DEFAULT_PERIOD_DAYS = 30;
 
