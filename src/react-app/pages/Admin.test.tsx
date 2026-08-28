@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Admin from "./Admin";
 
@@ -121,7 +121,7 @@ describe("Admin page", () => {
       ],
       total: 1,
       page: 1,
-      pageSize: 20,
+      pageSize: 3,
       totalPages: 1,
       filters: {
         jobKey: "keepalive",
@@ -130,6 +130,7 @@ describe("Admin page", () => {
       },
       setFilters: vi.fn(),
       setPage: vi.fn(),
+      setPageSize: vi.fn(),
       reload: vi.fn(),
     });
 
@@ -143,5 +144,108 @@ describe("Admin page", () => {
     await waitFor(() => {
       expect(screen.getByText("Detalhes da execução")).toBeTruthy();
     });
+
+    expect(screen.getByText("1 execução encontrada.")).toBeTruthy();
+    expect(screen.getByText("Página 1 de 1")).toBeTruthy();
+    expect(screen.getByText("Ver mensagem")).toBeTruthy();
+  });
+
+  function jobsAdminMock(overrides: Record<string, unknown> = {}) {
+    return {
+      loading: false,
+      error: null,
+      overview: [],
+      executions: [
+        {
+          id: "1",
+          run_id: "run-1",
+          job_key: "keepalive",
+          environment: "dev",
+          status: "success",
+          started_at: "2026-08-10T12:00:00.000Z",
+          finished_at: "2026-08-10T12:00:01.000Z",
+          duration_ms: 1000,
+          message: "ok",
+          details: { target: "meufenil-dev" },
+          created_at: "2026-08-10T12:00:01.500Z",
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 3,
+      totalPages: 1,
+      filters: {
+        jobKey: "keepalive",
+        status: "all",
+        periodDays: 30,
+      },
+      setFilters: vi.fn(),
+      setPage: vi.fn(),
+      setPageSize: vi.fn(),
+      reload: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it("pluraliza o contador de execuções para quantidades maiores que 1", () => {
+    useAuthMock.mockReturnValue({ authUser: { id: "admin-1" } });
+    useAdminMock.mockReturnValue({
+      perfilUsuario: { id: "admin-1", role: "admin" },
+      usuarios: [],
+      estatisticasDB: null,
+      loading: false,
+    });
+    useBackgroundJobsAdminMock.mockReturnValue(
+      jobsAdminMock({
+        total: 11,
+        totalPages: 4,
+      }),
+    );
+
+    render(<Admin />);
+
+    expect(screen.getByText("11 execuções encontradas.")).toBeTruthy();
+    expect(screen.getByText("Página 1 de 4")).toBeTruthy();
+  });
+
+  it("troca o tamanho de página pelo seletor", () => {
+    useAuthMock.mockReturnValue({ authUser: { id: "admin-1" } });
+    useAdminMock.mockReturnValue({
+      perfilUsuario: { id: "admin-1", role: "admin" },
+      usuarios: [],
+      estatisticasDB: null,
+      loading: false,
+    });
+    const setPageSizeMock = vi.fn();
+    useBackgroundJobsAdminMock.mockReturnValue(jobsAdminMock({ setPageSize: setPageSizeMock }));
+
+    render(<Admin />);
+
+    fireEvent.change(screen.getByLabelText("Item por página"), { target: { value: "10" } });
+
+    expect(setPageSizeMock).toHaveBeenCalledWith(10);
+  });
+
+  it("abre e fecha o modal de mensagem da execução", () => {
+    useAuthMock.mockReturnValue({ authUser: { id: "admin-1" } });
+    useAdminMock.mockReturnValue({
+      perfilUsuario: { id: "admin-1", role: "admin" },
+      usuarios: [],
+      estatisticasDB: null,
+      loading: false,
+    });
+    useBackgroundJobsAdminMock.mockReturnValue(jobsAdminMock());
+
+    render(<Admin />);
+
+    expect(screen.queryByText("Mensagem da execução")).toBeNull();
+
+    fireEvent.click(screen.getByText("Ver mensagem"));
+
+    expect(screen.getByText("Mensagem da execução")).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("Fechar"));
+
+    expect(screen.queryByText("Mensagem da execução")).toBeNull();
   });
 });

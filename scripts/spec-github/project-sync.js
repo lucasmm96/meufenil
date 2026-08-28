@@ -220,8 +220,8 @@ export async function runProjectSync({ token, rest, gql, baseDir, dryRun = false
   }
 
   // 5. View Kanban (idempotente): garantir BOARD_LAYOUT com nome "Kanban".
-  //    O groupBy (colunas por Status) não é exposto pela GraphQL — configurar uma única
-  //    vez na UI ("Group by Status"); a nota abaixo lembra até isso ser feito.
+  //    O groupBy (colunas por Status) não é exposto pela GraphQL — conferir uma única
+  //    vez na UI (View → Settings → Board → Column by → Status); a nota abaixo lembra até isso ser feito.
   const viewsData = await gql.query(QUERIES.views, { projectId: project.id })
   const views = viewsData?.node?.views?.nodes ?? []
   const kanban = views.find((v) => v.name === KANBAN_VIEW_NAME) ?? views[0] ?? null
@@ -236,7 +236,7 @@ export async function runProjectSync({ token, rest, gql, baseDir, dryRun = false
     })
   }
   if (!groupedByStatus) {
-    console.log('NOTA: view "Kanban" sem groupBy Status — a GraphQL não expõe groupBy; configure "Group by Status" na UI.')
+    console.log('NOTA: view "Kanban" sem colunas por Status confirmadas — a GraphQL não expõe o groupBy de Board views; confira uma vez na UI (View → Settings → Board → Column by → Status).')
   }
 
   return report

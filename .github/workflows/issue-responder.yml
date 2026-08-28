@@ -1,0 +1,34 @@
+# W3 — issue-responder (Blueprint v1.1-final §18.1/§19; CONVENTIONS §18.7, revisado
+# pela ADR-0013): Issues externas (autor ≠ mantenedor) recebem uma resposta automática
+# ESTÁTICA (sem IA, sem custo) + label triage. A triagem em si é SEMPRE humana
+# (mantenedor) — nenhum fluxo automático decide elegibilidade, cria Spec ou aplica
+# spec-created/duplicate/not-planned.
+# Anti-loop: evento only-opened (nunca edited — evita comentário duplicado) + guardas
+# no script (autor externo, labels do fluxo, marker de dedup).
+name: issue-responder
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: issue-responder-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  responder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Resposta estática + label triage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/spec-github/issue-responder.js --issue ${{ github.event.issue.number }}

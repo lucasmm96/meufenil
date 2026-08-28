@@ -7,8 +7,11 @@
 #
 # Este workflow NUNCA faz push; nunca fecha Issues (D-12). Tokens: os scripts leem
 # GITHUB_TOKEN / GITHUB_PROJECTS_TOKEN de variáveis de ambiente (secrets do repo,
-# nunca versionados). O passo de Project roda apenas quando o secret
-# GITHUB_PROJECTS_TOKEN existe (o GITHUB_TOKEN do Actions não acessa Projects v2).
+# nunca versionados). O GitHub PROÍBE nomes de secret com prefixo "GITHUB_" (prefixo
+# reservado) — o secret de Projects v2 chama-se PROJECTS_TOKEN no Settings do repo e
+# é mapeado para a env var GITHUB_PROJECTS_TOKEN (nome que os scripts leem). O passo
+# de Project roda apenas quando essa env var existe (o GITHUB_TOKEN do Actions não
+# acessa Projects v2).
 name: spec-sync
 
 on:
@@ -31,7 +34,7 @@ jobs:
     timeout-minutes: 10
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_PROJECTS_TOKEN: ${{ secrets.GITHUB_PROJECTS_TOKEN }}
+      GITHUB_PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,8 +43,9 @@ jobs:
       - name: Spec ↔ Issue
         run: node scripts/spec-github/sync.js
       # `secrets` não é permitido em condicionais `if` (o schema do Actions rejeita o
-      # workflow) — o passo de Project é condicional via shell: roda quando o secret
-      # GITHUB_PROJECTS_TOKEN existe (o GITHUB_TOKEN do Actions não acessa Projects v2).
+      # workflow) — o passo de Project é condicional via shell: roda quando a env var
+      # GITHUB_PROJECTS_TOKEN existe (mapeada do secret PROJECTS_TOKEN — nomes de
+      # secret não podem ter prefixo "GITHUB_"; o GITHUB_TOKEN não acessa Projects v2).
       - name: Project sync (requer GITHUB_PROJECTS_TOKEN)
         run: |
           if [ -n "$GITHUB_PROJECTS_TOKEN" ]; then

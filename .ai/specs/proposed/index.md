@@ -1,6 +1,6 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-08-19 (retrofit F8 — todas as 17 propostas verificadas contra o código)
+**Última verificação:** 2026-08-27 (ENH-0003 implementada e arquivada — 16 propostas ativas, 6 arquivadas)
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -14,9 +14,9 @@
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
 | [ENH-0002](enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED | #21 | PRs #4/#5/#20 (autoria `lucasmm96`) — decisão do autor 2026-08-16 |
-| [ENH-0003](enhancements/ENH-0003-historico-execucoes-seletor-paginacao.md) | ENH | Histórico das execuções com seletor de tamanho de página e paginação numerada | PROPOSED | #39 | solicitação do usuário (2026-08-22) |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | #12 | Divergência Fase 5 |
 | [REF-0002](refactors/REF-0002-rpcs-orfas-dashboard.md) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | #13 | Fase 4; O-003 (análise 25) |
+| [REF-0003](../archive/implemented/refactors/REF-0003-fluxos-automaticos-deterministicos.md) | REF | Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação) | IMPLEMENTED | #44 | W3 + W7 + ADR-0013 (PR #45, merge `b7090d4`) — 2026-08-24 |
 | [DEBT-0005](../archive/implemented/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | IMPLEMENTED | #26 | lint verde + W1 restaurado (PR #42, merge `9c583ceb`) — 2026-08-23 |
 | [DEBT-0006](../archive/implemented/technical-debt/DEBT-0006-restaurar-keepalive-dev.md) | DEBT | Restaurar keepalive do ambiente dev (regressão 879a6c0) | IMPLEMENTED | #40 | multi-alvo restaurado (PR #41, merge `4ac65fa`) — 2026-08-23 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | #14 | Fatos Fase 3 |
@@ -37,6 +37,7 @@ Propostas em estado terminal, movidas de `proposed/` para `../archive/implemente
 | [DEBT-0004](../archive/implemented/technical-debt/DEBT-0004-reconciliar-templates.md) | DEBT | Reconciliar templates e convenções do Specification System | IMPLEMENTED | #9 | Fase 12 — commits `683ed63`/`fb67c5e`/`1180de8` |
 | [TEST-0001](../archive/implemented/testing/TEST-0001-testes-paginas-componentes.md) | TEST | Cobertura de testes de páginas e componentes | IMPLEMENTED | #15 | 69 testes novos (suíte 128 → 197) — commit `6645b1a` |
 | [FEAT-0016](../archive/implemented/features/FEAT-0016-geracao-automatica-de-documentacao-via-agente-wiki-documenter.md) | FEAT | Geração automática da documentação pública via agente wiki-documenter | IMPLEMENTED | #36 | PR #37 — merge `cd9b3fa` (2026-08-20) |
+| [ENH-0003](../archive/implemented/enhancements/ENH-0003-historico-execucoes-seletor-paginacao.md) | ENH | Histórico das execuções com seletor de tamanho de página | IMPLEMENTED | #39 | PR #47 — merge `bbda6a1` (2026-08-27) |
 
 
 ## Como usar este catálogo

@@ -30,7 +30,7 @@ Você é o PROJECT-MANAGER do projeto MeuFenil — dono do artefato Project (Blu
 ## Ferramentas e achados da F3 (execução real)
 
 - Mecanismo oficial: `node scripts/spec-github/project-sync.js` (e `--dry-run`). O GitHub MCP NÃO cobre Projects v2; a GraphQL é acessada pelo script (token `GITHUB_PROJECTS_TOKEN` de `.env.github`; nunca exibir/versionar). Fallback `gh project` se `gh` for instalado (ausente neste ambiente).
-- Achados registrados (F3): campo Status built-in não pode ser deletado, mas aceita `updateProjectV2Field` (o script substitui o padrão pelas 6 opções do Blueprint, com guardas); opções single-select exigem `description`; a view "Kanban" é garantida pelo script (BOARD_LAYOUT), mas o `groupBy` (colunas por Status) NÃO é exposto pela GraphQL — configurar uma única vez na UI ("Group by Status"); o script imprime nota até isso ser feito.
+- Achados registrados (F3): campo Status built-in não pode ser deletado, mas aceita `updateProjectV2Field` (o script substitui o padrão pelas 6 opções do Blueprint, com guardas); opções single-select exigem `description`; a view "Kanban" é garantida pelo script (BOARD_LAYOUT), mas o `groupBy` (colunas por Status) NÃO é exposto pela GraphQL — conferir uma única vez na UI (View → Settings → Board → Column by → Status); o script imprime nota até isso ser feito.
 - O item do Project É o Issue canônico (nunca draft issue).
 
 ## Não

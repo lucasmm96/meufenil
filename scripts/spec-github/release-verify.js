@@ -13,10 +13,14 @@
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
-import { listSpecs } from './lib/specs.js'
-import { parseTraceabilityTable } from './lib/release-traceability.js'
+import { verifyTraceability } from './lib/traceability-verify.js'
 import { GitHubClient } from './lib/github.js'
 import { loadToken } from './lib/env.js'
+
+// Re-export para compatibilidade (release-traceability.test.js importa de
+// ./release-verify.js). A verificação vive em lib/traceability-verify.js e é
+// compartilhada com o W7 (release-gate, pré-merge).
+export { verifyTraceability }
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const SPECS_DIR = join(REPO_ROOT, '.ai', 'specs')
@@ -38,44 +42,6 @@ export function parseArgs(argv) {
 /** Compara milestone e tag normalizando o prefixo `v` (milestone = versão, §24). */
 export function milestoneMatchesTag(milestoneTitle, tag) {
   return String(milestoneTitle).trim().replace(/^v/i, '') === String(tag).trim().replace(/^v/i, '')
-}
-
-/**
- * Verifica a tabela §23 de uma release publicada. Para cada linha: a Spec existe
- * no repositório (listSpecs), o frontmatter `Issue:` bate, o Issue está fechado e
- * o PR foi merged (o endpoint de Issue expõe `pull_request.merged_at` — só
- * `issues: write` basta, §18.1). Nunca altera nada — apenas verifica.
- */
-export async function verifyTraceability({ body, baseDir, rest }) {
-  const table = parseTraceabilityTable(body)
-  if (!table) return { action: 'no-table', checks: [] }
-
-  const specs = listSpecs(baseDir)
-  const checks = []
-  for (const row of table.rows) {
-    const spec = specs.find((s) => s.id === row.spec)
-    const issue = rest ? await rest.getIssue(row.issue) : null
-    const prIssue = rest ? await rest.getIssue(row.pr) : null
-    const issueClosed = issue ? issue.state === 'closed' : null
-    const prExists = Boolean(prIssue)
-    const isPr = prExists ? Boolean(prIssue.pull_request) : null
-    const prMerged = isPr ? Boolean(prIssue.pull_request.merged_at) : null
-    checks.push({
-      row,
-      specExists: Boolean(spec),
-      specIssueMatches: spec ? spec.issue === row.issue : false,
-      issueExists: Boolean(issue),
-      issueClosed,
-      prExists,
-      isPr,
-      prMerged,
-      ok: Boolean(spec) && spec.issue === row.issue && issueClosed === true && prMerged === true,
-    })
-  }
-
-  if (table.malformedRows.length > 0) return { action: 'malformed-rows', checks, malformedRows: table.malformedRows }
-  const ok = checks.length > 0 && checks.every((c) => c.ok)
-  return { action: ok ? 'verified' : 'divergence', checks }
 }
 
 /** Comentário por Issue canônico (idempotente via marker com a tag). */

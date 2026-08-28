@@ -14,11 +14,13 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useAdmin } from "@/react-app/hooks/useAdmin";
 import { useBackgroundJobsAdmin } from "@/react-app/hooks/useBackgroundJobsAdmin";
+import ModalMensagemExecucao from "@/react-app/components/ModalMensagemExecucao";
 import { CURRENT_APP_ENVIRONMENT } from "@/react-app/lib/app-environment";
 import { LayoutSkeleton, AdminSkeleton } from "@skeletons";
 import {
@@ -38,6 +40,10 @@ function formatDuration(ms?: number | null) {
   if (ms < 1000) return `${ms} ms`;
   if (ms < 10000) return `${(ms / 1000).toFixed(1)} s`;
   return `${Math.round(ms / 1000)} s`;
+}
+
+function executionCountLabel(total: number) {
+  return total === 1 ? "1 execução encontrada." : `${total} execuções encontradas.`;
 }
 
 function statusLabel(status: BackgroundJobExecutionDTO["status"]) {
@@ -78,6 +84,7 @@ export default function Admin() {
   const isAdmin = perfilUsuario?.role === "admin";
   const jobs = useBackgroundJobsAdmin(authUser?.id, isAdmin);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+  const [mensagemExecucao, setMensagemExecucao] = useState<BackgroundJobExecutionDTO | null>(null);
 
   const totalUsuarios = usuarios.length;
   const totalAdmins = useMemo(
@@ -420,33 +427,9 @@ export default function Admin() {
             </div>
 
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-              <div className="p-4 border-b border-gray-200 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">Histórico das execuções</h3>
-                  <p className="text-sm text-gray-600">
-                    {jobs.total} execução(ões) encontradas. Página {jobs.page} de {jobs.totalPages}.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => jobs.setPage(Math.max(1, jobs.page - 1))}
-                    disabled={jobs.page <= 1 || jobs.loading}
-                    className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Anterior
-                  </button>
-
-                  <button
-                    onClick={() => jobs.setPage(Math.min(jobs.totalPages, jobs.page + 1))}
-                    disabled={jobs.page >= jobs.totalPages || jobs.loading}
-                    className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Próxima
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+              <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-gray-200">
+                <h3 className="font-semibold text-gray-900">Histórico das execuções</h3>
+                <p className="text-sm text-gray-600 mt-1">{executionCountLabel(jobs.total)}</p>
               </div>
 
               {jobs.error && (
@@ -508,8 +491,17 @@ export default function Admin() {
                             <td className="px-6 py-4 text-sm text-gray-900">
                               {formatDuration(execution.duration_ms)}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
-                              <div className="truncate">{execution.message}</div>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setMensagemExecucao(execution);
+                                }}
+                                className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                Ver mensagem
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -539,11 +531,54 @@ export default function Admin() {
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           <span className="text-gray-600">Duração: {formatDuration(execution.duration_ms)}</span>
                         </div>
-
-                        <p className="text-sm text-gray-700">{execution.message}</p>
                       </button>
                     ))}
                   </div>
+
+                  {jobs.executions.length > 0 && (
+                    <div className="border-t border-gray-200 px-5 sm:px-6 py-4">
+                      <div className="flex flex-col sm:grid sm:grid-cols-3 items-center gap-3">
+                        <p className="text-sm text-gray-600">
+                          Página {jobs.page} de {jobs.totalPages}
+                        </p>
+
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => jobs.setPage(Math.max(1, jobs.page - 1))}
+                            disabled={jobs.page <= 1 || jobs.loading}
+                            className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                            Anterior
+                          </button>
+
+                          <button
+                            onClick={() => jobs.setPage(Math.min(jobs.totalPages, jobs.page + 1))}
+                            disabled={jobs.page >= jobs.totalPages || jobs.loading}
+                            className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                          >
+                            Próxima
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-center sm:justify-end gap-2">
+                          <label htmlFor="page-size" className="text-xs font-medium text-gray-500">Item por página</label>
+                          <select
+                            id="page-size"
+                            value={String(jobs.pageSize)}
+                            onChange={(e) => jobs.setPageSize(Number(e.target.value))}
+                            disabled={jobs.loading}
+                            className="px-2 py-1.5 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          >
+                            <option value="3">3</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {selectedExecution && (
                     <div className="border-t border-gray-200 bg-slate-50 p-4 sm:p-6">
@@ -591,6 +626,12 @@ export default function Admin() {
           </div>
         </section>
 
+        {mensagemExecucao && (
+          <ModalMensagemExecucao
+            execution={mensagemExecucao}
+            onClose={() => setMensagemExecucao(null)}
+          />
+        )}
       </div>
     </Layout>
   );

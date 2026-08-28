@@ -170,7 +170,7 @@ describe("background-jobs.service", () => {
   });
 
   it("expõe valores padrão úteis para paginação e período", () => {
-    expect(getDefaultBackgroundJobsPageSize()).toBe(20);
+    expect(getDefaultBackgroundJobsPageSize()).toBe(3);
     expect(getDefaultBackgroundJobsOverviewLimit()).toBe(240);
     expect(getDefaultBackgroundJobsPeriodDays()).toBe(30);
   });
