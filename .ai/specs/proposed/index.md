@@ -1,6 +1,6 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-08-27 (ENH-0003 implementada e arquivada — 16 propostas ativas, 6 arquivadas)
+**Última verificação:** 2026-09-02 (ENH-0004 e FEAT-0017 registradas — refinamento do draft 001 em 2 specs — 16 propostas ativas, 6 arquivadas)
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -24,6 +24,8 @@
 | [TEST-0003](testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED | #17 | GAP-005/006/008 |
 | [TEST-0004](testing/TEST-0004-testes-services-faltantes.md) | TEST | Completar testes de services faltantes | PROPOSED | #18 | GAP-004/009 |
 | [TEST-0005](testing/TEST-0005-determinismo-testes-seguranca.md) | TEST | Determinismo dos testes de segurança | PROPOSED | #19 | GAP-011 + O-004 |
+| [ENH-0004](enhancements/ENH-0004-modelo-identidade-referencias.md) | ENH | Modelo canônico e identidade imutável de referências | PROPOSED | #49 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 |
+| [FEAT-0017](features/FEAT-0017-sincronizacao-referencias-anvisa.md) | FEAT | Sincronização controlada de referências com a fonte ANVISA/Power BI | PROPOSED | #50 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 |
 
 ## Arquivadas
 
