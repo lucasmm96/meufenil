@@ -292,6 +292,12 @@ O agente prepara: notas, changelog, tabela de rastreabilidade (Spec → Issue �
 ```markdown
 ## Rastreabilidade
 | Spec | Issue | PR | Título | Tipo |
+|--------|-------|----|--------|------|
+| DEBT-0005 | 26 | 28 | Dívida de lint | DEBT |
+| FEAT-0002 | 31 | 29 | Exportar histórico CSV | FEAT |
+
+Exemplo de frontmatter:
+**Issue:** #39
 ```
 
 Specs arquivadas citam o release no `Implemented Through`.

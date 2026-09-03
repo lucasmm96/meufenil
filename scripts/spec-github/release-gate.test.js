@@ -13,6 +13,7 @@ import {
   postGateFailure,
   resolveLastTag,
   runReleaseGate,
+  clearGateFailure,
 } from './release-gate.js'
 
 // W7 — release-gate (Blueprint v1.1-final §18.1; ADR-0013): GATE determinístico
@@ -359,6 +360,8 @@ describe('postGateFailure (comentário com marker de dedup no PR)', () => {
     expect(fakeRest.calls.filter((c) => c.method === 'POST')).toHaveLength(0)
   })
 })
+
+}
 
 describe('W7 — release-gate.yml (§18.1/ADR-0013)', () => {
   it('dispara em pull_request com base master e permissões mínimas (pull-requests: write, contents: read)', () => {
