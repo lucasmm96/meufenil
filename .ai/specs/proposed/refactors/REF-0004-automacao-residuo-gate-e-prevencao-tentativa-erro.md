@@ -2,7 +2,7 @@
 
 **Type:** REF
 **Status:** PROPOSED
-**Issue:** #48 (ligado ao PR de release v1.10.0)
+**Issue:** #51 (Issue canônica — contexto da descoberta: PR #48 release v1.10.0)
 **Title:** Automação de limpeza de resíduo do gate + padrão preventivo para release
 **Created on:** 2026-08-28
 
