@@ -1,6 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-09-02 (ENH-0004, FEAT-0017 e REF-0004 registradas — 16 propostas ativas, 6 arquivadas)
+**Última verificação:** 2026-09-02 (ENH-0004, FEAT-0017 e REF-0004 registradas + REF-0004 reconciliada ao proposal-template — 14 ativas + 7 arquivadas)
+
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (14) · arquivadas = linhas da seção "Arquivadas" (7) · as 3 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
