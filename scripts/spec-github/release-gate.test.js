@@ -77,6 +77,10 @@ function createFakeRest({ issues = {}, comments = {} } = {}) {
       const id = Number(String(url).match(/\/comments\/(\d+)$/)[1])
       return { status: 200, ok: true, json: async () => ({ id, body: JSON.parse(init.body).body }) }
     }
+    if (init.method === 'DELETE' && /\/issues\/comments\/\d+$/.test(String(url))) {
+      const id = Number(String(url).match(/\/comments\/(\d+)$/)[1])
+      return { status: 204, ok: true, json: async () => ({}) }
+    }
     const m = String(url).match(/\/issues\/(\d+)$/)
     if (m) {
       const n = Number(m[1])
@@ -106,6 +110,8 @@ function makeClient(fakeRest) {
           method: 'PATCH',
           body: JSON.stringify({ body }),
         }),
+      deleteComment: (id) =>
+        fakeRest.fetchImpl(`https://api.github.com/repos/o/r/issues/comments/${id}`, { method: 'DELETE' }),
     },
   }
 }
@@ -362,7 +368,7 @@ describe('postGateFailure (comentário com marker de dedup no PR)', () => {
 })
 
 describe('clearGateFailure (AC1 — comentário deletado quando o gate passa)', () => {
-  it('deleta o comentário de falha via updateComment com corpo vazio (PATCH)', async () => {
+  it('deleta o comentário de falha via DELETE', async () => {
     const fakeRest = createFakeRest({
       issues: GATE_ISSUES,
       comments: { 45: [{ id: 7, body: `${GATE_COMMENT_MARKER}\nfalha anterior` }] },
@@ -372,9 +378,8 @@ describe('clearGateFailure (AC1 — comentário deletado quando o gate passa)', 
     const cleared = await clearGateFailure({ pr: 45, rest })
     expect(cleared.action).toBe('deleted')
     expect(cleared.id).toBe(7)
-    const patch = fakeRest.calls.find((c) => c.method === 'PATCH' && c.url.includes('/issues/comments/7'))
-    expect(patch).toBeTruthy()
-    expect(JSON.parse(patch.body).body).toBe('')
+    const del = fakeRest.calls.find((c) => c.method === 'DELETE' && c.url.includes('/issues/comments/7'))
+    expect(del).toBeTruthy()
     expect(fakeRest.calls.filter((c) => c.method === 'POST')).toHaveLength(0)
   })
 

@@ -71,12 +71,12 @@ export function gitChangedFiles(run, { lastTag, headRef = 'HEAD', path = 'wiki' 
     .filter(Boolean)
 }
 
-/** Deleta o comentário de falha do gate quando passa (AC1). */
+/** Deleta o comentário de falha do gate quando passa (AC1/REF-0004). */
 export async function clearGateFailure({ pr, rest }) {
   const comments = (await rest.listComments(pr)) ?? []
   const existing = comments.find((c) => c.body?.includes(GATE_COMMENT_MARKER))
   if (existing) {
-    await rest.updateComment(existing.id, '')
+    await rest.deleteComment(existing.id)
     return { action: 'deleted', id: existing.id }
   }
   return { action: 'not-found' }
@@ -178,6 +178,7 @@ if (isMain) {
           listComments: (n) => client.listComments(n),
           addComment: (n, b) => client.addComment(n, b),
           updateComment: (id, b) => client.updateComment(id, b),
+          deleteComment: (id) => client.deleteComment(id),
         }
       : null
     const run = (cmd, argv) => {
@@ -195,12 +196,10 @@ if (isMain) {
 
     if (!result.dryRun && args.pr && rest) {
       if (result.pass) {
-        // AC1: deleta comentário de falha ao passar
-        const comments = (await rest.listComments(args.pr)) ?? []
-        const existing = comments.find((c) => c.body?.includes(GATE_COMMENT_MARKER))
-        if (existing) {
-          await rest.updateComment(existing.id, '')
-          console.log(`comentário de falha ${existing.action} removido do PR #${args.pr} (gate passou)`)
+        // AC1 (REF-0004): limpa o comentário de falha residual quando o gate passa.
+        const cleared = await clearGateFailure({ pr: args.pr, rest })
+        if (cleared.action === 'deleted') {
+          console.log(`comentário de falha deletado do PR #${args.pr} (gate passou)`)
         }
       } else {
         const posted = await postGateFailure({ pr: args.pr, comment: result.comment, rest })
