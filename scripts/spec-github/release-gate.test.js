@@ -65,7 +65,7 @@ const GATE_ISSUES = {
 function createFakeRest({ issues = {}, comments = {} } = {}) {
   const calls = []
   const fetchImpl = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method ?? 'GET' })
+    calls.push({ url: String(url), method: init.method ?? 'GET', body: init.body })
     if (String(url).includes('/comments?per_page')) {
       const n = Number(String(url).match(/\/issues\/(\d+)\/comments/)[1])
       return { status: 200, ok: true, json: async () => comments[n] ?? [] }
@@ -361,7 +361,32 @@ describe('postGateFailure (comentário com marker de dedup no PR)', () => {
   })
 })
 
-}
+describe('clearGateFailure (AC1 — comentário deletado quando o gate passa)', () => {
+  it('deleta o comentário de falha via updateComment com corpo vazio (PATCH)', async () => {
+    const fakeRest = createFakeRest({
+      issues: GATE_ISSUES,
+      comments: { 45: [{ id: 7, body: `${GATE_COMMENT_MARKER}\nfalha anterior` }] },
+    })
+    const { rest } = makeClient(fakeRest)
+
+    const cleared = await clearGateFailure({ pr: 45, rest })
+    expect(cleared.action).toBe('deleted')
+    expect(cleared.id).toBe(7)
+    const patch = fakeRest.calls.find((c) => c.method === 'PATCH' && c.url.includes('/issues/comments/7'))
+    expect(patch).toBeTruthy()
+    expect(JSON.parse(patch.body).body).toBe('')
+    expect(fakeRest.calls.filter((c) => c.method === 'POST')).toHaveLength(0)
+  })
+
+  it('sem comentário de falha → not-found, sem chamadas de escrita', async () => {
+    const fakeRest = createFakeRest({ issues: GATE_ISSUES, comments: {} })
+    const { rest } = makeClient(fakeRest)
+
+    const cleared = await clearGateFailure({ pr: 45, rest })
+    expect(cleared.action).toBe('not-found')
+    expect(fakeRest.calls.filter((c) => c.method !== 'GET')).toHaveLength(0)
+  })
+})
 
 describe('W7 — release-gate.yml (§18.1/ADR-0013)', () => {
   it('dispara em pull_request com base master e permissões mínimas (pull-requests: write, contents: read)', () => {
