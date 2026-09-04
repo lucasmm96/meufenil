@@ -98,6 +98,11 @@ export class GitHubClient {
     return this.request('PATCH', `/repos/${this.owner}/${this.repo}/issues/comments/${commentId}`, { body })
   }
 
+  /** Deleta um comentário existente (DELETE) — limpeza de comentário de falha quando o gate passa (REF-0004). */
+  deleteComment(commentId) {
+    return this.request('DELETE', `/repos/${this.owner}/${this.repo}/issues/comments/${commentId}`)
+  }
+
   /** Lista comentários do Issue (mais recentes por último). */
   listComments(number) {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/issues/${number}/comments?per_page=100`)

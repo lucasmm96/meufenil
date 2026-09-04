@@ -286,12 +286,18 @@ O agente prepara PRs e nunca aprova o próprio PR. A aprovação humana do PR é
 
 O agente prepara: notas, changelog, tabela de rastreabilidade (Spec → Issue → PR → Release), branch/PR de release, Release DRAFT. **Criação de tag e criação/publicação de Release: confirmação humana explícita.** Alvo de release é registrado em GitHub Milestone.
 
-- Fluxo (Blueprint §12.1): proposta SEMVER + notas (release-manager invoca o especialista release-notes) → confirmação humana da versão → preparação (changelog, tabela, branch/PR de release, DRAFT) → **gate de produção — W7 `release-gate`** (Spec + docs `wiki/` obrigatórios; ADR-0013) → aprovação humana do PR + tag/publicação → pós-publicação (milestone fechado; rastreabilidade verificada — W6 `release-verify`).
+- Fluxo (Blueprint §12.1): proposta SEMVER + notas (release-manager invoca o especialista release-notes) → confirmação humana da versão → preparação (changelog, tabela, branch/PR de release, DRAFT) → **checagem preventiva — `pre-release-check.js`** (formato da tabela §23 e frontmatter `Issue:` locais, antes do push; REF-0004) → **gate de produção — W7 `release-gate`** (Spec + docs `wiki/` obrigatórios; ADR-0013; quando passa, limpa o comentário de falha residual do PR) → aprovação humana do PR + tag/publicação → pós-publicação (milestone fechado; rastreabilidade verificada — W6 `release-verify`).
 - O corpo da Release inclui as notas no padrão histórico e a tabela de rastreabilidade com formato canônico (um item por Spec da release; `#N` auto-linka no GitHub):
 
 ```markdown
 ## Rastreabilidade
 | Spec | Issue | PR | Título | Tipo |
+|--------|-------|----|--------|------|
+| DEBT-0005 | 26 | 28 | Dívida de lint | DEBT |
+| FEAT-0002 | 31 | 29 | Exportar histórico CSV | FEAT |
+
+Exemplo de frontmatter:
+**Issue:** #39
 ```
 
 Specs arquivadas citam o release no `Implemented Through`.

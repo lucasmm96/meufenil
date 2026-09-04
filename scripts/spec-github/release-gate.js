@@ -71,6 +71,17 @@ export function gitChangedFiles(run, { lastTag, headRef = 'HEAD', path = 'wiki' 
     .filter(Boolean)
 }
 
+/** Deleta o comentário de falha do gate quando passa (AC1/REF-0004). */
+export async function clearGateFailure({ pr, rest }) {
+  const comments = (await rest.listComments(pr)) ?? []
+  const existing = comments.find((c) => c.body?.includes(GATE_COMMENT_MARKER))
+  if (existing) {
+    await rest.deleteComment(existing.id)
+    return { action: 'deleted', id: existing.id }
+  }
+  return { action: 'not-found' }
+}
+
 /** Comentário de falha do gate — bullets do que falta (mesma semântica do logChecks do W6). */
 export function buildGateComment({ trace, docs }) {
   const lines = [
@@ -167,6 +178,7 @@ if (isMain) {
           listComments: (n) => client.listComments(n),
           addComment: (n, b) => client.addComment(n, b),
           updateComment: (id, b) => client.updateComment(id, b),
+          deleteComment: (id) => client.deleteComment(id),
         }
       : null
     const run = (cmd, argv) => {
@@ -182,9 +194,17 @@ if (isMain) {
     console.log(`release-gate: ${result.pass ? 'PASS' : 'FAIL'} (${result.trace.action}${docsNote})`)
     if (result.comment) console.error(result.comment)
 
-    if (!result.pass && !result.dryRun && args.pr && rest) {
-      const posted = await postGateFailure({ pr: args.pr, comment: result.comment, rest })
-      console.log(`comentário de falha ${posted.action} no PR #${args.pr} (marker de dedup)`)
+    if (!result.dryRun && args.pr && rest) {
+      if (result.pass) {
+        // AC1 (REF-0004): limpa o comentário de falha residual quando o gate passa.
+        const cleared = await clearGateFailure({ pr: args.pr, rest })
+        if (cleared.action === 'deleted') {
+          console.log(`comentário de falha deletado do PR #${args.pr} (gate passou)`)
+        }
+      } else {
+        const posted = await postGateFailure({ pr: args.pr, comment: result.comment, rest })
+        console.log(`comentário de falha ${posted.action} no PR #${args.pr} (marker de dedup)`)
+      }
     }
 
     process.exit(result.pass ? 0 : 1)
