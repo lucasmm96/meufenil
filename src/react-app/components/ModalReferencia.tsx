@@ -1,32 +1,47 @@
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
+import { MARCA_SEM_MARCA } from "@/react-app/lib/referencias";
+
+export interface DadosModalReferencia {
+  nome: string;
+  marca: string;
+  fenil: number;
+}
 
 interface ModalReferenciaProps {
   referencia?: ReferenciaDTO | null;
+  /** Pré-preenchimento para criação (ex.: cópia de referência global a ser arquivada). */
+  initial?: { nome: string; marca: string; fenil_mg_por_100g: number } | null;
   loading?: boolean;
   onClose: () => void;
-  onSubmit: (data: { nome: string; fenil: number }) => Promise<void>;
+  onSubmit: (data: DadosModalReferencia) => Promise<void>;
 }
 
 export default function ModalReferencia({
   referencia,
+  initial,
   loading,
   onClose,
   onSubmit,
 }: ModalReferenciaProps) {
   const [nome, setNome] = useState("");
+  const [marca, setMarca] = useState("");
   const [fenil, setFenil] = useState("");
 
   useEffect(() => {
-    if (referencia) {
-      setNome(referencia.nome);
-      setFenil(referencia.fenil_mg_por_100g.toString());
+    const fonte = referencia ?? initial ?? null;
+
+    if (fonte) {
+      setNome(fonte.nome);
+      setMarca(fonte.marca);
+      setFenil(fonte.fenil_mg_por_100g.toString());
     } else {
       setNome("");
+      setMarca("");
       setFenil("");
     }
-  }, [referencia]);
+  }, [referencia, initial]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,6 +49,7 @@ export default function ModalReferencia({
 
     await onSubmit({
       nome,
+      marca,
       fenil: Number(fenil),
     });
   }
@@ -69,6 +85,25 @@ export default function ModalReferencia({
                 placeholder="Ex: Maçã Fuji"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Marca{" "}
+                <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+
+              <input
+                type="text"
+                value={marca}
+                onChange={(e) => setMarca(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder={MARCA_SEM_MARCA}
+              />
+
+              <p className="text-xs text-gray-500">
+                Em branco = {MARCA_SEM_MARCA}.
+              </p>
             </div>
 
             <div className="space-y-2">

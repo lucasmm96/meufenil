@@ -2,7 +2,7 @@ import { useState } from "react";
 import Layout from "@/react-app/components/Layout";
 import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
 import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
-import ModalReferencia from "@/react-app/components/ModalReferencia";
+import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
 import { useReferencias } from "@/react-app/hooks/useReferencias";
 import { Activity, TrendingUp, AlertCircle, Plus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -52,15 +52,15 @@ export default function DashboardPage() {
     reload();
   };
 
-  async function handleCreateReferencia(data: { nome: string; fenil: number }) {
-    const { nome, fenil } = data;
+  async function handleCreateReferencia(data: DadosModalReferencia) {
+    const { nome, marca, fenil } = data;
 
     if (Number.isNaN(fenil)) return;
 
     setCreatingReferencia(true);
 
     try {
-      await createReferencia(nome, fenil);
+      await createReferencia(nome, marca, fenil);
 
       reload();
 
