@@ -1,10 +1,11 @@
 # REF-0004 — Automação de limpeza de resíduo do gate + padrão preventivo para release
 
 **Type:** REF
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Automação de limpeza de resíduo do gate + padrão preventivo para release
 **Issue:** #51
 **Created on:** 2026-08-28
+**Implemented Through:** PR #52 (squash merge)
 
 ## Problem
 

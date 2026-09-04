@@ -28,7 +28,7 @@
 | [TEST-0005](testing/TEST-0005-determinismo-testes-seguranca.md) | TEST | Determinismo dos testes de segurança | PROPOSED | #19 | GAP-011 + O-004 |
 | [ENH-0004](enhancements/ENH-0004-modelo-identidade-referencias.md) | ENH | Modelo canônico e identidade imutável de referências | PROPOSED | #49 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 |
 | [FEAT-0017](features/FEAT-0017-sincronizacao-referencias-anvisa.md) | FEAT | Sincronização controlada de referências com a fonte ANVISA/Power BI | PROPOSED | #50 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 |
-| [REF-0004](refactors/REF-0004-automacao-residuo-gate-e-prevencao-tentativa-erro.md) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | PROPOSED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), 2026-08-28 |
+| [REF-0004](../archive/implemented/refactors/REF-0004-automacao-residuo-gate-e-prevencao-tentativa-erro.md) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | IMPLEMENTED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), PR #52 (squash merge) — 2026-09-03 |
 
 ## Arquivadas
 
