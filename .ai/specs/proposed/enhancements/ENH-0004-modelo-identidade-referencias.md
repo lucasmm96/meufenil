@@ -1,10 +1,13 @@
 # ENH-0004 — Modelo canônico e identidade imutável de referências
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Modelo canônico e identidade imutável de referências
 **Issue:** #49
 **Created on:** 2026-09-02
+**Decision:** A1(b) — único composto parcial da identidade `(nome, marca, fenil_mg_por_100g)` em ativas (DROPs dos índices antigos) · A2 — `numeric(10,1)` · A3(a) + canônico `Produto In Natura` (OQ2, mantida) · A4(b) — eliminar `nome_normalizado` e o trigger de normalização (matching runtime é escopo do FEAT-0017)
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-09-04
 
 ## Problem
 
@@ -24,10 +27,10 @@ O modelo atual de `public.referencias` embute a marca no `nome` como texto liter
 ## Proposed State
 
 - `marca` passa a ser coluna própria; a **identidade substantiva** de uma referência passa a ser o conjunto `(nome, marca, fenil_mg_por_100g)`, **imutável depois de criada para o conjunto global** (`is_global = true`): mudança substantiva em referência global representa uma nova referência (arquivar a existente + criar a nova), nunca um UPDATE in-place pela aplicação (draft §§3–5, 11–12; alcance decidido na OQ1 — referências pessoais continuam editáveis pelo dono, status quo BR-023). Exclusão física (OQ4): a regra do draft §34 vale para o conjunto global — referências globais nunca são excluídas fisicamente pela aplicação; pessoais sem registros mantêm o hard DELETE atual via RPC e a BR-026 permanece inalterada.
-- Redesenho de unicidade/índices para permitir que referências históricas com o mesmo nome/marca coexistam com as ativas (draft §40) — desenho em aberto *(decisão pendente — ver Alternatives A1)*.
-- Avaliação do tipo numérico de `fenil_mg_por_100g` (exatidão para comparação/matching) *(decisão pendente — ver Alternatives A2)*.
+- Redesenho de unicidade/índices para permitir que referências históricas com o mesmo nome/marca coexistam com as ativas (draft §40) — **A1(b) decidida (2026-09-04)**: UNIQUE parcial da identidade `(nome, marca, fenil_mg_por_100g)` normalizada (expressões `lower(trim(...))`) com `WHERE is_ativa = true`; índices antigos `referencias_nome_unique` e `referencias_nome_normalizado_unique` removidos; arquivadas coexistem livremente (ver Alternatives A1).
+- Tipo numérico de `fenil_mg_por_100g` passa a `numeric(10,1)` (exatidão para comparação/matching; seed 100% inteiro — sem perda) — **A2 decidida (2026-09-04)** (ver Alternatives A2).
 - Coluna `marca` + migração das 2.959 linhas existentes com parse do sufixo `(Marca: X)`: `nome` reescrito/limpo (sem o sufixo) e `marca` extraída; produto sem marca/in natura = representação canônica fixa **`Produto In Natura`** (OQ2, 2026-09-02 — opção (a) da A3 prevalecida; ver Alternatives).
-- Estratégia de normalização (armazenada vs. runtime) — a ENH **não constrói motor de matching/normalização para a origem** (isso pertence ao FEAT-0017); decide apenas o que acontece com `nome_normalizado`/índices no modelo *(decisão pendente — ver Alternatives A4)*.
+- Estratégia de normalização (armazenada vs. runtime) — a ENH **não constrói motor de matching/normalização para a origem** (isso pertence ao FEAT-0017); decide apenas o que acontece com `nome_normalizado`/índices no modelo — **A4(b) decidida (2026-09-04)**: coluna `nome_normalizado` e trigger `trg_normalizar_nome_referencia`/`fn_normalizar_nome_referencia` removidos; unicidade passa a usar expressões `lower(trim(...))` no índice A1(b); normalização runtime é escopo do FEAT-0017 (ver Alternatives A4).
 - Trigger `trg_remover_favoritos_referencia_inativa`: passa a **preservar favoritos em QUALQUER desativação/arquivamento** (inclusive o fluxo manual atual "remover com registros") — referência arquivada permanece favoritada, aparece como arquivada/indisponível, não pode ser usada em novos registros e pode ser desfavoritada normalmente (draft §10; OQ3, 2026-09-02). É uma mudança de LIFECYCLE (BR-024) que vale para **todo** fluxo — manual atual e futura sincronização. Reativação manual de referência pessoal pelo dono (RPC `ativar_referencia`) permanece permitida; a fronteira "arquivada não reativa" fica restrita ao conjunto sincronizado e pertence ao FEAT-0017 (OQ3).
 - Apresentação combinada nome + marca passa a ser montada **dinamicamente no frontend**; formulários de criação/edição e listagens passam a tratar os campos separadamente. Registros históricos e exportações continuam resolvendo o nome pelo join ao vivo (sem snapshot nesta proposta).
 - Migração versionada pelo mecanismo oficial (ADR-0009); na promoção: novas BRs (BR-034+) registradas e BRs atuais afetadas (BR-023, BR-024) atualizadas.
@@ -54,7 +57,7 @@ Coluna `marca` + backfill das 2.959 linhas (opção (a) da A3 — OQ2: `nome` li
 - Motor de matching/normalização determinística contra a origem, sincronização, snapshots/backups, curadoria, auditoria, rollback, ator "Sistema" e bootstrap → **FEAT-0017** (dependência desta proposta).
 - Snapshot do nome em `registros` (registros continuam com join ao vivo — nenhuma mudança proposta).
 - Conteúdo processual do draft §§53–69 (fases, sub-agentes, `.ai/.temp`, critérios de conclusão) — vira plano de implementação após decisão humana; não é seção de spec.
-- Alternatives A1/A2/A4 permanecem em aberto (TBD — rodadas de confirmação seguintes); A3 decidida na OQ2 e A5 não aplicável (OQ1) — registros nas seções próprias. Open Questions 1–4 resolvidas em 2026-09-02 (registro no corpo).
+- Alternatives A1/A2/A4 decididas na aprovação de 2026-09-04 (registro no header e nas seções próprias); A3 decidida na OQ2 e A5 não aplicável (OQ1) — registros nas seções próprias. Open Questions 1–4 resolvidas em 2026-09-02 (registro no corpo).
 
 ## Impacted Features
 
@@ -98,14 +101,14 @@ Nenhuma. Nota de ordem: o FEAT-0017 (sincronização) depende desta proposta —
 - Mudança de unicidade pode expor duplicidade latente do seed ou permitir colisões históricas — o desenho A1 deve garantir unicidade no conjunto ativo.
 - Alterar o trigger de favoritos muda comportamento documentado (BR-024) para o fluxo manual atual — mudança coordenada na promoção, nunca silenciosa.
 - `real` → `numeric` afeta igualdade, matching, DTOs e UI de edição (A2) — compatibilidade com dados existentes a validar.
-- Decisões técnicas em aberto (A1/A2/A4 — índices/unicidade, tipo do fenil, normalização) podem exigir ajustes em RPCs/triggers/fluxos — escolha obrigatória antes de ACCEPTED/IMPLEMENTED.
+- Decisões A1/A2/A4 tomadas na aprovação (2026-09-04) exigem ajustes coordenados em RPCs/triggers/fluxos — cobertos pela implementação e pela sincronização de specs (matriz §11), nunca silenciosos.
 
 ## Alternatives
 
-- **A1 — Desenho de unicidade/índices:** (a) único parcial sobre nome normalizado com `WHERE is_ativa`; (b) composto da identidade `(marca, nome_normalizado, fenil_mg_por_100g)` com/sem `is_ativa`; (c) escopo por `is_global`; (d) coluna canônica nova alimentada por trigger. **Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
-- **A2 — Tipo numérico do fenil:** manter `real` × `numeric(10,1)` — impacto em igualdade exata para matching, normalização, casas decimais e compatibilidade com dados existentes. **Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
+- **A1 — Desenho de unicidade/índices:** (a) único parcial sobre nome normalizado com `WHERE is_ativa` — descartada (marca separada tornaria o nome insuficiente: seed tem produtos ativos com o mesmo nome e marcas distintas); (b) composto da identidade `(marca, nome_normalizado, fenil_mg_por_100g)` com/sem `is_ativa` — **prevalecida (2026-09-04, usuário)**: UNIQUE parcial sobre `(lower(trim(nome)), lower(trim(marca)), fenil_mg_por_100g)` com `WHERE is_ativa = true`, em expressões (sem colunas armazenadas — coerente com A4(b)), com DROP de `referencias_nome_unique` e `referencias_nome_normalizado_unique`; (c) escopo por `is_global` — descartada; (d) coluna canônica nova alimentada por trigger — descartada. **Decision:** A1(b) — registrada com **Approved by/on** no header (2026-09-04).
+- **A2 — Tipo numérico do fenil:** manter `real` — descartada (igualdade exata frágil para matching e para o índice A1(b)) × `numeric(10,1)` — **prevalecida (2026-09-04, usuário)**: exatidão decimal; seed 100% inteiro (2.959/2.959 valores sem casas decimais) — sem perda na conversão; comporta 1 casa decimal. **Decision:** A2 `numeric(10,1)` — registrada com **Approved by/on** no header (2026-09-04)
 - **A3 — Coluna `marca` + backfill das 2.959 linhas:** (a) parse do sufixo `(Marca: X)` com `nome` reescrito/limpo — **prevalecida (2026-09-02, usuário, OQ2)**; (b) `nome` intacto + `marca` extraída — descartada; (c) colunas novas apenas para cadastros novos (seed histórico intacto) — descartada. Representação canônica do sem marca/in natura: fixa `Produto In Natura` (OQ2). **Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
-- **A4 — Normalização:** (a) evoluir `nome_normalizado` para composto (nome+marca, com a representação canônica decidida em OQ2); (b) eliminar a coluna em favor de normalização runtime no FEAT-0017; (c) manter compatibilidade atual. **Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
+- **A4 — Normalização:** (a) evoluir `nome_normalizado` para composto (nome+marca, com a representação canônica decidida em OQ2) — descartada (estado armazenado duplicado); (b) eliminar a coluna em favor de normalização runtime no FEAT-0017 — **prevalecida (2026-09-04, usuário)**: DROP de `nome_normalizado` + trigger `trg_normalizar_nome_referencia`/função `fn_normalizar_nome_referencia`; unicidade via expressões `lower(trim(...))` no índice A1(b) — sem consumidores remanescentes da coluna; (c) manter compatibilidade atual — descartada. **Decision:** A4(b) — registrada com **Approved by/on** no header (2026-09-04)
 - **A5 — UX de mudança substantiva de referências pessoais — NÃO APLICÁVEL:** decidida na OQ1 (2026-09-02, usuário): status quo para pessoais (continuam editáveis pelo dono, BR-023); sem UX nova.
 
 ## Open Questions
@@ -131,7 +134,9 @@ Nenhuma. Nota de ordem: o FEAT-0017 (sincronização) depende desta proposta —
 - [ ] Frontend trata `nome` e `marca` separadamente (formulários e listagens) e monta a apresentação combinada dinamicamente
 - [ ] Registros históricos e exportações continuam resolvendo o nome pelo join ao vivo (comportamento atual preservado)
 - [ ] Testes existentes (serviços, RPCs, RLS) verdes; novos testes para migração/backfill, trigger de favoritos, normalização e formulários
-- [ ] TBD (depende das Alternatives A1/A2/A4): desenho de unicidade/índices; tipo do fenil; estratégia de normalização
+- [ ] A1(b): UNIQUE parcial da identidade `(lower(trim(nome)), lower(trim(marca)), fenil_mg_por_100g)` com `WHERE is_ativa = true` criado; índices antigos (`referencias_nome_unique`, `referencias_nome_normalizado_unique`) removidos; duplicatas ativas latentes de identidade resolvidas na migração (arquivamento determinístico + relatório)
+- [ ] A2: `fenil_mg_por_100g` em `numeric(10,1)` sem perda — 2.959/2.959 valores do seed são inteiros (conversão verificada na migração)
+- [ ] A4(b): coluna `nome_normalizado` + trigger/função de normalização removidos sem consumidores remanescentes
 
 ## References
 
