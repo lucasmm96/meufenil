@@ -115,7 +115,7 @@ Novas propostas (numeração **BR-034+**, a registrar na promoção — nunca li
 
 ## Dependencies
 
-- **ENH-0004 — Modelo canônico e identidade imutável de referências** ([../enhancements/ENH-0004-modelo-identidade-referencias.md](../enhancements/ENH-0004-modelo-identidade-referencias.md)) — esta proposta depende do modelo canônico (coluna `marca`, identidade `nome+marca+fenil`, índices) e da preservação de favoritos entregues por ela; **ordem de criação/implementação: ENH-0004 primeiro (sem dependências), depois FEAT-0017**.
+- **ENH-0004 — Modelo canônico e identidade imutável de referências** ([arquivada — IMPLEMENTED](../../archive/implemented/enhancements/ENH-0004-modelo-identidade-referencias.md)) — esta proposta depende do modelo canônico (coluna `marca`, identidade `nome+marca+fenil`, índices) e da preservação de favoritos; ENH-0004 foi implementada primeiro (PR #55, merge `82bd0f3`, 2026-09-04) e entregou essa base — ordem definida em 2026-09-02.
 - Relacionados (não duplicados): [FEAT-0015](../features/FEAT-0015-atribuicao-papel-admin.md) (gestão de papel admin), [SEC-0001](../security/SEC-0001-autorizacao-funcoes-consulta.md) (autorização de funções de consulta), [REF-0002](../refactors/REF-0002-rpcs-orfas-dashboard.md) (destino de RPCs órfãs), [TEST-0002](../testing/TEST-0002-suites-seguranca-policies.md) e [TEST-0003](../testing/TEST-0003-testes-server-side.md) (cobertura de segurança/server-side).
 
 ## Risks
@@ -179,6 +179,6 @@ Novas propostas (numeração **BR-034+**, a registrar na promoção — nunca li
 - Specs atuais: `../current/database/referencias.md`, `../current/database/background_job_executions.md`, `../current/database/rpc.md`, `../current/database/triggers.md`, `../current/database/usuarios.md`, `../current/backend/background-jobs.md`, `../current/backend/api-keepalive.md`, `../current/security/security-model.md`, `../current/security/secrets-and-environments.md`, `../current/domain/business-rules.md`, `../current/features/FEAT-0008-referencias-alimentares.md`, `../current/features/FEAT-0012-painel-administrativo.md`, `../current/features/FEAT-0013-background-jobs.md`
 - ADRs: `../../decisions/ADR-0007-keepalive-cron-jobs.md`, `../../decisions/ADR-0010-rpcs-security-definer.md`, `../../decisions/ADR-0004-rls-como-enforcement.md`
 - Propostas relacionadas: `../features/FEAT-0015-atribuicao-papel-admin.md`, `../security/SEC-0001-autorizacao-funcoes-consulta.md`, `../refactors/REF-0002-rpcs-orfas-dashboard.md`, `../testing/TEST-0002-suites-seguranca-policies.md`, `../testing/TEST-0003-testes-server-side.md`
-- Dependência: `../enhancements/ENH-0004-modelo-identidade-referencias.md`
+- Dependência: `../../archive/implemented/enhancements/ENH-0004-modelo-identidade-referencias.md`
 - Código/migrations: `api/keepalive.ts`, `src/shared/background-jobs.ts`, `vercel.json`, `supabase/migrations/20260807000000_background_job_executions.sql`, `src/react-app/services/registros.service.ts`, `migrations/dados.sql`
 - Projeto externo: `powerbi-export` (`C:\Users\lucas\Documents\git\powerbi-export` — fora do repo; `src/decode.js`, `src/fetch.js`, `src/export.js`, `test/decode.test.js`)

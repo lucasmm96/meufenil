@@ -1,7 +1,8 @@
 # ENH-0004 — Modelo canônico e identidade imutável de referências
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED (2026-09-04 — PR #55 merge `82bd0f3`)
+**Implemented Through:** PR #55 (squash merge `82bd0f3`, 2026-09-04) · migrations 20260904000000/20260904010000 aplicadas em dev (3.164 linhas, 0 perdas) · BR-034–037 sincronizadas nas specs atuais (23 arquivos) · suíte completa 399/399 (lib/referencias 12 · referencias.service 18 · T3.7: global sempre arquiva) · ACs 1–13 validadas com evidência no PR #55
 **Title:** Modelo canônico e identidade imutável de referências
 **Issue:** #49
 **Created on:** 2026-09-02
