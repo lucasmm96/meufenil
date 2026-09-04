@@ -17,6 +17,7 @@ import {
   createTestReference,
   createTestDelegation,
   isSecurityMigrationApplied,
+  isEnh0004MigrationApplied,
   TestUser,
 } from "./test-helpers";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -43,9 +44,11 @@ describeOrSkip("RPC: remover_ou_desativar_referencia (Abordagem B)", () => {
   let refGlobal: { id: string };
   let refDelegation: { id: string };
   let migrationApplied = false;
+  let enhMigrationApplied = false;
 
   beforeAll(async () => {
     migrationApplied = await isSecurityMigrationApplied();
+    enhMigrationApplied = await isEnh0004MigrationApplied();
 
     // Criar usuários
     ownerUser = await createTestUser("user");
@@ -212,7 +215,7 @@ describeOrSkip("RPC: remover_ou_desativar_referencia (Abordagem B)", () => {
     );
   });
 
-  it("T3.7: admin pode remover referência global", async () => {
+  it("T3.7: admin remove referência global (ENH-0004: sempre arquiva, nunca exclui)", async () => {
     if (!migrationApplied) return;
     const tempGlobal = await createTestReference(adminUser.id, {
       nome: `_test_admin_global_remove_${Date.now()}`,
@@ -223,7 +226,24 @@ describeOrSkip("RPC: remover_ou_desativar_referencia (Abordagem B)", () => {
       { p_referencia_id: tempGlobal.id }
     );
     expect(error).toBeNull();
-    expect(data).toBe("deleted");
+
+    if (enhMigrationApplied) {
+      // ENH-0004 (OQ4): globais NUNCA são excluídas fisicamente pela
+      // aplicação — a remoção é sempre arquivamento (is_ativa = false),
+      // inclusive sem registros associados.
+      expect(data).toBe("deactivated");
+      const { data: refCheck } = await admin
+        .from("referencias")
+        .select("id, is_ativa")
+        .eq("id", tempGlobal.id)
+        .single();
+      expect(refCheck!.id).toBe(tempGlobal.id);
+      expect(refCheck!.is_ativa).toBe(false);
+      // Cleanup do arquivo de teste
+      await admin.from("referencias").delete().eq("id", tempGlobal.id);
+    } else {
+      expect(data).toBe("deleted");
+    }
   });
 
   it("T3.8: referência inexistente retorna erro", async () => {

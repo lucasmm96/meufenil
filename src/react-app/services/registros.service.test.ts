@@ -80,7 +80,9 @@ describe("registros.service", () => {
           peso_g: 100,
           fenil_mg: 50,
           created_at: "2024-01-02T10:00:00Z",
-          referencias: { nome: "Arroz" },
+          // ENH-0004: o join traz nome E marca — a apresentação combinada é
+          // reconstituída dinamicamente (nomeComMarca), sem snapshot no nome.
+          referencias: { nome: "Arroz", marca: "Tio João" },
         },
         {
           id: "2",
@@ -88,7 +90,7 @@ describe("registros.service", () => {
           peso_g: 200,
           fenil_mg: 80,
           created_at: "2024-01-01T10:00:00Z",
-          referencias: [{ nome: "Feijão" }],
+          referencias: [{ nome: "Feijão", marca: "Produto In Natura" }],
         },
       ];
 
@@ -118,7 +120,7 @@ describe("registros.service", () => {
           peso_g: 100,
           fenil_mg: 50,
           created_at: "2024-01-02T10:00:00Z",
-          nome_alimento: "Arroz",
+          nome_alimento: "Arroz (Marca: Tio João)",
         },
         {
           id: "2",
@@ -137,7 +139,7 @@ describe("registros.service", () => {
       peso_g,
       fenil_mg,
       created_at,
-      referencias!inner ( nome )
+      referencias!inner ( nome, marca )
     `);
       expect(eqMock).toHaveBeenCalledWith("usuario_id", "user-1");
       expect(orderMock).toHaveBeenCalledWith("data", { ascending: false });

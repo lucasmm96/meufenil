@@ -285,7 +285,8 @@ describe("Referencias page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith("Maçã", 30);
+      // ENH-0004: nome e marca são atributos separados (marca vazia = canônica).
+      expect(create).toHaveBeenCalledWith("Maçã", "", 30);
       expect(alertSpy).toHaveBeenCalledWith("Referência criada com sucesso.");
       expect(screen.queryByText("Nova Referência")).toBeNull();
     });
@@ -308,7 +309,7 @@ describe("Referencias page", () => {
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
-        "Já existe uma referência com esse nome."
+        "Já existe uma referência ativa com esse nome e marca."
       );
     });
     expect(screen.getByText("Nova Referência")).toBeTruthy();
@@ -350,7 +351,8 @@ describe("Referencias page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() => {
-      expect(update).toHaveBeenCalledWith("ref-1", "Arroz Integral", 25.5);
+      // ENH-0004: update(id, nome, marca, fenil) — marca preservada do estado.
+      expect(update).toHaveBeenCalledWith("ref-1", "Arroz Integral", undefined, 25.5);
       expect(alertSpy).toHaveBeenCalledWith("Referência atualizada com sucesso.");
     });
   });
@@ -394,11 +396,11 @@ describe("Referencias page", () => {
     expect(remove).not.toHaveBeenCalled();
   });
 
-  it("desativa a referência quando há registros associados (erro 23503)", async () => {
+  it("avisa que a referência foi DESATIVADA quando a RPC devolve 'deactivated'", async () => {
     const { remove, deactivate } = setupReferencias({
-      remove: vi.fn().mockRejectedValue({
-        originalError: { code: "23503" },
-      }),
+      // ENH-0004: remover_ou_desativar_referencia decide no servidor —
+      // com registros associados devolve "deactivated" (nunca exclui).
+      remove: vi.fn().mockResolvedValue("deactivated"),
     });
     render(<Referencias />);
 
@@ -406,7 +408,7 @@ describe("Referencias page", () => {
 
     await waitFor(() => {
       expect(remove).toHaveBeenCalledWith("ref-1");
-      expect(deactivate).toHaveBeenCalledWith("ref-1");
+      expect(deactivate).not.toHaveBeenCalled();
       expect(alertSpy).toHaveBeenCalledWith(
         expect.stringContaining("DESATIVADA")
       );
@@ -414,25 +416,17 @@ describe("Referencias page", () => {
   });
 
   it("alerta erro genérico ao falhar em remover", async () => {
-    // a página alerta e RE-EMITE o erro (throw após alert) — captura a rejeição
-    const onUnhandled = vi.fn();
-    process.on("unhandledRejection", onUnhandled);
-    try {
-      setupReferencias({
-        remove: vi.fn().mockRejectedValue(new Error("rede")),
-      });
-      render(<Referencias />);
+    const { remove } = setupReferencias({
+      remove: vi.fn().mockRejectedValue(new Error("rede")),
+    });
+    render(<Referencias />);
 
-      fireEvent.click(within(tableRow("Arroz")).getAllByRole("button")[2]);
+    fireEvent.click(within(tableRow("Arroz")).getAllByRole("button")[2]);
 
-      await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith("Erro ao remover referência.");
-      });
-      await new Promise((r) => setTimeout(r, 0));
-      expect(onUnhandled).toHaveBeenCalled();
-    } finally {
-      process.off("unhandledRejection", onUnhandled);
-    }
+    await waitFor(() => {
+      expect(remove).toHaveBeenCalledWith("ref-1");
+      expect(alertSpy).toHaveBeenCalledWith("Erro ao remover referência.");
+    });
   });
 
   it("reabilita uma referência inativa após confirmação", async () => {

@@ -245,7 +245,8 @@ describe("Dashboard page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith("Maçã", 30);
+      // ENH-0004: create(nome, marca, fenil) — marca vazia = canônica.
+      expect(create).toHaveBeenCalledWith("Maçã", "", 30);
       expect(reload).toHaveBeenCalled();
       expect(screen.queryByText("Nova Referência")).toBeNull();
     });
