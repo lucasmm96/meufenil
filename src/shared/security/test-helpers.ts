@@ -281,7 +281,6 @@ export async function createTestReference(
       criado_por: ownerId,
       is_global: overrides.is_global ?? false,
       is_ativa: overrides.is_ativa ?? true,
-      nome_normalizado: nome.toLowerCase(),
     })
     .select()
     .single();
@@ -444,6 +443,25 @@ export async function isSecurityMigrationApplied(): Promise<boolean> {
         await admin.auth.admin.deleteUser(tempUserId);
       } catch { /* ok */ }
     }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se a migration ENH-0004 (20260904000000 — coluna `marca` + modelo
+ * canônico) está aplicada no banco de desenvolvimento. Sem efeitos colaterais:
+ * um SELECT pela coluna `marca` falha (PGRST204) no schema antigo e sucede no
+ * novo. Requer service role (getAdminClient) — sem credenciais, false.
+ */
+export async function isEnh0004MigrationApplied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin
+      .from("referencias")
+      .select("id, marca")
+      .limit(1);
+    return !error;
   } catch {
     return false;
   }

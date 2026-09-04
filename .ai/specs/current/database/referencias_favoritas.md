@@ -1,6 +1,6 @@
 # Tabela public.referencias_favoritas
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Última verificação:** 2026-09-04 (ENH-0004 — preservação de favoritos na desativação; migration 20260904000000 aplicada em dev)
 **DDL versionado em:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) — tabela, constraints, índice e políticas. DDL abaixo conferido contra o catálogo dos bancos dev e prod (2026-08-14) `[CONFIRMED: database × migration]`. Origem/canal de criação: `UNKNOWN` (git mostra apenas commits de código da feature de favoritos).
 
 ## Propósito
@@ -49,16 +49,16 @@ Nota factual: não existe política de UPDATE nesta tabela `[CONFIRMED: database
 
 - Um favorito por par (usuário, referência) — índice único `[CONFIRMED: database]`.
 - Favorito exige referência visível ao usuário (global, própria ou de concedente ativo) `[CONFIRMED: database]`.
-- Favoritos de uma referência desativada são removidos automaticamente pelo trigger `trg_remover_favoritos_referencia_inativa` `[CONFIRMED: database — ver triggers.md]`.
+- **Desativação/arquivamento NÃO remove favoritos** desde a ENH-0004 (OQ3/BR-036): o trigger `trg_remover_favoritos_referencia_inativa` foi eliminado (migration 20260904000000); a referência arquivada permanece favoritada, é exibida como inativa/indisponível, não pode ser usada em novos registros e pode ser desfavoritada normalmente `[CONFIRMED: migration 20260904000000 — ver triggers.md]`.
 
 ## Lifecycle
 
 - **Criação:** pelo usuário ao favoritar na página de referências (`referencias.service` — `.from("referencias_favoritas")`) `[CONFIRMED: code]`.
-- **Exclusão:** desfavoritar (DELETE) `[CONFIRMED: code]`; cascata por usuário ou referência; remoção automática quando a referência é desativada (trigger) `[CONFIRMED: database]`.
+- **Exclusão:** desfavoritar (DELETE) `[CONFIRMED: code]`; cascata por usuário ou referência (FK CASCADE vale apenas na remoção HARD — pessoais sem registros; desativação não remove o favorito) `[CONFIRMED: database]`.
 
 ## RPCs e triggers que tocam esta tabela
 
-- Trigger `trg_remover_favoritos_referencia_inativa` (DELETE via função `fn_remover_favoritos_referencia_inativa`) — [triggers.md](triggers.md)
+- Nenhum trigger toca esta tabela desde a ENH-0004 (o `trg_remover_favoritos_referencia_inativa` foi eliminado) `[CONFIRMED: migration 20260904000000 — ver triggers.md]`.
 - Nenhum RPC toca esta tabela `[CONFIRMED: database]`.
 
 ## Testes que cobrem esta tabela

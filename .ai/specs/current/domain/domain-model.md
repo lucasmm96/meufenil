@@ -1,6 +1,6 @@
 # Domain Model — MeuFenil
 
-**Última verificação:** 2026-08-15 (DEBT-0002)
+**Última verificação:** 2026-09-04 (ENH-0004 — modelo canônico e identidade imutável de referências)
 
 Modelo conceitual reconstruído a partir do sistema atual (banco, código, UI e testes). O modelo descreve conceitos — as tabelas são apenas parte da persistência deles.
 
@@ -36,10 +36,11 @@ Nota: `EXECUCAO_JOB` (background_job_executions) é uma entidade isolada do dom�
 ### Referencia (alimento de referência)
 
 - **Persistência:** `public.referencias` `[CONFIRMED: database]`.
-- **Atributos relevantes:** nome, `fenil_mg_por_100g`, `criado_por`, `is_global`, `nome_normalizado` (derivado: `lower(trim(nome))`), `is_ativa` `[CONFIRMED: database]`.
+- **Atributos relevantes:** nome (sem sufixo de marca desde a ENH-0004), `marca` (default canônico `'Produto In Natura'` para in natura/sem marca), `fenil_mg_por_100g` (`numeric(10,1)`), `criado_por`, `is_global`, `is_ativa` `[CONFIRMED: database]`.
+- **Identidade substantiva:** `(nome, marca, fenil_mg_por_100g)` — única entre referências ATIVAS (índice único parcial com `lower(trim(...))`); arquivadas coexistem com ativas de mesma identidade; para GLOBAIS é imutável por UPDATE (mudança = arquivar + criar nova) `[CONFIRMED: database — referencias.md; code — BR-034]`.
 - **Cardinalidades:** Usuario 1—N Referencia; Referencia 1—N Registro; Referencia 1—N Favorito `[CONFIRMED: database]`.
-- **Estados:** ativa (default) ↔ inativa (soft delete); a desativação remove favoritos (trigger) e impede novos registros (policy) `[CONFIRMED: database]`.
-- **Subtipos observados:** global (`is_global = true`) × pessoal — visibilidade e remoção diferentes `[CONFIRMED: database, security]`.
+- **Estados:** ativa (default) ↔ arquivada (`is_ativa = false`, soft delete/arquivamento); o arquivamento NÃO remove favoritos (desde a ENH-0004 — sem trigger) e impede novos registros (policy) `[CONFIRMED: database]`.
+- **Subtipos observados:** global (`is_global = true`) × pessoal — visibilidade, edição e remoção diferentes: globais têm identidade imutável e nunca são excluídas fisicamente pela aplicação (sempre arquivadas por admin); pessoais são editáveis pelo dono e removíveis (hard apenas sem registros vinculados) `[CONFIRMED: database, security, code — BR-034/BR-037]`.
 
 ### Registro (consumo)
 
@@ -65,7 +66,7 @@ Nota: `EXECUCAO_JOB` (background_job_executions) é uma entidade isolada do dom�
 ### Favorito
 
 - **Persistência:** `public.referencias_favoritas` `[CONFIRMED: database]`.
-- **Invariantes:** 1 por par (usuário, referência) (índice único); exige referência visível; removido automaticamente quando a referência é desativada `[CONFIRMED: database]`.
+- **Invariantes:** 1 por par (usuário, referência) (índice único); exige referência visível; PRESERVADO quando a referência é arquivada/desativada (desde a ENH-0004 — o trigger que removia favoritos foi eliminado); removido apenas por desfavoritar ou por cascata na remoção hard (referências pessoais sem registros) `[CONFIRMED: database, migration 20260904000000]`.
 - **Comportamento de UI:** favoritos ordenados primeiro no modal de registro `[CONFIRMED: code]`.
 
 ### ExecucaoJob (background job)

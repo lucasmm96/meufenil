@@ -1,6 +1,6 @@
 # Product Overview — MeuFenil
 
-**Última verificação:** 2026-08-15 (DEBT-0002)
+**Última verificação:** 2026-09-04 (ENH-0004 — contagem do seed ANVISA corrigida para 2.959)
 
 ## Propósito do produto
 
@@ -8,7 +8,7 @@ MeuFenil é uma aplicação open source (MIT, sem fins lucrativos) para **contro
 
 ## Problema que resolve
 
-A dieta de PKU é extremamente restritiva; o produto oferece organização, clareza e autonomia no controle diário do consumo de fenilalanina, incluindo dados iniciais de alimentos baseados em tabelas públicas da ANVISA e cadastro de alimentos próprios `[CONFIRMED: documentation — README.md; database — seed ANVISA 2.958 referências]`.
+A dieta de PKU é extremamente restritiva; o produto oferece organização, clareza e autonomia no controle diário do consumo de fenilalanina, incluindo dados iniciais de alimentos baseados em tabelas públicas da ANVISA e cadastro de alimentos próprios `[CONFIRMED: documentation — README.md; database — seed ANVISA com 2.959 INSERTs em referencias (contagem conferida em 2026-09-04; as specs que citavam 2.958 estavam incorretas)]`.
 
 ## Usuários (observados, não personas inventadas)
 
@@ -72,7 +72,7 @@ Detalhe em [../domain/business-rules.md](../domain/business-rules.md) e no relat
 | Supabase (Auth, Postgres/RLS/RPC, Edge Functions) | autenticação, banco, 2 funções edge | Fases 2–4 |
 | Google OAuth | login | `useUser.ts` |
 | Vercel (serverless + cron) | keepalive diário | `vercel.json`, `api/keepalive.ts` |
-| ANVISA (dados iniciais) | seed de referências globais (2.958 linhas) | `migrations/dados.sql` |
+| ANVISA (dados iniciais) | seed de referências globais (2.959 INSERTs) | `migrations/dados.sql` |
 | GitHub | apenas repositório (sem CI/CD versionado) | filesystem |
 
 ## Plataforma

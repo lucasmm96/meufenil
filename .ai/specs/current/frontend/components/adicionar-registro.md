@@ -1,6 +1,6 @@
 # Componente AdicionarRegistro
 
-**Última verificação:** 2026-08-15 (commit 0eb2e9b)
+**Última verificação:** 2026-09-04 (ENH-0004 — apresentação nome+marca combinados; criação inline com marca)
 **Código:** `src/react-app/components/AdicionarRegistro.tsx`
 
 ## Propósito e uso
@@ -23,18 +23,18 @@ Modal de criação de registro de consumo: busca de alimento (com dropdown e fav
 1. **Overlay modal** padrão ([overview.md](../overview.md)); painel `max-w-2xl max-h-[92vh] overflow-y-auto`; título "Adicionar Registro" + botão X.
 2. **Campos do form** (labels visíveis):
    - "Data" — `input type="date"`, `required`, default hoje no fuso do usuário `[CONFIRMED: code]`.
-   - "Alimento" — input com ícone `Search` à esquerda e X para limpar (`handleClearSearch`); **dropdown** (`max-h-64 overflow-y-auto divide-y`): botões por referência com nome + "{fenil_mg_por_100g.toFixed(1)} mg/100g"; favoritas com `bg-amber-50/60` e estrela `text-amber-500 fill-amber-500`; seleção preenche o input e fecha dropdown `[CONFIRMED: code — AdicionarRegistro.tsx:186-244]`.
-   - **Selecionado:** box `bg-indigo-50` com "{nome} - {fenil} mg de fenilalanina por 100g" + X para limpar `[CONFIRMED: code]`.
-   - Link "Criar novo alimento" (`Plus`) → abre `ModalReferencia`; criada com sucesso → vira a referência selecionada `[CONFIRMED: code — AdicionarRegistro.tsx:127-146,269-275]`.
+   - "Alimento" — input com ícone `Search` à esquerda e X para limpar (`handleClearSearch`); a busca consulta nome OU marca no servidor (`useReferencias.search` → service `.or(nome.ilike,marca.ilike)`); **dropdown** (`max-h-64 overflow-y-auto divide-y`, `AdicionarRegistro.tsx:209-239`): botões por referência com **nome combinado com a marca** (`nomeComMarca(nome, marca)` — linha 226) + "{fenil_mg_por_100g.toFixed(1)} mg/100g"; favoritas com `bg-amber-50/60` e estrela `text-amber-500 fill-amber-500`; seleção preenche o input com `nomeComMarca` e fecha dropdown `[CONFIRMED: code — AdicionarRegistro.tsx:215-218]`.
+   - **Selecionado:** box `bg-indigo-50` (linhas 242-261) com "{nomeComMarca(nome, marca)} - {fenil} mg de fenilalanina por 100g" + X para limpar `[CONFIRMED: code]`.
+   - Link "Criar novo alimento" (`Plus`, linha 263) → abre `ModalReferencia` (nome + marca + fenil); criada com sucesso (`handleCreateReferencia` — `createReferencia(nome, marca, fenil)` na linha 132) → vira a referência selecionada e o input recebe `nomeComMarca` `[CONFIRMED: code — AdicionarRegistro.tsx:124-143]`.
    - "Peso consumido (gramas)" — `input type="number" step="0.01"`, placeholder "Ex: 150", `required` `[CONFIRMED: code]`.
    - **Cálculo ao vivo:** se `fenilCalculada > 0`, box `bg-purple-50` "Fenilalanina calculada:" + "{fenilCalculada.toFixed(1)} mg" `[CONFIRMED: code — AdicionarRegistro.tsx:148-151,299-308]`.
 3. **Botões:** "Cancelar" (secundário) e "Salvar Registro" (gradiente; `disabled={loading || !selectedReferencia || !pesoG}`; "Salvando...") `[CONFIRMED: code]`.
 
 ## Validação e cálculo
 
-- Guard: `if (!usuarioAtivoId || !selectedReferencia || !pesoG || !data || !timezone) return` `[CONFIRMED: code]`.
-- **Cálculo no cliente:** `fenil_mg = (fenil_mg_por_100g * Number(pesoG)) / 100`; data convertida com `formatInTimeZone(..., timezone, "yyyy-MM-dd'T'HH:mm:ssXXX")` `[CONFIRMED: code — AdicionarRegistro.tsx:90-109]`.
-- Criação de referência: `Number.isNaN(fenil)` → retorna silenciosamente (sem mensagem) `[CONFIRMED: code]`.
+- Guard: `if (!usuarioAtivoId || !selectedReferencia || !pesoG || !data || !timezone) return` `[CONFIRMED: code — AdicionarRegistro.tsx:89]`.
+- **Cálculo no cliente:** `fenil_mg = (fenil_mg_por_100g * Number(pesoG)) / 100`; data convertida com `formatInTimeZone(..., timezone, "yyyy-MM-dd'T'HH:mm:ssXXX")` `[CONFIRMED: code — AdicionarRegistro.tsx:91-98]`.
+- Criação de referência inline: `Number.isNaN(fenil)` → retorna silenciosamente (sem mensagem); marca passada ao service como digitada (service normaliza para o canônico quando vazia) `[CONFIRMED: code — AdicionarRegistro.tsx:124-132]`.
 
 ## Estados de UI
 

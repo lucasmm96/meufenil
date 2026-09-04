@@ -1,6 +1,6 @@
 # Business Rules — MeuFenil
 
-**Última verificação:** 2026-08-15 (DEBT-0002)
+**Última verificação:** 2026-09-04 (ENH-0004 — modelo canônico e identidade imutável de referências; migrations 20260904000000/20260904010000 aplicadas em dev)
 
 Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o formato: Given / When / Then + Evidence + Implementation + Tests + Related Specs + Status. Status: `Confirmed + tested` · `Confirmed + partially tested` · `Confirmed + untested` · `Inferred` · `Unknown`. Regras em que a evidência não permite confirmação NÃO são listadas como fatos.
 
@@ -97,8 +97,8 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** validação
 - **Given:** modal de referência
 - **When:** submit
-- **Then:** `required` + guard `if (!nome || !fenil) return`; valor não numérico: Dashboard retorna silenciosamente, Referencias mostra alert "Informe um valor numérico válido para fenilalanina."
-- **Evidence:** `[CONFIRMED: code — ModalReferencia.tsx:31-39; Dashboard.tsx:58; Referencias.tsx:106-109]`
+- **Then:** `required` + guard `if (!nome || !fenil) return` (marca é opcional — omissa cai no canônico, BR-035); valor não numérico: Dashboard retorna silenciosamente, Referencias mostra alert "Informe um valor numérico válido para fenilalanina."
+- **Evidence:** `[CONFIRMED: code — ModalReferencia.tsx:48; Dashboard.tsx:55-58; Referencias.tsx:132-135]`
 - **Status:** Confirmed + partially tested (services; componentes sem teste)
 
 ### BR-012 — Exame exige data e resultado numérico
@@ -155,13 +155,13 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tests:** T3.6, T3.7 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-018 — Referência com registros vinculados não é excluída hard
+### BR-018 — Remoção de referência pessoal: RPC decide soft/hard pelo vínculo
 - **Tipo:** lifecycle
-- **Given:** referência usada em ≥ 1 registro
-- **When:** remoção (RPC) ou DELETE direto
-- **Then:** RPC faz soft delete (`is_ativa = false`, retorna `'deactivated'`); a policy DELETE bloqueia; na UI, erro FK 23503 dispara fallback de desativação com alert "Esta referência possui registros associados..."
-- **Evidence:** `[CONFIRMED: migration, database, code — Referencias.tsx:92-95]`
-- **Tests:** T3.3 `[CONFIRMED: test]`
+- **Given:** referência PESSOAL (`is_global = false`) e remoção via RPC `remover_ou_desativar_referencia` (única via da aplicação — service `deleteOrDeactivateReferencia`)
+- **When:** usuário remove na UI
+- **Then:** com ≥ 1 registro vinculado → soft delete (`is_ativa = false`, retorna `'deactivated'`); sem registros → DELETE físico (retorna `'deleted'`). A policy DELETE bloqueia remoção direta quando há vínculo; o fallback de erro FK 23503 na UI foi ELIMINADO na ENH-0004 (o service passou a tratar o retorno do RPC). Globais: sempre arquivam — BR-037
+- **Evidence:** `[CONFIRMED: migration — 20260904000000 linhas 96-164; code — referencias.service.ts:323-338; Referencias.tsx:96-127]`
+- **Tests:** T3.3, T3.7 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-019 — Registro exige referência ativa
@@ -204,20 +204,20 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** UI behavior
 - **Given:** página Referencias
 - **When:** ações por linha
-- **Then:** `podeEditarOuRemover(ref) = ref.criado_por === usuarioAtivoId || (isAdmin && ref.is_global)`; botões desabilitados caso contrário (enforcement real no banco)
-- **Evidence:** `[CONFIRMED: code — Referencias.tsx:44-48]`
-- **Tests:** sem teste de página
-- **Status:** Confirmed + untested
+- **Then:** `podeEditarOuRemover(ref) = ref.criado_por === usuarioAtivoId || (isAdmin && ref.is_global)`; botões desabilitados caso contrário (enforcement real no banco). PESSOAL: edição abre o modal e faz UPDATE. GLOBAL: a guarda do service (`assertReferenciaEditavel`) impede UPDATE substantivo — `AppError REFERENCIA_GLOBAL_IMUTAVEL` (BR-034); a UI oferece confirmar o arquivamento da atual e abrir o modal pré-preenchido para criar a nova (arquivar + criar)
+- **Evidence:** `[CONFIRMED: code — Referencias.tsx:54-58 (podeEditarOuRemover), 66-94 (edição de global: arquivar+criar), 96-127 (remoção); referencias.service.ts:242-261 (guarda)]`
+- **Tests:** service testado (guarda de global); sem teste de página
+- **Status:** Confirmed + partially tested
 
 ## Lifecycle
 
-### BR-024 — Lifecycle da referência: criada → ativa ↔ inativa
+### BR-024 — Lifecycle da referência: criada → ativa ↔ arquivada
 - **Tipo:** lifecycle
 - **Given:** referência
 - **When:** criação / desativação / reativação
-- **Then:** criada com `is_ativa = true` (default); desativada via RPC quando há vínculo; reativada via RPC `ativar_referencia` (dono/delegado/admin); desativação remove favoritos (trigger `trg_remover_favoritos_referencia_inativa`)
-- **Evidence:** `[CONFIRMED: database, migration — referencias.md, triggers.md, rpc.md]`
-- **Tests:** T2.2/T2.3/T2.4, T3.3 (RPCs); trigger sem teste
+- **Then:** criada com `is_ativa = true` (default) e identidade única entre ATIVAS (índice único parcial — BR-034/BR-035); desativada (arquivada, `is_ativa = false`) via RPC quando pessoal com vínculo OU sempre que global (BR-037); reativada via RPC `ativar_referencia` (pessoal pelo dono/delegado; global por admin); arquivadas coexistem livremente com ativas de mesma identidade; desativação NÃO remove favoritos (trigger eliminado na ENH-0004 — BR-036)
+- **Evidence:** `[CONFIRMED: database, migration — referencias.md, triggers.md, rpc.md; migration 20260904000000]`
+- **Tests:** T2.2/T2.3/T2.4, T3.3, T3.7 (RPCs)
 - **Status:** Confirmed + partially tested
 
 ### BR-025 — Novo usuário recebe limite 500 e timezone São Paulo
@@ -284,7 +284,7 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Given:** toggle de favorito
 - **When:** usuário favorita/desfavorita
 - **Then:** lista reordenada imediatamente com favoritas primeiro; em erro no banco, a lista anterior é restaurada e o AppError é relançado
-- **Evidence:** `[CONFIRMED: code — useReferencias.ts:126-168]`
+- **Evidence:** `[CONFIRMED: code — useReferencias.ts:132-179]`
 - **Tests:** hook testado (estado inicial, busca, erro, criar) — reordenação/rollback SEM teste direto
 - **Status:** Confirmed + partially tested
 
@@ -293,7 +293,7 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Given:** página Referencias
 - **When:** busca/filtros (inativas, favoritas, customizadas) mudam
 - **Then:** nova consulta com os filtros (servidor); página volta à primeira página da paginação client-side
-- **Evidence:** `[CONFIRMED: code — useReferencias.ts:35-42,59-61; Referencias.tsx:160-162]`
+- **Evidence:** `[CONFIRMED: code — useReferencias.ts:28-56 (load), 182-194 (search nome/marca); Referencias.tsx (filtros/paginação)]`
 - **Status:** Confirmed + partially tested
 
 ### BR-033 — Janela do gráfico do dashboard: 7 dias incluindo hoje
@@ -303,6 +303,46 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Then:** gráfico "Últimos 7 dias" usa registros de `data >= hoje−6` (no timezone do usuário), agregados por dia no cliente
 - **Evidence:** `[CONFIRMED: code — dashboard.service.ts:34-43,55]`
 - **Tests:** `dashboard.service.test.ts` `[CONFIRMED: test]`
+- **Status:** Confirmed + tested
+
+## Identidade e arquivamento de referências (ENH-0004 — 2026-09-04)
+
+> Regras novas decorrentes da proposta ENH-0004 (aprovada em 2026-09-04), numeradas BR-034–BR-037 na sequência das seções "Novas propostas" da proposta. `[CONFIRMED: implementação ENH-0004 — migrations 20260904000000/20260904010000 e código da branch enhancement/enh-0004; premissa: numeração sequencial derivada — renumeração é decisão humana se houver conflito com numeração futura]`
+
+### BR-034 — Identidade substantiva de globais é imutável
+- **Tipo:** lifecycle (identidade)
+- **Given:** referência global (`is_global = true`) já criada
+- **When:** tentativa de edição da identidade substantiva `(nome, marca, fenil_mg_por_100g)` por UPDATE
+- **Then:** a guarda do service (`assertReferenciaEditavel`) lança `AppError REFERENCIA_GLOBAL_IMUTAVEL`; a UI oferece o fluxo de arquivar a atual e criar a nova (cópia pré-preenchida no modal) — nenhum fluxo da aplicação edita a identidade de global por UPDATE
+- **Evidence:** `[CONFIRMED: code — referencias.service.ts:242-261; Referencias.tsx:66-94]`
+- **Tests:** `referencias.service.test.ts` cobre a guarda; fluxo arquivar+criar da página sem teste `[CONFIRMED: test]`
+- **Status:** Confirmed + partially tested
+
+### BR-035 — Marca é atributo separado com canônico "Produto In Natura"
+- **Tipo:** modelo de dados
+- **Given:** criação ou edição de referência
+- **When:** usuário informa a marca ou a omite
+- **Then:** `marca` gravada em coluna própria (`NOT NULL` default `'Produto In Natura'`) — omissão/em branco cai no canônico (in natura/sem marca); o `nome` não carrega o sufixo `(Marca: X)`; a apresentação combinada `"Nome (Marca: X)"` é montada dinamicamente no frontend (`nomeComMarca`); a busca de referências consulta nome OU marca (server-side)
+- **Evidence:** `[CONFIRMED: migration 20260904000000 (coluna + backfill); code — lib/referencias.ts (normalizarMarca, extrairMarcaDoNome, nomeComMarca), ModalReferencia.tsx:90-107, referencias.service.ts:74-86]`
+- **Tests:** `src/react-app/lib/referencias.test.ts` (12 testes) + `referencias.service.test.ts` (busca nome+marca) `[CONFIRMED: test]`
+- **Status:** Confirmed + tested
+
+### BR-036 — Desativação preserva favoritos
+- **Tipo:** lifecycle
+- **Given:** referência favoritada por um usuário
+- **When:** desativação/arquivamento em qualquer fluxo (pessoal com vínculo via RPC; global por admin)
+- **Then:** favoritos NÃO são removidos — o trigger `trg_remover_favoritos_referencia_inativa` foi eliminado (migration 20260904000000); a linha permanece em `referencias_favoritas`; a referência arquivada é exibida como inativa/indisponível, não pode ser usada em novos registros e pode ser desfavoritada normalmente; reativação restaura o uso
+- **Evidence:** `[CONFIRMED: migration 20260904000000 (DROPs, linhas 87-88); database — referencias_favoritas.md, triggers.md]`
+- **Tests:** sem teste dedicado `[CONFIRMED: ausência]`
+- **Status:** Confirmed + untested
+
+### BR-037 — Globais nunca são excluídas fisicamente pela aplicação
+- **Tipo:** lifecycle
+- **Given:** referência global (`is_global = true`)
+- **When:** remoção via RPC `remover_ou_desativar_referencia` (única via da aplicação)
+- **Then:** SEMPRE arquivamento — `is_ativa = false`, `updated_at = now()`, retorna `'deactivated'` — inclusive quando não há registros vinculados; nunca DELETE físico pela aplicação; reativação de global apenas por admin
+- **Evidence:** `[CONFIRMED: migration 20260904000000 (linhas 96-164); code — referencias.service.ts:323-338]`
+- **Tests:** T3.7 de `src/shared/security/rpc-remover-referencia.test.ts` (condicionado a `isEnh0004MigrationApplied`) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ## Evidências (documento)

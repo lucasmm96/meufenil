@@ -61,7 +61,7 @@ export function useReferencias(usuarioId?: string, options?: UseReferenciasOptio
   }, [load]);
 
   const create = useCallback(
-    async (nome: string, fenil: number) => {
+    async (nome: string, marca: string | undefined, fenil: number) => {
       if (!usuarioId) {
         throw new AppError(
           "USER_NOT_FOUND",
@@ -72,6 +72,7 @@ export function useReferencias(usuarioId?: string, options?: UseReferenciasOptio
       try {
         const ref = await createReferencia({
           nome,
+          marca,
           fenil_mg_por_100g: fenil,
           usuarioId,
         });
@@ -89,8 +90,13 @@ export function useReferencias(usuarioId?: string, options?: UseReferenciasOptio
   );
 
   const update = useCallback(
-    async (id: string, nome: string, fenil: number) => {
-      await updateReferencia(id, nome, fenil);
+    async (
+      id: string,
+      nome: string,
+      marca: string | undefined,
+      fenil: number
+    ) => {
+      await updateReferencia(id, { nome, marca, fenil_mg_por_100g: fenil });
       await load();
     },
     [load]
@@ -105,18 +111,20 @@ export function useReferencias(usuarioId?: string, options?: UseReferenciasOptio
   );
 
   const deactivate = useCallback(
-    async (id: string) => {
-      await deleteOrDeactivateReferencia(id);
+    async (id: string): Promise<string | null> => {
+      const resultado = await deleteOrDeactivateReferencia(id);
       await load();
+      return resultado;
     },
     [load]
   );
 
 
   const remove = useCallback(
-    async (id: string) => {
-      await deleteOrDeactivateReferencia(id);
+    async (id: string): Promise<string | null> => {
+      const resultado = await deleteOrDeactivateReferencia(id);
       await load();
+      return resultado;
     },
     [load]
   );

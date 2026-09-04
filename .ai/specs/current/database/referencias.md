@@ -1,36 +1,38 @@
 # Tabela public.referencias
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
-**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 171–260); coluna `is_ativa` e políticas consolidadas: `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001). Legado: `migrations/referencias.sql`
+**Última verificação:** 2026-09-04 (ENH-0004 — migrations 20260904000000/20260904010000 aplicadas em dev)
+**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 171–260); coluna `is_ativa` e políticas consolidadas: `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001); modelo canônico (ENH-0004): `supabase/migrations/20260904000000_referencias_marca_identidade_imutavel.sql` + `supabase/migrations/20260904010000_referencias_marca_backfill_aninhados.sql`. Legado: `migrations/referencias.sql`. **Nota:** as migrations ENH-0004 foram aplicadas em dev em 2026-09-04; prod permanece com o schema anterior até a release (este documento descreve o estado pós-ENH-0004).
 
 ## Propósito
 
-Alimentos de referência com quantidade de fenilalanina por 100g. Podem ser globais (dados ANVISA/administrativos, `is_global = true`) ou criados pelo próprio usuário (`criado_por`).
+Alimentos de referência com quantidade de fenilalanina por 100g. Podem ser globais (dados ANVISA/administrativos, `is_global = true`) ou criados pelo próprio usuário (`criado_por`). Desde a ENH-0004, `nome` e `marca` são atributos separados; a identidade substantiva de uma referência é `(nome, marca, fenil_mg_por_100g)`, imutável por UPDATE para o conjunto global e única entre referências ATIVAS.
 
 ## Colunas
 
-`[CONFIRMED: database — information_schema.columns dev e prod, 2026-08-13]`
+`[CONFIRMED: database — information_schema.columns dev e prod, 2026-08-13; dev pós-ENH-0004 2026-09-04 (migrations 20260904000000/20260904010000)]`
 
 | coluna | tipo | default | nullable | constraint | notas |
 |---|---|---|---|---|---|
 | `id` | uuid | `gen_random_uuid()` | NO | PK | |
-| `nome` | text | — | NO | — | |
-| `fenil_mg_por_100g` | real | — | NO | — | fenilalanina em mg por 100g |
+| `nome` | text | — | NO | — | sem o sufixo de marca (limpo no backfill ENH-0004) |
+| `marca` | text | `'Produto In Natura'` | NO | — | adicionada na ENH-0004 (A3a/OQ2); canônico de "sem marca"/in natura; NOT NULL com default — INSERTs que não informem marca (ex.: CLI `seed-referencia`) caem no canônico |
+| `fenil_mg_por_100g` | numeric(10,1) | — | NO | — | fenilalanina em mg por 100g; `numeric(10,1)` desde a ENH-0004 (A2 — era `real`); 1 casa decimal |
 | `criado_por` | uuid | `auth.uid()` | NO | FK → `usuarios(id)` ON DELETE CASCADE | |
 | `is_global` | boolean | `false` | NO | — | global (ANVISA/admin) × pessoal |
 | `created_at` | timestamp with time zone | `now()` | YES | — | |
 | `updated_at` | timestamp with time zone | `now()` | YES | — | |
-| `nome_normalizado` | text | — | NO | UNIQUE (índice) | `lower(trim(nome))` via trigger |
 | `is_ativa` | boolean | `true` | NO | — | versionada na migration 20260814000000 (ausente do baseline e do legado) `[CONFIRMED: database × migration]` |
+
+Coluna `nome_normalizado` **eliminada** na ENH-0004 (A4(b)) — normalização passou a ser runtime (escopo do FEAT-0017); unicidade usa expressões no índice (abaixo). `[CONFIRMED: migration 20260904000000]`
 
 ## Constraints e índices
 
-`[CONFIRMED: database — pg_constraint e pg_indexes, 2026-08-13]`
+`[CONFIRMED: database — pg_constraint e pg_indexes, 2026-08-13; dev pós-ENH-0004 2026-09-04 (migration 20260904000000)]`
 
 - `referencias_pkey` — PRIMARY KEY (`id`)
 - `referencias_criado_por_fkey` — FOREIGN KEY (`criado_por`) REFERENCES `usuarios(id)` ON DELETE CASCADE
-- `referencias_nome_unique` — UNIQUE INDEX btree (`lower(nome)`)
-- `referencias_nome_normalizado_unique` — UNIQUE INDEX btree (`nome_normalizado`)
+- `referencias_identidade_ativa_unique` — UNIQUE INDEX btree (`lower(trim(nome))`, `lower(trim(marca))`, `fenil_mg_por_100g`) **WHERE `is_ativa`** (ENH-0004, A1(b)) — identidade substantiva única entre referências ATIVAS; arquivadas (`is_ativa = false`) podem repetir a identidade livremente (histórico coexiste com o ativo). Violação 23505 → AppError `REFERENCIA_DUPLICADA` no service.
+- Índices `referencias_nome_unique` (btree `lower(nome)`) e `referencias_nome_normalizado_unique` (btree `nome_normalizado`) **removidos** na ENH-0004 (A1(b)).
 - Nenhuma CHECK constraint.
 
 ## Relacionamentos (FKs)
@@ -60,44 +62,48 @@ Alimentos de referência com quantidade de fenilalanina por 100g. Podem ser glob
 Notas factuais:
 - As políticas do baseline ("usuario ve referencias", "usuario cria referencia", "Usuário pode ler referências", "Usuário pode ver referências globais ou próprias", "admin_can_insert_referencias", "admin_can_select_referencias", "admin_can_update_referencias") NÃO existem com esses nomes no banco real — o conjunto foi recriado/renomeado e versionado pela migration 20260814000000 (DEBT-0001) `[CONFIRMED: database × migration]`.
 - Existem DUAS políticas SELECT com semântica idêntica ("Usuário lista referências" e "Usuário lista referências globais ou próprias") — ambas vigentes `[CONFIRMED: database]`.
-- O DELETE direto por usuário é bloqueado quando existem `registros` vinculados (o vínculo é preservado — ver [registros.md](registros.md)); a via oficial de remoção é o RPC `remover_ou_desativar_referencia` (soft-delete via `is_ativa`) `[CONFIRMED: database, migration]`.
+- A ENH-0004 NÃO alterou políticas (a nova coluna `marca` não é security-relevant) `[CONFIRMED: migration 20260904000000 × ausência de mudança de policies]`.
+- O DELETE direto por usuário é bloqueado quando existem `registros` vinculados (o vínculo é preservado — ver [registros.md](registros.md)); a via oficial de remoção é o RPC `remover_ou_desativar_referencia` — para GLOBAIS o RPC sempre arquiva (`is_ativa = false`), nunca exclui fisicamente (OQ4 da ENH-0004); para pessoais mantém a regra soft/hard conforme vínculo `[CONFIRMED: database, migration — 20260904000000]`.
 
 ## Regras de negócio associadas
 
-- Normalização do nome (`lower(trim(nome))`) — trigger `trg_normalizar_nome_referencia` (ver [triggers.md](triggers.md)).
-- Unicidade de nome: tanto pelo índice em `lower(nome)` quanto pelo índice em `nome_normalizado`.
-- Desativação (soft delete): `is_ativa = false` quando a referência tem registros vinculados (RPC); o trigger `trg_remover_favoritos_referencia_inativa` remove favoritos ao desativar (ver [triggers.md](triggers.md)).
-- Referências globais: somente admins podem removê-las (RPC e política DELETE) `[CONFIRMED: migration, database]`.
+- Identidade substantiva da referência = `(nome, marca, fenil_mg_por_100g)`; para GLOBAIS (`is_global = true`) é IMUTÁVEL por UPDATE após a criação (guarda no service → AppError `REFERENCIA_GLOBAL_IMUTAVEL`; mudança substantiva = arquivar a atual + criar a nova — BR-034). Pessoais seguem editáveis pelo dono (BR-023) `[CONFIRMED: code — referencias.service.ts:242-261; migration 20260904000000]`.
+- Unicidade da identidade apenas entre referências ATIVAS (índice `referencias_identidade_ativa_unique`) — arquivadas coexistem com o mesmo nome/marca `[CONFIRMED: migration 20260904000000]`.
+- Marca como atributo separado: sem marca/in natura = canônico fixo `Produto In Natura` (default da coluna); o frontend monta a apresentação combinada dinamicamente (BR-035) `[CONFIRMED: migration 20260904000000; code — lib/referencias.ts]`.
+- Desativação (arquivamento): `is_ativa = false`; NÃO remove favoritos em nenhum fluxo (trigger de remoção de favoritos foi ELIMINADO na ENH-0004 — OQ3/BR-036; ver [triggers.md](triggers.md) e [referencias_favoritas.md](referencias_favoritas.md)).
+- Referências globais nunca são excluídas fisicamente pela aplicação (BR-037); somente admins podem arquivá-las (RPC e política DELETE) `[CONFIRMED: migration — 20260904000000]`.
 - Novos registros de consumo exigem referência ativa (política de `registros` — ver [registros.md](registros.md)).
 
 ## Lifecycle
 
-- **Criação:** pelo usuário (política INSERT) ou por admin; seed histórico de dados ANVISA em `migrations/dados.sql` (2.958 INSERTs, 2026-01-01) e CLI `seed-referencia` `[CONFIRMED: migration, code — scripts/cli/commands/seed-referencia.js]`.
-- **Atualização:** pelo dono/delegado/admin (política UPDATE; WITH CHECK limita `is_ativa` a true/false); `updated_at = now()` nos RPCs.
-- **Desativação/remoção:** RPC `remover_ou_desativar_referencia` — soft (`is_ativa = false`, retorna `'deactivated'`) se houver registros; hard (DELETE, retorna `'deleted'`) se não houver `[CONFIRMED: migration]`. Reativação: RPC `ativar_referencia` `[CONFIRMED: migration]`.
-- **Exclusão em cascata:** favoritos são excluídos via FK CASCADE quando a referência é removida hard.
+- **Criação:** pelo usuário (política INSERT) ou por admin; seed histórico de dados ANVISA em `migrations/dados.sql` (2.959 INSERTs, 2026-01-01) e CLI `seed-referencia` `[CONFIRMED: migration, code — scripts/cli/commands/seed-referencia.js; contagem do seed conferida em 2026-09-02/04]`.
+- **Atualização:** pessoais pelo dono/delegado (política UPDATE; WITH CHECK limita `is_ativa` a true/false); `updated_at = now()` nos RPCs; o service sanitiza a identidade (extrai sufixo legado `(Marca: ...)` do nome para a coluna `marca`) antes do UPDATE/INSERT `[CONFIRMED: code — referencias.service.ts:340-355]`. **Globais: nenhum fluxo da aplicação edita a identidade por UPDATE** — edição na UI arquiva a atual e cria a nova (BR-034) `[CONFIRMED: code — referencias.service.ts:242-261; Referencias.tsx:66-94]`.
+- **Desativação/remoção:** RPC `remover_ou_desativar_referencia` — GLOBAIS: sempre arquivamento (`is_ativa = false`, retorna `'deactivated'`), inclusive sem registros (OQ4); PESSOAIS: soft (`'deactivated'`) se houver registros, hard (DELETE, `'deleted'`) se não houver `[CONFIRMED: migration 20260904000000 — linhas 96–164]`. Reativação: RPC `ativar_referencia` (dono/delegado/admin — permanece permitida para pessoais pelo dono e para globais por admin) `[CONFIRMED: migration]`.
+- **Backfill (ENH-0004, A3a):** o sufixo `(Marca: X)` embutido no `nome` foi extraído para a coluna `marca` em todas as linhas do dev DB (3.164 linhas antes/depois, nenhuma perdida; nenhuma marca vazia; 0 residuais; 4 linhas com parênteses internos na marca tratadas pela migration complemento 20260904010000) `[CONFIRMED: migrations 20260904000000/20260904010000 — execução dev 2026-09-04]`.
+- **Exclusão em cascata:** favoritos são excluídos via FK CASCADE apenas quando a referência é removida hard (pessoais sem registros); desativação NÃO remove favoritos (sem trigger) `[CONFIRMED: database × migration 20260904000000]`.
 
 ## RPCs e triggers que tocam esta tabela
 
 - `ativar_referencia` (UPDATE `is_ativa = true`) — [rpc.md](rpc.md)
-- `remover_ou_desativar_referencia` (SELECT/DELETE/UPDATE) — [rpc.md](rpc.md)
+- `remover_ou_desativar_referencia` (SELECT/DELETE/UPDATE; redefinida na migration 20260904000000 — globais sempre arquivam) — [rpc.md](rpc.md)
 - `get_estatisticas_admin` (contagens) — [rpc.md](rpc.md)
-- Triggers: `trg_normalizar_nome_referencia` (BEFORE INSERT OR UPDATE), `trg_remover_favoritos_referencia_inativa` (AFTER UPDATE) — [triggers.md](triggers.md)
+- Triggers: **nenhum trigger em `referencias` desde a ENH-0004** (`trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` eliminados) — [triggers.md](triggers.md)
 
 ## Testes que cobrem esta tabela
 
 - `src/shared/security/rpc-ativar-referencia.test.ts` — autorização do RPC `ativar_referencia` `[CONFIRMED: test]`
-- `src/shared/security/rpc-remover-referencia.test.ts` — autorização e soft/hard delete do RPC de remoção `[CONFIRMED: test]`
-- `src/react-app/services/referencias.service.test.ts` — serviço `referencias.service` `[CONFIRMED: test]`
+- `src/shared/security/rpc-remover-referencia.test.ts` — autorização e soft/hard delete do RPC de remoção; T3.7 (ENH-0004): remoção de GLOBAL por admin SEMPRE arquiva (`'deactivated'`), nunca exclui `[CONFIRMED: test]`
+- `src/react-app/services/referencias.service.test.ts` — serviço `referencias.service` (busca nome+marca, sanitização, guarda de global) `[CONFIRMED: test]`
+- `src/react-app/lib/referencias.test.ts` — helpers do modelo canônico (`normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca`) `[CONFIRMED: test]`
 
 ## Evidências
 
-- E1 — Colunas (incluindo `is_ativa`), constraints, índices: catálogo dev e prod (2026-08-13) `[CONFIRMED: database]`
-- E2 — DDL base: baseline linhas 171–260; legado `migrations/referencias.sql` `[CONFIRMED: migration]`
+- E1 — Colunas (incluindo `is_ativa`; pós-ENH-0004: `marca`, sem `nome_normalizado`), constraints, índices: catálogo dev e prod (2026-08-13); dev pós-ENH-0004 (2026-09-04) `[CONFIRMED: database, migration]`
+- E2 — DDL base: baseline linhas 171–260; legado `migrations/referencias.sql`; modelo canônico: migrations 20260904000000/20260904010000 `[CONFIRMED: migration]`
 - E3 — `is_ativa` ausente de todas as migrations versionadas e legadas até a baseline 20260814000000 (DEBT-0001), que a versiona `[CONFIRMED: ausência em migrations; migration 20260814000000]`
 - E4 — Políticas: `pg_policies` dev e prod (2026-08-13) `[CONFIRMED: database]`
 - E5 — Chamadores no código: 11 referências `.from("referencias")` em `src/`; RPCs chamados em `referencias.service.ts:246,263` `[CONFIRMED: code]`
-- E6 — Contagens: dev = 3.164, prod = 2.986 (2026-08-13) `[CONFIRMED: database]`
+- E6 — Contagens: dev = 3.164, prod = 2.986 (2026-08-13); dev permanece 3.164 após o backfill ENH-0004 (antes = depois, asserção da migration) `[CONFIRMED: database, migration]`
 
 ## Veja também
 

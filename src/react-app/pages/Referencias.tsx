@@ -8,7 +8,15 @@ import { useReferencias } from "@/react-app/hooks/useReferencias";
 import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
 import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { LayoutSkeleton, ReferenciasSkeleton } from "@skeletons";
-import ModalReferencia from "@/react-app/components/ModalReferencia";
+import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
+import { nomeComMarca } from "@/react-app/lib/referencias";
+
+interface PrefillCopiaReferencia {
+  nome: string;
+  marca: string;
+  fenil_mg_por_100g: number;
+  arquivarOrigemId: string | null;
+}
 
 export default function ReferenciasPage() {
   const { authUser, ready } = useAuth();
@@ -35,6 +43,7 @@ export default function ReferenciasPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingReferencia, setEditingReferencia] = useState<ReferenciaDTO | null>(null);
+  const [prefillCopia, setPrefillCopia] = useState<PrefillCopiaReferencia | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showInativas, setShowInativas] = useState(false);
   const [onlyFavoritas, setOnlyFavoritas] = useState(false);
@@ -50,47 +59,75 @@ export default function ReferenciasPage() {
 
   const handleOpenCreate = () => {
     setEditingReferencia(null);
+    setPrefillCopia(null);
     setShowModal(true);
   };
 
   const handleOpenEdit = (ref: ReferenciaDTO) => {
     if (!podeEditarOuRemover(ref) || !ref.is_ativa) return;
+
+    // Imutabilidade substantiva de globais (BR-034+): editar uma referência
+    // global = arquivar a atual + criar uma nova com os dados ajustados.
+    if (ref.is_global) {
+      const confirmar = confirm(
+        `Referências globais são imutáveis.\n\n` +
+        `Para ajustar "${nomeComMarca(ref.nome, ref.marca)}", a referência atual será arquivada e uma nova será criada com os dados alterados.\n\n` +
+        `Continuar?`
+      );
+
+      if (!confirmar) return;
+
+      setEditingReferencia(null);
+      setPrefillCopia({
+        nome: ref.nome,
+        marca: ref.marca,
+        fenil_mg_por_100g: ref.fenil_mg_por_100g,
+        arquivarOrigemId: ref.id,
+      });
+      setShowModal(true);
+      return;
+    }
+
     setEditingReferencia(ref);
+    setPrefillCopia(null);
     setShowModal(true);
   };
 
   const handleDelete = async (ref: ReferenciaDTO) => {
     if (!podeEditarOuRemover(ref) || !ref.is_ativa) return;
 
-    const confirmar = confirm(
-      `Remover a referência "${ref.nome}"?\n\n` +
-      `⚠️ Se houver registros associados, ela será apenas desativada.`
-    );
+    const apresentacao = nomeComMarca(ref.nome, ref.marca);
+    const confirmar = ref.is_global
+      ? confirm(
+          `Arquivar a referência global "${apresentacao}"?\n\n` +
+          `Referências globais nunca são excluídas — ela será apenas desativada.`
+        )
+      : confirm(
+          `Remover a referência "${apresentacao}"?\n\n` +
+          `⚠️ Se houver registros associados, ela será apenas desativada.`
+        );
 
     if (!confirmar) return;
 
     try {
-      await remove(ref.id);
+      const resultado = await remove(ref.id);
 
-      alert("Referência removida com sucesso.");
-    } catch (err) {
-      const originalCode = (err as { originalError?: { code?: string } } | undefined)?.originalError?.code;
-
-      if (originalCode === "23503") {
-        await deactivate(ref.id);
+      if (resultado === "deactivated") {
         alert(
-          "Esta referência possui registros associados.\n\n" +
-          "Ela foi DESATIVADA e não poderá ser usada em novos registros."
+          ref.is_global
+            ? "Referência global arquivada (desativada).\n\nEla não poderá ser usada em novos registros."
+            : "Esta referência possui registros associados.\n\nEla foi DESATIVADA e não poderá ser usada em novos registros."
         );
       } else {
-        alert("Erro ao remover referência.");
-        throw err;
+        alert("Referência removida com sucesso.");
       }
+    } catch {
+      alert("Erro ao remover referência.");
     }
   };
 
-  const handleSubmit = async (data: { nome: string; fenil: number }) => {
-    const { nome, fenil } = data;
+  const handleSubmit = async (data: DadosModalReferencia) => {
+    const { nome, marca, fenil } = data;
 
     if (Number.isNaN(fenil)) {
       alert("Informe um valor numérico válido para fenilalanina.");
@@ -106,21 +143,37 @@ export default function ReferenciasPage() {
           return;
         }
 
-        await update(editingReferencia.id, nome, fenil);
+        await update(editingReferencia.id, nome, marca, fenil);
 
         alert("Referência atualizada com sucesso.");
       } else {
-        await create(nome, fenil);
-        alert("Referência criada com sucesso.");
+        await create(nome, marca, fenil);
+
+        if (prefillCopia?.arquivarOrigemId) {
+          await deactivate(prefillCopia.arquivarOrigemId);
+
+          alert(
+            "Nova referência criada com sucesso.\n\n" +
+            "A referência original foi arquivada (desativada) e não poderá ser usada em novos registros."
+          );
+        } else {
+          alert("Referência criada com sucesso.");
+        }
       }
 
       setShowModal(false);
+      setPrefillCopia(null);
 
     } catch (err) {
       const code = (err as { code?: string } | undefined)?.code;
 
       if (code === "REFERENCIA_DUPLICADA") {
-        alert("Já existe uma referência com esse nome.");
+        alert("Já existe uma referência ativa com esse nome e marca.");
+        return;
+      }
+
+      if (code === "REFERENCIA_GLOBAL_IMUTAVEL") {
+        alert("Referências globais não podem ser editadas.");
         return;
       }
 
@@ -348,7 +401,7 @@ export default function ReferenciasPage() {
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <p className={`text-sm font-semibold ${r.is_ativa ? "text-gray-900" : "text-gray-400 line-through"}`}>
-                              {r.nome}
+                              {nomeComMarca(r.nome, r.marca)}
                             </p>
 
                             {!r.is_ativa && (
@@ -408,7 +461,7 @@ export default function ReferenciasPage() {
                           {!r.is_ativa && podeEditarOuRemover(r) && (
                             <button
                               onClick={async () => {
-                                if (!confirm(`Reativar a referência "${r.nome}"?`)) return;
+                                if (!confirm(`Reativar a referência "${nomeComMarca(r.nome, r.marca)}"?`)) return;
                                 await activate(r.id);
                               }}
                               className="text-green-600"
@@ -489,7 +542,7 @@ export default function ReferenciasPage() {
 
                           <td className="px-6 py-4">
                             <p className={`text-sm font-medium ${r.is_ativa ? "text-gray-900" : "text-gray-400 line-through"}`}>
-                              {r.nome}
+                              {nomeComMarca(r.nome, r.marca)}
                             </p>
                           </td>
 
@@ -538,7 +591,7 @@ export default function ReferenciasPage() {
                               {!r.is_ativa && podeEditarOuRemover(r) && (
                                 <button
                                   onClick={async () => {
-                                    if (!confirm(`Reativar a referência "${r.nome}"?`)) return;
+                                    if (!confirm(`Reativar a referência "${nomeComMarca(r.nome, r.marca)}"?`)) return;
                                     await activate(r.id);
                                   }}
                                   className="text-green-600 hover:text-green-700"
@@ -639,8 +692,12 @@ export default function ReferenciasPage() {
         {showModal && (
           <ModalReferencia
             referencia={editingReferencia}
+            initial={prefillCopia}
             loading={submitting}
-            onClose={() => setShowModal(false)}
+            onClose={() => {
+              setShowModal(false);
+              setPrefillCopia(null);
+            }}
             onSubmit={handleSubmit}
           />
         )}

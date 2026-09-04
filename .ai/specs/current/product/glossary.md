@@ -1,6 +1,6 @@
 # Glossário — MeuFenil
 
-**Última verificação:** 2026-08-15 (DEBT-0002)
+**Última verificação:** 2026-09-04 (ENH-0004 — marca separada, identidade imutável, arquivamento sem perda de favoritos)
 
 Termos como REALMENTE usados no sistema. Definições derivadas das fontes (código, banco, UI, README) — sem definições médicas externas além do que o próprio sistema afirma.
 
@@ -28,10 +28,11 @@ Termos como REALMENTE usados no sistema. Definições derivadas das fontes (cód
 
 | Termo | Definição no sistema | Contexto | Evidência | Relacionados |
 |---|---|---|---|---|
-| **Referência (alimentar)** | alimento com valor de fenilalanina por 100g (`fenil_mg_por_100g`); possui nome normalizado único | tabela `referencias` | database `[CONFIRMED: database]` | Referência global, customizada, favorita |
-| **Referência global** | referência com `is_global = true` — dados ANVISA/admin, visível a todos (inclusive anon); somente admin pode remover | badge "Global" na UI | database, UI `[CONFIRMED: database, UI]` | Referência customizada |
+| **Referência (alimentar)** | alimento com valor de fenilalanina por 100g (`fenil_mg_por_100g`); identidade = `(nome, marca, fenil_mg_por_100g)`, única entre referências ATIVAS (desde a ENH-0004, nome e marca são atributos separados — sem coluna `nome_normalizado`); sem marca/in natura = canônico `Produto In Natura` | tabela `referencias` | database `[CONFIRMED: database, migration 20260904000000]` | Referência global, customizada, favorita, Marca |
+| **Marca** | atributo separado da referência (coluna `marca`, default `'Produto In Natura'`) — ENH-0004; apresentação combinada "Nome (Marca: X)" montada dinamicamente no frontend (`nomeComMarca`) | modal de referência, lista, busca (nome OU marca) | database, code `[CONFIRMED: database, code]` | Referência (alimentar) |
+| **Referência global** | referência com `is_global = true` — dados ANVISA/admin, visível a todos (inclusive anon); identidade IMUTÁVEL (edição = arquivar + criar nova); somente admin pode remover — e a remoção é SEMPRE arquivamento (nunca exclusão física pela aplicação, desde a ENH-0004) | badge "Global" na UI | database, UI, code `[CONFIRMED: database, UI, code]` | Referência customizada |
 | **Referência customizada/pessoal** | referência criada pelo usuário (`criado_por`, `is_global = false`); badge "Customizada" | `usuario cria referencia` | database, UI `[CONFIRMED: database, UI]` | Referência global |
-| **Referência ativa / inativa** | estado `is_ativa` (default `true`); inativa não pode ser usada em novos registros; exibida riscada com "(Inativa)"; pode ser reativada | soft delete | database, UI `[CONFIRMED: database, UI]` | Registro, Favorito |
+| **Referência ativa / inativa** | estado `is_ativa` (default `true`); inativa (arquivada) não pode ser usada em novos registros; exibida riscada com "(Inativa)"; pode ser reativada; o arquivamento PRESERVA favoritos (desde a ENH-0004) e arquivadas podem coexistir com ativas de mesma identidade | soft delete/arquivamento via RPC | database, UI `[CONFIRMED: database, UI, migration 20260904000000]` | Registro, Favorito |
 | **Referência favorita** | marcação pessoal do usuário em `referencias_favoritas` (1 por par usuário/referência); favoritas aparecem primeiro na lista do modal | estrela na UI | database, UI `[CONFIRMED: database, UI]` | Referência |
 | **Registro (de consumo)** | consumo diário: data, alimento (referência), peso em gramas e fenilalanina em mg; sem edição (só criar/excluir) | tabela `registros` | database `[CONFIRMED: database]` | Referência, Limite diário |
 | **Limite diário** | teto pessoal de fenilalanina em mg/dia (`usuarios.limite_diario_mg`); default 500 para novos usuários (default da coluna; trigger não define — DEBT-0002); editável no Perfil | indicadores do Dashboard | database, migration, UI `[CONFIRMED: database, migration, UI]` | Fenilalanina, Percentual de consumo |
@@ -68,7 +69,7 @@ Termos como REALMENTE usados no sistema. Definições derivadas das fontes (cód
 | Termo | Definição no sistema | Contexto | Evidência | Relacionados |
 |---|---|---|---|---|
 | **Percentual de consumo** | `(total do dia / limite) × 100`, exibido com barra de progresso; estado "ultrapassou" quando `total > limite` | card "Percentual" do Dashboard | `Dashboard.tsx:47-48` `[CONFIRMED: UI]` | Limite diário |
-| **Soft delete (desativação)** | padrão de `referencias`: marcar `is_ativa = false` em vez de excluir quando há registros vinculados | RPC e UI | database, UI `[CONFIRMED: database, UI]` | Referência ativa/inativa |
+| **Soft delete / arquivamento (desativação)** | padrão de `referencias` desde a ENH-0004: marcar `is_ativa = false` — pessoais quando há registros vinculados; GLOBAIS sempre (nunca exclusão física pela aplicação); sem perda de favoritos | RPC `remover_ou_desativar_referencia` e UI | database, UI, migration `[CONFIRMED: database, UI, migration 20260904000000]` | Referência ativa/inativa |
 
 ## Evidências
 

@@ -1,6 +1,6 @@
 # Modelo de Segurança — MeuFenil
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Última verificação:** 2026-09-04 (ENH-0004 — migrations 20260904000000/20260904010000 aplicadas em DEV; prod segue no modelo anterior até a release)
 
 Este documento consolida o modelo de segurança ATUAL do MeuFenil (autenticação, autorização, RLS, delegação e RPCs). A definição canônica de cada política RLS permanece nas specs das tabelas em `../database/` — aqui o modelo é explicado, relacionado e sintetizado em matrizes (regra "link, não copie").
 
@@ -97,7 +97,7 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | RLS `referencias` | INSERT/UPDATE/SELECT/DELETE, incluindo referências GLOBAIS (exclusivo do admin) | policies "Admin ..." + `Remover...` |
 | RLS `background_job_executions` | SELECT do histórico de jobs | `admin_can_select_background_job_executions` |
 | RPC `ativar_referencia` | ativar qualquer referência | ../database/rpc.md |
-| RPC `remover_ou_desativar_referencia` | remover qualquer referência, inclusive global | ../database/rpc.md |
+| RPC `remover_ou_desativar_referencia` | remover referências pessoais (hard/soft pelo vínculo) e ARQUIVAR globais — nunca exclusão física de global pela aplicação (ENH-0004, OQ4/BR-037) | ../database/rpc.md |
 | RPC `get_estatisticas_admin` | chamado pelo painel admin (`admin.service.ts:75`) — a função em si NÃO verifica papel internamente | ../database/rpc.md |
 | RLS `registros` / `exames_pku` / `referencias_favoritas` / `delegacoes_acesso` | **nenhum acesso direto** (sem políticas de admin) | matriz acima |
 
@@ -106,12 +106,12 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | RPC | Quem pode chamar (grants) | Verificação de autorização INTERNA | Efeito autorizado | Evidência |
 |---|---|---|---|---|
 | `ativar_referencia` | todas as roles (EXECUTE) | Sim — dono OU delegado ativo OU admin | ativa referência | ../database/rpc.md |
-| `remover_ou_desativar_referencia` | todas as roles (EXECUTE) | Sim — dono/delegado/admin + global→admin + vínculo→soft-delete | remove/desativa | ../database/rpc.md |
+| `remover_ou_desativar_referencia` | todas as roles (EXECUTE) | Sim — dono/delegado/admin + global→admin + vínculo→soft-delete | remove/desativa — GLOBAIS: sempre arquiva (`'deactivated'`), nunca DELETE (definição 20260904000000, ENH-0004) | ../database/rpc.md |
 | `is_admin_user` | `authenticated` + `service_role` (+ `anon` via default privileges) | Não (função de verificação) | retorna boolean | ../database/rpc.md |
 | `get_estatisticas_admin` | `anon`, `authenticated`, `service_role` (REVOKE FROM PUBLIC) | **Não** — qualquer chamador recebe as estatísticas | agregações globais | ../database/rpc.md |
 | `dashboard_hoje` | todas as roles (EXECUTE) | **Não** — aceita qualquer `uid` | soma do dia + limite | ../database/rpc.md |
 | `dashboard_ultimos_dias` | todas as roles (EXECUTE) | **Não** — aceita qualquer `uid` | soma por dia | ../database/rpc.md |
-| funções de trigger (`handle_new_user`, `fn_normalizar_nome_referencia`, `fn_trim_background_job_executions`, `fn_remover_favoritos_referencia_inativa`) | EXECUTE concedido a todas as roles | Não aplicável | efeitos de trigger; chamável diretamente como RPC é `UNKNOWN` (não verificado) | ../database/rpc.md |
+| funções de trigger (`handle_new_user`, `fn_trim_background_job_executions` — `fn_normalizar_nome_referencia` e `fn_remover_favoritos_referencia_inativa` foram ELIMINADAS na ENH-0004) | EXECUTE concedido a todas as roles | Não aplicável | efeitos de trigger; chamável diretamente como RPC é `UNKNOWN` (não verificado) | ../database/rpc.md |
 
 ## 8. RLS — modelo consolidado
 
@@ -144,7 +144,7 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 
 Resumo dos aspectos de segurança; especificação completa em [../database/rpc.md](../database/rpc.md):
 
-- `ativar_referencia` / `remover_ou_desativar_referencia`: SECURITY DEFINER com verificação interna (dono/delegado/admin) — endurecidas na migration 20260811; idênticas no banco `[CONFIRMED: migration, database]`.
+- `ativar_referencia` / `remover_ou_desativar_referencia`: SECURITY DEFINER com verificação interna (dono/delegado/admin) — endurecidas na migration 20260811; `remover_ou_desativar_referencia` REDEFINIDA na migration 20260904000000 (ENH-0004, dev 2026-09-04): globais passam a ser SEMPRE arquivadas (`is_ativa = false`), mesmo sem registros vinculados — nunca DELETE físico pela aplicação; pessoais mantêm soft/hard pelo vínculo `[CONFIRMED: migration, database]`.
 - `is_admin_user`: função de apoio de autorização; `STABLE`; grants revogados de PUBLIC (mas `anon` mantém EXECUTE via default privileges — fato do catálogo) `[CONFIRMED: database]`.
 - `get_estatisticas_admin`: SECURITY DEFINER, SEM verificação de papel interna; chamada pelo painel admin; qualquer role com EXECUTE recebe os agregados `[CONFIRMED: migration, database, code]`.
 - `dashboard_hoje` / `dashboard_ultimos_dias`: SECURITY DEFINER, SEM verificação interna, SEM `search_path` configurado; sem chamadores no código atual `[CONFIRMED: migration, database, code]`.
@@ -155,17 +155,17 @@ Resumo dos aspectos de segurança; especificação completa em [../database/rpc.
 | Função | SECURITY DEFINER | search_path | Owner | Identidade efetiva | RLS | Chamadores conhecidos | Evidência |
 |---|---|---|---|---|---|---|---|
 | `ativar_referencia` | Sim | `public` | postgres | postgres (superuser) | bypassado pelo definer | `referencias.service.ts:246` | ../database/rpc.md |
-| `remover_ou_desativar_referencia` | Sim | `public` | postgres | postgres | bypassado | `referencias.service.ts:263` | ../database/rpc.md |
+| `remover_ou_desativar_referencia` | Sim | `public` | postgres | postgres | bypassado | `referencias.service.ts:323-338` | ../database/rpc.md |
 | `is_admin_user` | Sim | `public` | postgres | postgres | bypassado (leitura) | policies + 2 RPCs | ../database/rpc.md |
 | `get_estatisticas_admin` | Sim | `public` | postgres | postgres | bypassado (agregados) | `admin.service.ts:75` | ../database/rpc.md |
 | `dashboard_hoje` | Sim | **não configurado** | postgres | postgres | bypassado | nenhum no código | ../database/rpc.md |
 | `dashboard_ultimos_dias` | Sim | **não configurado** | postgres | postgres | bypassado | nenhum no código | ../database/rpc.md |
 | `handle_new_user` | Sim | **não configurado** | postgres | postgres | bypassado | trigger `on_auth_user_created` | ../database/rpc.md |
 | `fn_trim_background_job_executions` | Sim | `public` | postgres | postgres | bypassado | trigger de retenção | ../database/rpc.md |
-| `fn_normalizar_nome_referencia` | Não (INVOKER) | — | postgres | chamador | respeita RLS | trigger BEFORE em referencias | ../database/rpc.md |
-| `fn_remover_favoritos_referencia_inativa` | Não (INVOKER) | — | postgres | chamador | respeita RLS | trigger AFTER em referencias | ../database/rpc.md |
 
-`[CONFIRMED: migration — ALTER FUNCTION ... OWNER TO postgres no baseline; database — pg_proc.prosecdef/proconfig]`
+Funções de trigger ELIMINADAS na ENH-0004 (migration 20260904000000, dev 2026-09-04; prod mantém até a release): `fn_normalizar_nome_referencia` (INVOKER — trigger BEFORE em `referencias`; normalização armazenada descontinuada) e `fn_remover_favoritos_referencia_inativa` (INVOKER — trigger AFTER em `referencias`; desativação passou a preservar favoritos).
+
+`[CONFIRMED: migration — ALTER FUNCTION ... OWNER TO postgres no baseline; database — pg_proc.prosecdef/proconfig; DROPs na 20260904000000]`
 
 ## 12. Testes de segurança
 
@@ -175,7 +175,7 @@ Resumo dos aspectos de segurança; especificação completa em [../database/rpc.
   - Autenticação real (AV.1–AV.7): criação de usuário de teste, cliente anon bloqueado por RLS, visibilidade de role própria, admin vê todos, usuário comum não vê terceiros `[CONFIRMED: test]`
   - RLS de `usuarios` (T1.0–T1.4): próprio/admin × terceiros, incluindo T1.0 (detecção legada de `debug_allow_all`, "sempre passa" — ver abaixo) `[CONFIRMED: test]`
   - RPC `ativar_referencia` (T2.0–T2.5): não-autorizado, dono, delegado, admin, inexistente `[CONFIRMED: test]`
-  - RPC `remover_ou_desativar_referencia` (T3.0–T3.8): não-autorizado, dono (delete hard × soft), delegado, admin, global, inexistente `[CONFIRMED: test]`
+  - RPC `remover_ou_desativar_referencia` (T3.0–T3.8): não-autorizado, dono (delete hard × soft), delegado, admin, global, inexistente — T3.7 (ENH-0004): remoção de GLOBAL por admin retorna `'deactivated'` e a linha permanece (`is_ativa = false`), condicionado ao helper `isEnh0004MigrationApplied` (test-helpers.ts) `[CONFIRMED: test]`
 - **Testes legados de vulnerabilidade:** T1.0, T2.0 e T3.0 documentam o comportamento PRÉ-correção e são construídos para "sempre passar" (apenas registram o estado via `console.warn`) `[CONFIRMED: test — rls-usuarios.test.ts:53-67]`.
 - **Helper de estado de migration:** `isSecurityMigrationApplied()` (test-helpers.ts:352) verifica via `pg_policies` se `admin_can_select_all_usuarios` existe antes de executar os testes de RLS `[CONFIRMED: test]`.
 - Sem cobertura dedicada identificada para policies de `referencias_favoritas` e `delegacoes_acesso` `[CONFIRMED: ausência — filesystem]`. (Avaliação de suficiência pertence à Fase 6.)

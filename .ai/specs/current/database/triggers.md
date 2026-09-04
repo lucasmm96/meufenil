@@ -1,33 +1,20 @@
 # Triggers — Inventário
 
-**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
+**Última verificação:** 2026-09-04 (ENH-0004 — migrations 20260904000000/20260904010000 aplicadas em dev)
 
-Inventário dos 4 triggers confirmados no catálogo dos bancos dev e prod (2026-08-13): 3 no schema `public` + 1 em `auth.users` `[CONFIRMED: database — information_schema.triggers]`. Não há outros triggers em `public`.
+Inventário dos triggers confirmados no catálogo: em 2026-08-13 havia 4 (3 no schema `public` + 1 em `auth.users`) `[CONFIRMED: database — information_schema.triggers]`. Após a ENH-0004, **dev tem 2 triggers** (1 em `public` + 1 em `auth.users`) — os dois triggers de `referencias` foram eliminados (normalização — A4(b); remoção de favoritos — OQ3) `[CONFIRMED: migration 20260904000000 — DROPs; execução dev 2026-09-04]`. Prod mantém os 4 até a release da ENH-0004 (migrations não aplicadas em prod) `[INFERRED: migrations novas em branch de trabalho; promoção segue gate de release]`.
 
 | Trigger | Tabela | Evento | Timing | Função | Versionado? |
 |---|---|---|---|---|---|
-| `trg_normalizar_nome_referencia` | `referencias` | INSERT, UPDATE | BEFORE ROW | `fn_normalizar_nome_referencia` | Sim (baseline) |
-| `trg_remover_favoritos_referencia_inativa` | `referencias` | UPDATE OF `is_ativa` | AFTER ROW | `fn_remover_favoritos_referencia_inativa` | Sim (20260814) |
 | `trg_trim_background_job_executions` | `background_job_executions` | INSERT | AFTER STATEMENT | `fn_trim_background_job_executions` | Sim (20260807) |
 | `on_auth_user_created` | `auth.users` | INSERT | AFTER ROW | `handle_new_user` | Sim (baseline) |
 
----
+Eliminados pela ENH-0004 (20260904000000, aplicada em dev 2026-09-04):
 
-## trg_normalizar_nome_referencia
-
-- **Tabela:** `public.referencias`
-- **Evento/timing:** BEFORE INSERT OR UPDATE, FOR EACH ROW `[CONFIRMED: database, migration — baseline linha 250]`
-- **Função:** `fn_normalizar_nome_referencia()` (plpgsql, SECURITY INVOKER)
-- **Finalidade observada:** preenche `nome_normalizado` com `lower(trim(nome))` antes de gravar — alimenta os índices únicos `referencias_nome_unique` e `referencias_nome_normalizado_unique` `[CONFIRMED: migration, database]`
-- **Evidências:** baseline `20260103015052_remote_schema.sql:250`; catálogo dev/prod (INSERT e UPDATE listados) `[CONFIRMED: migration, database]`
-
-## trg_remover_favoritos_referencia_inativa
-
-- **Tabela:** `public.referencias`
-- **Evento/timing:** AFTER UPDATE OF `is_ativa`, FOR EACH ROW `[CONFIRMED: database — pg_get_triggerdef, 2026-08-14; migration 20260814000000]`
-- **Função:** `fn_remover_favoritos_referencia_inativa()` (plpgsql, SECURITY INVOKER)
-- **Finalidade observada:** quando uma referência passa de ativa (`old.is_ativa = true`) para inativa (`new.is_ativa = false`), remove os favoritos dela em `referencias_favoritas` `[CONFIRMED: database — pg_get_functiondef]`
-- **Evidências:** catálogo dev/prod; versionado pela migration 20260814000000 (DEBT-0001); ausente de todas as migrations anteriores `[CONFIRMED: database; migration]`
+| Trigger | Tabela | Motivo da eliminação | Migration |
+|---|---|---|---|
+| `trg_normalizar_nome_referencia` (+ função `fn_normalizar_nome_referencia`) | `referencias` | A4(b) — normalização armazenada eliminada (runtime é escopo do FEAT-0017); a unicidade passou a usar expressões `lower(trim(...))` no índice | 20260904000000 |
+| `trg_remover_favoritos_referencia_inativa` (+ função `fn_remover_favoritos_referencia_inativa`) | `referencias` | OQ3 — desativação/arquivamento passou a PRESERVAR favoritos em qualquer fluxo (BR-036) | 20260904000000 |
 
 ## trg_trim_background_job_executions
 
@@ -49,9 +36,9 @@ Inventário dos 4 triggers confirmados no catálogo dos bancos dev e prod (2026-
 
 ## Evidências (documento)
 
-- E1 — Inventário dos triggers: `information_schema.triggers` nos bancos dev e prod (2026-08-13) `[CONFIRMED: database]`
+- E1 — Inventário dos triggers: `information_schema.triggers` nos bancos dev e prod (2026-08-13); dev pós-ENH-0004 (2026-09-04) `[CONFIRMED: database]`
 - E2 — Definições versionadas: baseline e migration 20260807 `[CONFIRMED: migration]`
-- E3 — `trg_remover_favoritos_referencia_inativa`: ausente de todas as migrations; definição recuperada via `pg_get_functiondef` `[CONFIRMED: database; ausência em migrations]`
+- E3 — Eliminação dos triggers de `referencias`: migration 20260904000000 (linhas 26–27 e 87–88) `[CONFIRMED: migration]`
 
 ## Veja também
 

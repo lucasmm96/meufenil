@@ -89,7 +89,7 @@ export default function PerfilPage() {
           peso_g,
           fenil_mg,
           created_at,
-          referencias ( nome )
+          referencias ( nome, marca )
         `)
         .eq("usuario_id", usuarioAtivoId)
         .order("data", { ascending: false });

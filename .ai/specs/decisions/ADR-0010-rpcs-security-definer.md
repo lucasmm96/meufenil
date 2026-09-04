@@ -5,6 +5,8 @@
 **Data da decisão:** UNKNOWN (funções definidas no baseline 2026-01-02; endurecimento em 2026-08-11 — migration 20260811)
 **Reconstruída por engenharia reversa em:** 2026-08-13
 
+> **Nota de revisão (2026-09-04 — ENH-0004):** a decisão permanece vigente — os RPCs sensíveis (`ativar_referencia`, `remover_ou_desativar_referencia` — este redefinido pela migration `20260904000000` com globais sempre arquivadas) continuam SECURITY DEFINER com verificação interna. O inventário de Evidence (10 funções em `pg_proc`, 2026-08-13) era o estado da época; desde a ENH-0004, dev tem 8 funções (as duas eliminadas — `fn_normalizar_nome_referencia` e `fn_remover_favoritos_referencia_inativa` — eram SECURITY INVOKER, fora do escopo desta decisão). Texto original preservado.
+
 ## Context
 
 Operações sensíveis do banco são expostas como RPCs SECURITY DEFINER (owner postgres): `ativar_referencia`, `remover_ou_desativar_referencia`, `is_admin_user`, `get_estatisticas_admin`, `fn_trim_background_job_executions` (com `SET search_path TO 'public'`) e `dashboard_hoje`/`dashboard_ultimos_dias`/`handle_new_user` (sem search_path configurado) `[CONFIRMED: database — Fase 2/3]`. Em 2026-08-11, a migration de segurança adicionou verificação interna de dono/delegado/admin nos 2 RPCs de referências (cabeçalho da migration referencia `.ai/.temp/analyses/04-plano-correcao-seguranca.md`) `[CONFIRMED: migration]`.
