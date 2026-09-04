@@ -1,6 +1,6 @@
 # Backend — Visão Geral
 
-**Última verificação:** 2026-08-15 (DEBT-0003)
+**Última verificação:** 2026-09-04 (ENH-0004 — migrations aplicadas em DEV; prod segue no estado anterior até a release)
 
 ## Propósito
 
@@ -18,8 +18,8 @@ Documenta a arquitetura REAL do backend do MeuFenil: componentes server-side, on
 | `src/shared/background-jobs.ts` | Vercel (helper importado pelo keepalive) | `api/keepalive.ts` | usa o client passado (service role) | [background-jobs.md](background-jobs.md) |
 | `scripts/cli/` (5 comandos) | máquina local (Node ESM) | desenvolvedor | anon/JWT do `.cli-token` ou service role (`--service-role --i-understand-rls`) ou conexão pg direta (`run-sql`) | [cli.md](cli.md) |
 | `scripts/apply-supabase-migrations.sh` | máquina local (bash + Supabase CLI) | desenvolvedor | `supabase link`/`db push` com senha extraída de `SUPABASE_DATABASE_URL` | [cli.md](cli.md) |
-| RPCs do banco (10 funções em `public`) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`) e policies | SECURITY DEFINER (7 funções) | [../database/rpc.md](../database/rpc.md) |
-| Triggers do banco (4) | PostgreSQL | eventos de INSERT/UPDATE | conforme a função (definer/invoker) | [../database/triggers.md](../database/triggers.md) |
+| RPCs do banco (dev pós-ENH-0004: 8 funções em `public`; prod: 10 até a release) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`) e policies | SECURITY DEFINER (7 funções) | [../database/rpc.md](../database/rpc.md) |
+| Triggers do banco (dev pós-ENH-0004: 2 — 1 em `public` + 1 em `auth.users`; prod: 4 até a release) | PostgreSQL | eventos de INSERT/UPDATE | conforme a função (definer/invoker) | [../database/triggers.md](../database/triggers.md) |
 | PostgREST + Supabase Auth | Supabase (BaaS) | frontend (via `supabase-js`) | anon key + JWT do usuário | [../security/security-model.md](../security/security-model.md) |
 
 **Serviços em `src/react-app/services/` NÃO são backend:** executam no browser com o cliente anon e serão documentados na Fase 5 (frontend). A exceção é `delegacoesAcesso.service.ts`, que é um **chamador client-side** da edge function — documentado na spec da edge function, não aqui `[CONFIRMED: code]`.
@@ -62,11 +62,11 @@ As RPCs concentram a lógica de negócio que o frontend não deve executar (auto
 
 | RPC | Papel no backend | Chamadores |
 |---|---|---|
-| `ativar_referencia` / `remover_ou_desativar_referencia` | ativação/remoção com autorização dono/delegado/admin e regra de vínculo (soft-delete) | `referencias.service.ts:246,263` `[CONFIRMED: code]` |
+| `ativar_referencia` / `remover_ou_desativar_referencia` | ativação/remoção com autorização dono/delegado/admin; pessoais: soft/hard pelo vínculo; GLOBAIS: sempre arquivadas, nunca exclusão física (definição 20260904000000, ENH-0004) | `referencias.service.ts:246,323-338` `[CONFIRMED: code]` |
 | `get_estatisticas_admin` | agregados globais para o painel admin | `admin.service.ts:75` `[CONFIRMED: code]` |
 | `is_admin_user` | apoio de autorização (policies + RPCs) | banco `[CONFIRMED: database]` |
 | `dashboard_hoje` / `dashboard_ultimos_dias` | agregações de dashboard — **sem chamadores no código atual** (o dashboard/estatísticas agregam no CLIENTE via `dashboard.service`/`estatisticas.service`) `[CONFIRMED: code — ausência de chamadores]` |
-| funções de trigger | lógica automática no banco (perfil no sign-up, normalização de nome, retenção de jobs, limpeza de favoritos) | triggers `[CONFIRMED: database]` |
+| funções de trigger | lógica automática no banco — restantes: perfil no sign-up (`handle_new_user`) e retenção de jobs (`fn_trim_background_job_executions`); as de normalização de nome e limpeza de favoritos foram ELIMINADAS na ENH-0004 (dev; prod até a release) | triggers `[CONFIRMED: database, migration]` |
 
 Detalhes (assinaturas, definers, efeitos): [../database/rpc.md](../database/rpc.md) — não duplicados aqui.
 

@@ -1,6 +1,6 @@
 # Architecture Overview — MeuFenil
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Última verificação:** 2026-09-04 (ENH-0004 — migrations 20260904000000/20260904010000 aplicadas em DEV; prod segue no schema anterior até a release)
 
 Índice ARQUITETURAL de alto nível (o índice FUNCIONAL é o [system-map](../system-map.md)). Este documento aponta para as specs especializadas — não duplica conteúdo. Decisões arquiteturais: [decisions](../../decisions/).
 
@@ -28,7 +28,7 @@ flowchart TB
         KEEP --> BJ[src/shared/background-jobs.ts]
     end
     KEEP -->|service role| PG
-    PG --> TAB[(7 tabelas + 4 triggers + 10 funções)]
+    PG --> TAB[(7 tabelas + 2 triggers + 8 funções — dev pós-ENH-0004)]
 ```
 
 Todas as arestas do diagrama são confirmadas por código/configuração `[CONFIRMED: code — Fases 4–5]`.
@@ -47,7 +47,7 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 ## Database
 
-- PostgreSQL Supabase: 7 tabelas, RLS em TODAS, 31 políticas, 10 funções, 3 triggers em `public` (+1 em `auth.users`); todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
+- PostgreSQL Supabase: 7 tabelas, RLS em TODAS, 31 políticas; em DEV desde 2026-09-04 (ENH-0004): 8 funções, 1 trigger em `public` (+1 em `auth.users`) — as funções/triggers de normalização de nome e de limpeza de favoritos foram eliminadas; PROD permanece com 10 funções e 3 triggers em `public` (+1 em `auth.users`) até a release. Todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
 
 ## Authentication / Authorization
 
@@ -59,7 +59,7 @@ Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dado
 
 ## Deployment / Environments
 
-- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod) com estrutura lógica idêntica; diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
+- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; desde 2026-09-04 DIVERGEM: dev recebeu as migrations da ENH-0004 (marca/identidade de referencias) e prod aguarda a release; diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
 
 ## Testing
 
@@ -102,7 +102,7 @@ Keepalive (cron) → ping service role → persistência em `background_job_exec
 2. **Camadas hooks→services** — hooks de dados por página; services finos com DTOs; erros codificados (AppError).
 3. **RLS como fronteira de autorização** — grants amplos; enforcement em policies/RPCs (ADR-0004).
 4. **RPC SECURITY DEFINER para operações sensíveis** — com verificação interna de dono/delegado/admin (ADR-0010).
-5. **Soft delete via coluna de estado** — `referencias.is_ativa` + RPC + trigger de limpeza (ADR-0006).
+5. **Soft delete/arquivamento via coluna de estado** — `referencias.is_ativa` + RPC (ADR-0006). Desde a ENH-0004: o trigger de limpeza de favoritos foi eliminado (arquivamento preserva favoritos), globais são SEMPRE arquivadas (nunca exclusão física) e o RPC decide soft/hard apenas para pessoais — ver [ADR-0006](../../decisions/ADR-0006-soft-delete-referencias.md) (nota de revisão) e [../database/referencias.md](../database/referencias.md).
 6. **Delegação sem troca de identidade** — login-as é estado de UI; banco autoriza por tabela de delegação (ADR-0005).
 7. **Background job com persistência própria** — tabela dedicada + retenção por trigger (ADR-0007).
 8. **Segurança testada com autenticação real** — Abordagem B (ADR-0011).

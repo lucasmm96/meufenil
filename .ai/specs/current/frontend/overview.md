@@ -1,6 +1,6 @@
 # Frontend — Visão Geral
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-09-04 (ENH-0004 — lib/referencias.ts do modelo canônico documentada)
 
 ## Propósito
 
@@ -35,7 +35,7 @@ flowchart TB
 - **hooks/ (14)** — padrão dominante: **1 hook de dados por página**, assinatura `useX(usuarioId?)`, retorno `{ data, loading, error, ações }`; usam `useState/useCallback/useEffect` com `logger.error` em catch (sem exibição de erro ao usuário) `[CONFIRMED: code]`.
 - **services/ (12)** — funções `export async function` finas sobre `supabase-js` (anon), mapeando snake_case (DB) → camelCase (DTO); erros via `AppError` com código simbólico + mensagem pt-BR `[CONFIRMED: code — ../backend/overview.md classifica como client-side]`.
 - **dtos/ (6)** — interfaces de saída (ver seção DTOs) `[CONFIRMED: filesystem]`.
-- **lib/** — `supabase.ts` (client anon), `errors.ts` (`AppError{code, message, cause}`), `logger.ts` (`console.*` com prefixos `[ERROR]/[WARN]/[INFO]`; comentário "futura integração com Sentry" — sem integração real), `app-environment.ts` (`CURRENT_APP_ENVIRONMENT: "prod"|"dev"`) `[CONFIRMED: code]`.
+- **lib/** — `supabase.ts` (client anon), `errors.ts` (`AppError{code, message, cause}`), `logger.ts` (`console.*` com prefixos `[ERROR]/[WARN]/[INFO]`; comentário "futura integração com Sentry" — sem integração real), `app-environment.ts` (`CURRENT_APP_ENVIRONMENT: "prod"|"dev"`), `referencias.ts` (modelo canônico ENH-0004: `MARCA_SEM_MARCA`, `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca` — testado em `lib/referencias.test.ts`) `[CONFIRMED: code]`.
 - **skeletons/** — 14 componentes de loading (`LayoutSkeleton` + `Header/Nav/Footer` + `GenericPageSkeleton` + 8 page skeletons) via alias `@skeletons` `[CONFIRMED: code — skeletons/index.ts]`.
 
 ## Rotas (inventário real)

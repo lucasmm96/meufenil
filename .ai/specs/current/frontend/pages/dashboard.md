@@ -1,6 +1,6 @@
 # Página Dashboard
 
-**Última verificação:** 2026-08-15 (commit 0eb2e9b)
+**Última verificação:** 2026-09-04 (ENH-0004 — criação de referência com marca opcional)
 **Rota:** `/dashboard` — `src/react-app/App.tsx:18`
 
 ## Propósito
@@ -40,7 +40,7 @@ Sem checagem de papel; opera sobre `usuarioAtivoId` (próprio ou assumido) `[CON
 ## Fluxos de interação
 
 - "Adicionar Registro" → abre `AdicionarRegistro`; `onSuccess` → `reload()` + fecha modal `[CONFIRMED: code]`.
-- "Criar Alimento" → abre `ModalReferencia`; submit valida `Number.isNaN(fenil)` → `createReferencia` → `reload()` + fecha `[CONFIRMED: code — Dashboard.tsx:55-71]`.
+- "Criar Alimento" → abre `ModalReferencia` (nome + marca + fenil — ENH-0004); `handleCreateReferencia` valida `Number.isNaN(fenil)` (retorna silenciosamente) → `createReferencia(nome, marca, fenil)` → `reload()` + fecha `[CONFIRMED: code — Dashboard.tsx:55-66,87-93]`.
 - Consentimento LGPD: `onAccept` → `updateConsentimentoLGPD(usuario.id)` → `reload()` `[CONFIRMED: code]`.
 - Data do header formatada no timezone do usuário (`formatInTimeZone`, pt-BR) `[CONFIRMED: code]`.
 

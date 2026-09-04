@@ -1,6 +1,6 @@
 # Testing Strategy — Estado Atual
 
-**Última verificação:** 2026-08-15 (commit 0eb2e9b) — suíte executada nesta data (3 execuções: 1 completa verde, 1 cobertura verde, 1 cobertura com falha transitória das suítes de segurança — ver seção 5).
+**Última verificação:** 2026-09-04 (ENH-0004 — novo teste unitário `lib/referencias.test.ts`; T3.7 do rpc-remover condicionado às migrations ENH-0004; seção 5 não reexecutada nesta data)
 
 Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM hoje. A análise de gaps e as recomendações estão no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`) — NÃO aqui.
 
@@ -26,7 +26,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - **Naming:** `describe("<módulo>")` + `it("descrição em pt-BR")` ("deve ...", "define erro quando ..."); cenários de segurança numerados (`AV.x`, `T1.x`, `T2.x`, `T3.x`) `[CONFIRMED: test]`.
 - **Fixtures:** dados inline nos testes; nenhuma pasta de fixtures `[CONFIRMED: ausência]`.
 - **Mocks:** `vi.mock` de módulos (services mockam o cliente supabase e fazem assertions sobre chamadas — `toHaveBeenCalledWith`); `Admin.test.tsx` mocka 5 módulos (Layout, skeletons, AuthContext, useAdmin, useBackgroundJobsAdmin); os testes de páginas criados pelo TEST-0001 seguem o mesmo padrão de mocks de hooks (e.g. `Perfil.test.tsx` mocka Layout, skeletons, AuthContext, usePerfil, supabase, react-router-dom; `Referencias.test.tsx` e `Dashboard.test.tsx` mockam os hooks e, no Dashboard, os componentes filhos e o recharts); `api/keepalive.test.ts` mocka `createClient` e `recordBackgroundJobExecution` `[CONFIRMED: test]`.
-- **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied` `[CONFIRMED: test]`.
+- **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied`, `isEnh0004MigrationApplied` (condiciona T3.7 do rpc-remover às migrations ENH-0004 aplicadas no banco dev — 2026-09-04) `[CONFIRMED: test]`.
 - **Snapshots:** nenhum identificado `[CONFIRMED: ausência]`.
 
 ## 3. Níveis de teste existentes
@@ -34,6 +34,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 | Nível | Arquivos | Característica |
 |---|---|---|
 | Unit (shared) | `src/shared/background-jobs.test.ts` | helper puro com client mockado |
+| Unit (lib frontend) | `src/react-app/lib/referencias.test.ts` (ENH-0004) | helpers puros do modelo canônico de referências — `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca` (12 testes) |
 | Service (client-side) | 10 arquivos em `services/*.service.test.ts` | mocks do supabase; assertions de chamadas e AppError |
 | Hook | 12 arquivos em `hooks/use*.test.ts(x)` | `renderHook` (Testing Library) + mocks de services/supabase |
 | Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 72 testes (3+17+25+12+13+2) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
@@ -47,7 +48,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - `auth-real-validation.test.ts` (AV.1–AV.7): criação de usuário de teste, autenticação email/senha, cliente anon bloqueado por RLS, visibilidade da própria role, admin vê todos, usuário comum não vê terceiros.
 - `rls-usuarios.test.ts` (T1.0–T1.4): políticas de `usuarios` — incluindo T1.0 (detecção legada de `debug_allow_all`, "sempre passa").
 - `rpc-ativar-referencia.test.ts` (T2.0–T2.5): autorização de `ativar_referencia` (dono, delegado, admin, não autorizado, inexistente; T2.0 legado).
-- `rpc-remover-referencia.test.ts` (T3.0–T3.8): autorização de `remover_ou_desativar_referencia` (dono, delegado, admin, global, vínculo soft-delete, inexistente; T3.0 legado).
+- `rpc-remover-referencia.test.ts` (T3.0–T3.8): autorização de `remover_ou_desativar_referencia` (dono, delegado, admin, global, vínculo soft-delete, inexistente; T3.0 legado). **T3.7 (ENH-0004):** remoção de referência GLOBAL por admin sempre arquiva (`'deactivated'`, linha permanece com `is_ativa = false`) — condicionado a `isEnh0004MigrationApplied` (migrations ENH-0004 aplicadas em dev) `[CONFIRMED: test]`.
 - **Skip condicional:** as 4 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente) `[CONFIRMED: test]`.
 - Pré-condição: `isSecurityMigrationApplied()` (exige `admin_can_select_all_usuarios` em pg_policies) `[CONFIRMED: test]`.
 
@@ -97,7 +98,7 @@ Notas factuais sobre a medição:
 - Edge functions (`delegar-acesso`, `delete-account`) sem testes.
 - CLI e script de migrations sem testes.
 - Políticas RLS de `registros`, `exames_pku`, `referencias_favoritas` e `delegacoes_acesso` sem suítes de segurança próprias (as 4 suítes cobrem `usuarios` + 2 RPCs).
-- Triggers do banco (normalização de nome, retenção 365d, limpeza de favoritos) sem teste direto.
+- Trigger restante do banco (retenção 365d de `background_job_executions`) sem teste direto — os triggers de normalização de nome e de limpeza de favoritos foram ELIMINADOS na ENH-0004 (2026-09-04, dev); ver [../database/triggers.md](../database/triggers.md).
 - Testes de segurança dependem do banco development real (dados de teste criados/limpos; estado compartilhado com desenvolvimento).
 
 ## 8. Relação Spec × Test (mecanismo existente)

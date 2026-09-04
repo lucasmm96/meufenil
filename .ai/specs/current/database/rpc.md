@@ -1,21 +1,19 @@
 # Funções SQL (RPC) — Schema public
 
-**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
+**Última verificação:** 2026-09-04 (ENH-0004 — migrations 20260904000000/20260904010000 aplicadas em dev)
 
-Inventário das 10 funções do schema `public` confirmadas no catálogo dos bancos dev e prod (2026-08-13) `[CONFIRMED: database — pg_proc]`. Não há outras funções em `public` além das listadas.
+Inventário das **8 funções** do schema `public` no estado pós-ENH-0004 em dev (2026-09-04) `[CONFIRMED: migration 20260904000000 — DROPs; catálogo dev pré-ENH-0004 tinha 10 funções em 2026-08-13]`. As funções de trigger `fn_normalizar_nome_referencia()` e `fn_remover_favoritos_referencia_inativa()` foram **eliminadas** pela ENH-0004 (normalização armazenada — A4(b); remoção de favoritos ao desativar — OQ3). Prod mantém as 10 funções até a release da ENH-0004 `[INFERRED: migrations novas em branch de trabalho; promoção segue gate de release]`. Não há outras funções em `public` além das listadas.
 
 | Função | Tipo | SECURITY DEFINER | search_path | Versionada? |
 |---|---|---|---|---|
 | `ativar_referencia(uuid)` | negócio | Sim | `public` | Sim (20260811) |
-| `remover_ou_desativar_referencia(uuid)` | negócio | Sim | `public` | Sim (20260811) |
+| `remover_ou_desativar_referencia(uuid)` | negócio | Sim | `public` | Sim (20260811; redefinida 20260904) |
 | `is_admin_user(uuid)` | autorização | Sim | `public` | Sim (20260810) |
 | `dashboard_hoje(uuid)` | consulta | Sim | **não configurado** | Sim (baseline) |
 | `dashboard_ultimos_dias(uuid, integer)` | consulta | Sim | **não configurado** | Sim (baseline) |
 | `get_estatisticas_admin()` | consulta admin | Sim | `public` | Sim (baseline) |
 | `handle_new_user()` | trigger | Sim | não configurado | Sim (baseline) |
-| `fn_normalizar_nome_referencia()` | trigger | Não | — | Sim (baseline) |
 | `fn_trim_background_job_executions()` | trigger | Sim | `public` | Sim (20260807) |
-| `fn_remover_favoritos_referencia_inativa()` | trigger | Não | — | Sim (20260814) |
 
 Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`, `service_role`) possuem EXECUTE em todas as funções; `get_estatisticas_admin` e `is_admin_user` tiveram `REVOKE ... FROM PUBLIC`, mas mantêm grants explícitos (inclusive `anon` via default privileges) `[CONFIRMED: database — role_routine_grants]`.
 
@@ -37,17 +35,17 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 
 ## public.remover_ou_desativar_referencia
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** `20260811210456_fix_security_rls_rpc.sql` (linhas 64–126) — idêntica no banco `[CONFIRMED: migration, database]`
+**Última verificação:** 2026-09-04 (ENH-0004 — migration 20260904000000 aplicada em dev)
+**Definição em:** original `20260811210456_fix_security_rls_rpc.sql` (linhas 64–126); **redefinida** pela migration ENH-0004 `20260904000000_referencias_marca_identidade_imutavel.sql` (linhas 96–164) — aplicada em dev em 2026-09-04; prod segue com a versão 20260811 até a release `[CONFIRMED: migration, database]`
 
 - **Assinatura:** `remover_ou_desativar_referencia(p_referencia_id uuid) RETURNS text` — plpgsql
 - **SECURITY DEFINER?** Sim — `SET search_path TO 'public'`
-- **Autorização implementada:** (1) referência deve existir — senão `'Referência não encontrada'`; (2) dono OU delegado ativo OU admin — senão `'Permissão negada: você não pode remover esta referência'`; (3) referência global exige admin — senão `'Permissão negada: apenas administradores podem remover referências globais'`
-- **Efeitos:** verifica vínculo com `registros`; SE há registros vinculados → soft delete (`is_ativa = false`, retorna `'deactivated'`); SENÃO → DELETE físico (retorna `'deleted'`)
+- **Autorização implementada:** (1) referência deve existir — senão `'Referência não encontrada'`; (2) dono OU delegado ativo OU admin — senão `'Permissão negada: você não pode remover esta referência'`; (3) referência global exige admin — senão `'Permissão negada: apenas administradores podem remover referências globais'` (passos inalterados pela ENH-0004)
+- **Efeitos (pós-ENH-0004, OQ4):** GLOBAIS (`is_global = true`): **SEMPRE arquivamento** (`is_ativa = false`, `updated_at = now()`, retorna `'deactivated'`) — inclusive sem registros vinculados; nunca DELETE físico pela aplicação (BR-037). PESSOAIS: verifica vínculo com `registros`; SE há registros vinculados → soft delete (retorna `'deactivated'`); SENÃO → DELETE físico (retorna `'deleted'`) (fluxo atual preservado — BR-018/BR-026)
 - **Erros e edge cases:** as três mensagens de exceção acima; mensagem única para "não encontrada × sem permissão" no passo 2 (diferente do `ativar_referencia`)
-- **Chamadores no código:** `src/react-app/services/referencias.service.ts:263` (`deleteOrDeactivateReferencia`, envolto em `AppError REFERENCIA_DELETE_OR_DEACTIVATE_ERROR`) `[CONFIRMED: code]`
-- **Testes:** `src/shared/security/rpc-remover-referencia.test.ts` (dono, delegado, admin, não autorizado, soft-delete, hard-delete) `[CONFIRMED: test]`
-- **Evidências:** E1 — definição no banco = migration `[CONFIRMED: database, migration]`
+- **Chamadores no código:** `src/react-app/services/referencias.service.ts:323-338` (`deleteOrDeactivateReferencia`, envolto em `AppError REFERENCIA_DELETE_OR_DEACTIVATE_ERROR`); retorno `'deleted' | 'deactivated'` consumido por `useReferencias` (remove/deactivate) e pela página Referências `[CONFIRMED: code]`
+- **Testes:** `src/shared/security/rpc-remover-referencia.test.ts` (dono, delegado, admin, não autorizado, soft-delete, hard-delete; T3.7 — ENH-0004: remoção de GLOBAL por admin retorna `'deactivated'` e a linha permanece com `is_ativa = false`, condicionado ao helper `isEnh0004MigrationApplied`) `[CONFIRMED: test]`
+- **Evidências:** E1 — definição no banco dev = migration 20260904000000 (linhas 96–164) `[CONFIRMED: database, migration]`
 
 ## public.is_admin_user
 
@@ -119,20 +117,6 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 - **Testes:** nenhum teste direto identificado `[CONFIRMED: ausência]`
 - **Evidências:** E1 — definição no banco = baseline + 20260815000000 `[CONFIRMED: database, migration]`
 
-## public.fn_normalizar_nome_referencia
-
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** baseline `20260103015052_remote_schema.sql` (linhas 91–98) `[CONFIRMED: migration, database]`
-
-- **Assinatura:** `fn_normalizar_nome_referencia() RETURNS trigger` — plpgsql
-- **SECURITY DEFINER?** Não
-- **Autorização implementada:** não aplicável (trigger)
-- **Efeitos:** `new.nome_normalizado := lower(trim(new.nome))` antes de INSERT/UPDATE em `referencias`
-- **Erros e edge cases:** não aplicável
-- **Chamadores no código:** trigger `trg_normalizar_nome_referencia` (ver [triggers.md](triggers.md))
-- **Testes:** coberta indiretamente por `referencias.service.test.ts`? Nenhum teste direto do trigger identificado `[CONFIRMED: ausência]`
-- **Evidências:** E1 — definição no banco = baseline `[CONFIRMED: database, migration]`
-
 ## public.fn_trim_background_job_executions
 
 **Última verificação:** 2026-08-13 (commit 6323664)
@@ -147,26 +131,21 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 - **Testes:** nenhum teste direto do trigger identificado `[CONFIRMED: ausência]`
 - **Evidências:** E1 — definição no banco = migration `[CONFIRMED: database, migration]`
 
-## public.fn_remover_favoritos_referencia_inativa
+---
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
-**Definição em:** `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001) — conferida contra `pg_get_functiondef` dev e prod (2026-08-14) `[CONFIRMED: database × migration]`
+## Funções eliminadas pela ENH-0004 (20260904000000, aplicada em dev 2026-09-04)
 
-- **Assinatura:** `fn_remover_favoritos_referencia_inativa() RETURNS trigger` — plpgsql
-- **SECURITY DEFINER?** Não
-- **Autorização implementada:** não aplicável (trigger)
-- **Efeitos:** se `old.is_ativa = true AND new.is_ativa = false` → `DELETE FROM referencias_favoritas WHERE referencia_id = new.id`; retorna `new`
-- **Erros e edge cases:** não aplicável
-- **Chamadores no código:** trigger `trg_remover_favoritos_referencia_inativa` (AFTER UPDATE em `referencias` — ver [triggers.md](triggers.md))
-- **Testes:** nenhum teste identificado `[CONFIRMED: ausência]`
-- **Evidências:** E1 — definição recuperada do catálogo (dev e prod idênticas) `[CONFIRMED: database]`; E2 — ausência em todas as migrations até a baseline 20260814000000 (DEBT-0001), que a versiona `[CONFIRMED: migration]`
+- **`fn_normalizar_nome_referencia()`** (trigger, SECURITY INVOKER — baseline linhas 91–98): preenchia `nome_normalizado` com `lower(trim(nome))` antes de INSERT/UPDATE em `referencias`. Eliminada junto com o trigger `trg_normalizar_nome_referencia` e a coluna `nome_normalizado` (A4(b) — normalização runtime é escopo do FEAT-0017; unicidade agora usa expressões no índice `referencias_identidade_ativa_unique`). Histórico: [triggers.md](triggers.md).
+- **`fn_remover_favoritos_referencia_inativa()`** (trigger, SECURITY INVOKER — versionada na 20260814000000, DEBT-0001): removia os favoritos da referência ao desativá-la. Eliminada junto com o trigger `trg_remover_favoritos_referencia_inativa` (OQ3 — desativação preserva favoritos em qualquer fluxo, BR-036).
+
+`[CONFIRMED: migration 20260904000000 — linhas 26–27 (DROP trigger/função de normalização) e 87–88 (DROP trigger/função de favoritos)]`
 
 ---
 
 ## Evidências (documento)
 
-- E1 — Inventário e definições das 10 funções: `pg_proc` + `pg_get_functiondef` nos bancos dev e prod (2026-08-13) `[CONFIRMED: database]`
-- E2 — Definições versionadas: migrations baseline, 20260807, 20260810, 20260811 `[CONFIRMED: migration]`
+- E1 — Inventário e definições das funções: `pg_proc` + `pg_get_functiondef` nos bancos dev e prod (2026-08-13 — 10 funções; dev pós-ENH-0004, 2026-09-04 — 8 funções) `[CONFIRMED: database, migration]`
+- E2 — Definições versionadas: migrations baseline, 20260807, 20260810, 20260811, 20260904000000 (redefinição de `remover_ou_desativar_referencia`; DROPs das funções de trigger) `[CONFIRMED: migration]`
 - E3 — Chamadores: `grep` de `.rpc(` em `src/`, `api/`, `supabase/functions/` (2026-08-13) — 3 chamadas: `get_estatisticas_admin`, `ativar_referencia`, `remover_ou_desativar_referencia` `[CONFIRMED: code]`
 
 ## Veja também
