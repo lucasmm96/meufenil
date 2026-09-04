@@ -307,7 +307,7 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 
 ## Identidade e arquivamento de referências (ENH-0004 — 2026-09-04)
 
-> Regras novas decorrentes da proposta ENH-0004 (aprovada em 2026-09-04), numeradas BR-034–BR-037 na sequência das seções "Novas propostas" da proposta. `[CONFIRMED: implementação ENH-0004 — migrations 20260904000000/20260904010000 e código da branch enhancement/enh-0004; premissa: numeração sequencial derivada — renumeração é decisão humana se houver conflito com numeração futura]`
+> Regras novas implementadas pelo ENH-0004 (modelo canônico e identidade imutável — spec arquivada como IMPLEMENTED em `archive/implemented/enhancements/`), numeradas BR-034–BR-037 na sequência das seções "Novas propostas" da proposta. `[CONFIRMED: implementação ENH-0004 — migrations 20260904000000/20260904010000, merge PR #55 (82bd0f3, 2026-09-04); premissa: numeração sequencial derivada — renumeração é decisão humana se houver conflito com numeração futura]`
 
 ### BR-034 — Identidade substantiva de globais é imutável
 - **Tipo:** lifecycle (identidade)
