@@ -1,8 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-09-02 (ENH-0004, FEAT-0017 e REF-0004 registradas + REF-0004 reconciliada ao proposal-template — 14 ativas + 7 arquivadas)
+**Última verificação:** 2026-09-03 (REF-0005 registrada — 14 ativas + 7 arquivadas)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (14) · arquivadas = linhas da seção "Arquivadas" (7) · as 3 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (14) · arquivadas = linhas da seção "Arquivadas" (7) · as 4 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -29,6 +29,7 @@
 | [ENH-0004](enhancements/ENH-0004-modelo-identidade-referencias.md) | ENH | Modelo canônico e identidade imutável de referências | PROPOSED | #49 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 |
 | [FEAT-0017](features/FEAT-0017-sincronizacao-referencias-anvisa.md) | FEAT | Sincronização controlada de referências com a fonte ANVISA/Power BI | PROPOSED | #50 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 |
 | [REF-0004](../archive/implemented/refactors/REF-0004-automacao-residuo-gate-e-prevencao-tentativa-erro.md) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | IMPLEMENTED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), PR #52 (squash merge) — 2026-09-03 |
+| [REF-0005](refactors/REF-0005-heading-canonico-corpo-release-pre-release-check-ampliado.md) | REF | Corpo de Release com heading canônico da tabela de rastreabilidade + pre-release-check ampliado | PROPOSED | #54 | W6 `no-table` em v1.10.0 (run 33139076564) e v1.10.1 (run 33826721637) — 2026-09-03 |
 
 ## Arquivadas
 
