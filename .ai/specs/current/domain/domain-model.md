@@ -36,7 +36,7 @@ Nota: `EXECUCAO_JOB` (background_job_executions) é uma entidade isolada do dom�
 ### Referencia (alimento de referência)
 
 - **Persistência:** `public.referencias` `[CONFIRMED: database]`.
-- **Atributos relevantes:** nome (sem sufixo de marca desde a ENH-0004), `marca` (default canônico `'Produto In Natura'` para in natura/sem marca), `fenil_mg_por_100g` (`numeric(10,1)`), `criado_por`, `is_global`, `is_ativa` `[CONFIRMED: database]`.
+- **Atributos relevantes:** nome (sem sufixo de marca desde a ENH-0004), `marca` (default `''` desde 2026-09-04 — em branco = marca não declarada; `'Produto In Natura'` apenas como marca declarada pela fonte ANVISA), `fenil_mg_por_100g` (`numeric(10,1)`), `criado_por`, `is_global`, `is_ativa` `[CONFIRMED: database]`.
 - **Identidade substantiva:** `(nome, marca, fenil_mg_por_100g)` — única entre referências ATIVAS (índice único parcial com `lower(trim(...))`); arquivadas coexistem com ativas de mesma identidade; para GLOBAIS é imutável por UPDATE (mudança = arquivar + criar nova) `[CONFIRMED: database — referencias.md; code — BR-034]`.
 - **Cardinalidades:** Usuario 1—N Referencia; Referencia 1—N Registro; Referencia 1—N Favorito `[CONFIRMED: database]`.
 - **Estados:** ativa (default) ↔ arquivada (`is_ativa = false`, soft delete/arquivamento); o arquivamento NÃO remove favoritos (desde a ENH-0004 — sem trigger) e impede novos registros (policy) `[CONFIRMED: database]`.

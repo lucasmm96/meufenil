@@ -1,6 +1,6 @@
 # Página Referências
 
-**Última verificação:** 2026-09-04 (ENH-0004 — marca separada, identidade imutável de globais, remoção com textos distintos)
+**Última verificação:** 2026-09-04 (ENH-0004 — marca separada, identidade imutável de globais, remoção com textos distintos; canônico de marca revisto 2026-09-04 — sem marca = em branco)
 **Rota:** `/referencias` — `src/react-app/App.tsx:19`
 
 ## Propósito
@@ -22,10 +22,11 @@ Gestão das referências alimentares: busca (nome OU marca), filtros (inativas/f
 
 1. **Header:** título + subtítulo "Valores de fenilalanina por 100g" + botão "+ Nova Referência" (gradiente).
 2. **Card Filtros:** input "Buscar alimento" (`title` "Limpar busca" no X) + 3 checkboxes com `accent-*`: "Mostrar referências inativas" (`accent-indigo-600`), "Somente favoritas" (`accent-yellow-500`), "Somente customizadas" (`accent-purple-600`) `[CONFIRMED: code]`.
-3. **Lista de Referências** — desktop `hidden md:block` tabela com colunas **Fav | Nome | Fenilalanina (mg/100g) | Tipo | Ações**:
-   - **Ordenação** por Nome e Fenilalanina (headers clicáveis, `ArrowUp`/`ArrowDown`/`ArrowUpDown`); campo "tipo" na assinatura de `toggleSort` mas SEM header clicável; default `"nome"` `[CONFIRMED: code — Referencias.tsx:443-477]`.
+3. **Lista de Referências** — desktop `hidden md:block` tabela com colunas **Fav | Nome | Marca | Fenilalanina (mg/100g) | Tipo | Ações** (coluna **Marca** ao lado de **Nome** desde 2026-09-04):
+   - **Ordenação** por Nome e Fenilalanina (headers clicáveis, `ArrowUp`/`ArrowDown`/`ArrowUpDown`); campo "tipo" na assinatura de `toggleSort` mas SEM header clicável; default `"nome"`; coluna Marca SEM ordenação própria `[CONFIRMED: code — Referencias.tsx:443-477]`.
    - **Ações por linha:** star favorito (`text-yellow-400 fill-yellow-400` ativo; `disabled` se inativa), `Edit2` (indigo), `Trash2` (vermelho), `RotateCcw` (verde — só se `!is_ativa && podeEditarOuRemover(r)`); edit/delete `disabled` (`text-gray-300 cursor-not-allowed`) quando `bloqueado = !podeEditarOuRemover(r) || !r.is_ativa` `[CONFIRMED: code]`.
-   - **Células:** nome apresentado via `nomeComMarca(nome, marca)` — "Nome (Marca: X)" quando há marca, só o nome quando é `Produto In Natura` (desktop linha 404; mobile 545); com `line-through text-gray-400` se inativa; valor `toFixed(1)` em `text-indigo-600` (sem sufixo "mg" no desktop; mobile com " mg"); badge Tipo "Global" `bg-blue-100 text-blue-700` / "Customizada" `bg-purple-100 text-purple-700` `[CONFIRMED: code]`.
+   - **Células (desktop):** coluna **Nome** = `r.nome` puro (o sufixo deixou de ser embutido na célula quando a coluna Marca foi criada — 2026-09-04); coluna **Marca** ao lado = `normalizarMarca(r.marca)` — marca declarada (inclusive `Produto In Natura`, que é marca declarada pela fonte — canônico 2026-09-04), ou "—" (`text-gray-300`) quando a marca está EM BRANCO (não declarada); com `line-through text-gray-400` se inativa (nome e marca); valor `toFixed(1)` em `text-indigo-600` (sem sufixo "mg" no desktop); badge Tipo "Global" `bg-blue-100 text-blue-700` / "Customizada" `bg-purple-100 text-purple-700` `[CONFIRMED: code]`.
+   - **Mobile (cards):** nome combinado via `nomeComMarca(nome, marca)` — "Nome (Marca: X)" quando há marca declarada (inclusive `Produto In Natura`), só o nome quando a marca está em branco (não declarada); sem coluna separada de marca `[CONFIRMED: code]`.
    - **Mobile** `md:hidden`: cards por referência com star, nome combinado (nomeComMarca) (+ "(Inativa)" `text-red-600`), badge `Globe`/`User` com `title` ("Referência global (disponível para todos os usuários)" / "Referência criada pelo usuário"), valor e mesmas ações `[CONFIRMED: code]`.
 4. **Paginação client-side:** select "Itens por página:" (10/20/50/100); "Total: {N} registros"; botões SVG inline com `title` "Primeira página"/"Página anterior"/"Próxima página"/"Última página" (`disabled:opacity-40`); indicador `<strong>{pagina}</strong> / {totalPages}`; `useEffect` reseta página para 1 quando a lista muda `[CONFIRMED: code — Referencias.tsx:572-645,150-162]`.
 5. **Modal `ModalReferencia`** para criar/editar (spec própria) `[CONFIRMED: code]`.

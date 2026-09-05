@@ -97,7 +97,7 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** validação
 - **Given:** modal de referência
 - **When:** submit
-- **Then:** `required` + guard `if (!nome || !fenil) return` (marca é opcional — omissa cai no canônico, BR-035); valor não numérico: Dashboard retorna silenciosamente, Referencias mostra alert "Informe um valor numérico válido para fenilalanina."
+- **Then:** `required` + guard `if (!nome || !fenil) return` (marca é opcional — omissa permanece em branco `''`, BR-035); valor não numérico: Dashboard retorna silenciosamente, Referencias mostra alert "Informe um valor numérico válido para fenilalanina."
 - **Evidence:** `[CONFIRMED: code — ModalReferencia.tsx:48; Dashboard.tsx:55-58; Referencias.tsx:132-135]`
 - **Status:** Confirmed + partially tested (services; componentes sem teste)
 
@@ -318,13 +318,13 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tests:** `referencias.service.test.ts` cobre a guarda; fluxo arquivar+criar da página sem teste `[CONFIRMED: test]`
 - **Status:** Confirmed + partially tested
 
-### BR-035 — Marca é atributo separado com canônico "Produto In Natura"
+### BR-035 — Marca é atributo separado; em branco = marca NÃO declarada
 - **Tipo:** modelo de dados
 - **Given:** criação ou edição de referência
 - **When:** usuário informa a marca ou a omite
-- **Then:** `marca` gravada em coluna própria (`NOT NULL` default `'Produto In Natura'`) — omissão/em branco cai no canônico (in natura/sem marca); o `nome` não carrega o sufixo `(Marca: X)`; a apresentação combinada `"Nome (Marca: X)"` é montada dinamicamente no frontend (`nomeComMarca`); a busca de referências consulta nome OU marca (server-side)
-- **Evidence:** `[CONFIRMED: migration 20260904000000 (coluna + backfill); code — lib/referencias.ts (normalizarMarca, extrairMarcaDoNome, nomeComMarca), ModalReferencia.tsx:90-107, referencias.service.ts:74-86]`
-- **Tests:** `src/react-app/lib/referencias.test.ts` (12 testes) + `referencias.service.test.ts` (busca nome+marca) `[CONFIRMED: test]`
+- **Then:** `marca` gravada em coluna própria (`NOT NULL` default `''` desde a migration 20260904030000) — omissão/em branco permanece EM BRANCO (marca não declarada); **revogada em 2026-09-04 (usuário)** a regra "Em branco = Produto In Natura": `'Produto In Natura'` é marca DECLARADA pela fonte (planilha ANVISA) e entra no banco apenas onde a fonte a declara (97 linhas em dev); o `nome` não carrega o sufixo `(Marca: X)`; a apresentação combinada `"Nome (Marca: X)"` é montada dinamicamente no frontend (`nomeComMarca`) apenas quando há marca declarada; a busca de referências consulta nome OU marca (server-side)
+- **Evidence:** `[CONFIRMED: migrations 20260904000000/20260904030000 (coluna + backfill + canônico revisto); code — lib/referencias.ts (normalizarMarca, extrairMarcaDoNome, nomeComMarca), ModalReferencia.tsx:90-107, referencias.service.ts:74-86; decisão 2026-09-04 registrada no header da 030000]`
+- **Tests:** `src/react-app/lib/referencias.test.ts` (20 testes) + `referencias.service.test.ts` (busca nome+marca; create/update com marca em branco) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-036 — Desativação preserva favoritos

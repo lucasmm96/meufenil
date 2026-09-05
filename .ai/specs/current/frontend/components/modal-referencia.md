@@ -18,12 +18,12 @@ Apenas estado local `nome`, `marca` e `fenil` (strings dos inputs); sem hooks de
 ## UI
 
 1. Overlay modal padrão ([overview.md](../overview.md)); painel `max-w-md max-h-[92vh] overflow-y-auto`; título dinâmico "Editar Referência" × "Nova Referência" + botão X (`X` icon) `[CONFIRMED: code]`.
-2. Campos: "Nome do Alimento" (`text`, `required`, placeholder "Ex: Maçã Fuji"); **"Marca (opcional)"** (`text` sem `required`, placeholder = `MARCA_SEM_MARCA` ("Produto In Natura"), help "Em branco = Produto In Natura.") — adicionado na ENH-0004; "Fenilalanina (mg por 100g)" (`number step="0.01"`, `required`, placeholder "Ex: 25.50") `[CONFIRMED: code — ModalReferencia.tsx:74-123]`.
+2. Campos: "Nome do Alimento" (`text`, `required`, placeholder "Ex: Maçã Fuji"); **"Marca (opcional)"** (`text` sem `required`, placeholder "Ex: Nestlé", help "Em branco = sem marca declarada.") — adicionado na ENH-0004; canônico revisto 2026-09-04 (em branco NÃO vira "Produto In Natura" — só é gravado o que foi digitado); "Fenilalanina (mg por 100g)" (`number step="0.01"`, `required`, placeholder "Ex: 25.50") `[CONFIRMED: code — ModalReferencia.tsx:74-123]`.
 3. Botões: "Cancelar" (`type=button`, secundário) e "Salvar" (`type=submit`, gradiente, `disabled={loading}`, "Salvando...") `[CONFIRMED: code — ModalReferencia.tsx:125-141]`.
 
 ## Validação
 
-- Guard no submit: `if (!nome || !fenil) return` — sem exigir marca (marca omissa cai no canônico no service/lib; BR-035) + `required` nativo apenas em nome e fenil `[CONFIRMED: code — ModalReferencia.tsx:48]`.
+- Guard no submit: `if (!nome || !fenil) return` — sem exigir marca (marca omissa = EM BRANCO `''` no service/lib; BR-035 — canônico 2026-09-04) + `required` nativo apenas em nome e fenil `[CONFIRMED: code — ModalReferencia.tsx:48]`.
 - Validação numérica é responsabilidade do PAI (ex.: `Number.isNaN(fenil)` com `alert("Informe um valor numérico válido para fenilalanina.")` em Referencias.tsx:132-135; Dashboard retorna silenciosamente) `[CONFIRMED: code]`.
 
 ## Estados de UI
