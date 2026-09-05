@@ -3,11 +3,11 @@
 **ID:** FEAT-0008
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-04 (ENH-0004 — modelo canônico: `marca` separada, identidade imutável de globais, arquivamento sem perda de favoritos)
+**Última verificação:** 2026-09-04 (ENH-0004 — modelo canônico: `marca` separada, identidade imutável de globais, arquivamento sem perda de favoritos; canônico de marca revisto 2026-09-04 — sem marca = em branco)
 
 ## Purpose
 
-Gestão do catálogo de alimentos com fenilalanina por 100g: busca, filtros, ordenação e paginação; criação/edição; favoritos; desativação/reativação/remoção — com regras distintas para referências globais (ANVISA/admin) e pessoais. Desde a ENH-0004, nome e marca são atributos separados (canônico `Produto In Natura` para sem marca) e a identidade de globais é imutável (edição = arquivar + criar).
+Gestão do catálogo de alimentos com fenilalanina por 100g: busca, filtros, ordenação e paginação; criação/edição; favoritos; desativação/reativação/remoção — com regras distintas para referências globais (ANVISA/admin) e pessoais. Desde a ENH-0004, nome e marca são atributos separados (canônico revisto em 2026-09-04: marca não declarada = em branco `''`; `'Produto In Natura'` apenas como marca declarada pela fonte) e a identidade de globais é imutável (edição = arquivar + criar).
 
 ## Actors
 
@@ -19,8 +19,8 @@ Gestão do catálogo de alimentos com fenilalanina por 100g: busca, filtros, ord
 
 ## Main Flow
 
-1. Página lista referências com busca debounced (por nome OU marca — server-side), filtros (inativas/favoritas/customizadas — aplicados no SERVIDOR), ordenação (nome/fenil) e paginação client-side (10/20/50/100); células exibem o nome com a marca combinada (`nomeComMarca`) quando a referência tem marca `[CONFIRMED: code — Referencias.tsx, useReferencias.ts:28-56,182-194]`.
-2. Criar/editar via `ModalReferencia` (nome + marca + fenil; marca opcional — em branco vira o canônico `Produto In Natura`; título dinâmico; validação NaN) `[CONFIRMED: code — ModalReferencia.tsx:48,90-107]`.
+1. Página lista referências com busca debounced (por nome OU marca — server-side), filtros (inativas/favoritas/customizadas — aplicados no SERVIDOR), ordenação (nome/fenil) e paginação client-side (10/20/50/100); desktop exibe Nome e Marca em colunas próprias (Marca ao lado de Nome, desde 2026-09-04); mobile combina via `nomeComMarca` quando há marca declarada `[CONFIRMED: code — Referencias.tsx, useReferencias.ts:28-56,182-194]`.
+2. Criar/editar via `ModalReferencia` (nome + marca + fenil; marca opcional — em branco permanece EM BRANCO (não declarada), canônico revisto 2026-09-04; título dinâmico; validação NaN) `[CONFIRMED: code — ModalReferencia.tsx:48,90-107]`.
 3. Favoritar (estrela) com reordenação client-side e rollback em erro `[CONFIRMED: code — useReferencias.ts:132-179]`.
 4. Editar referência GLOBAL: confirm de arquivamento ("Arquivar e criar nova...") → RPC arquiva a atual → modal pré-preenchido (prop `initial` com nome/marca/fenil) para criar a nova — nunca UPDATE substantivo de global (guarda do service: `REFERENCIA_GLOBAL_IMUTAVEL`; BR-034) `[CONFIRMED: code — Referencias.tsx:66-94; referencias.service.ts:242-261]`.
 5. Remover: textos distintos para global ("será arquivada... nunca são excluídas") e pessoal ("se houver registros associados, ela será apenas desativada") → service chama o RPC e trata o retorno (`'deleted'`/`'deactivated'`); SEM fallback de erro FK 23503 (eliminado na ENH-0004). Globais sempre arquivam (BR-037); pessoais: soft com vínculo, hard sem (BR-018) `[CONFIRMED: code — Referencias.tsx:96-127; referencias.service.ts:323-338]`.

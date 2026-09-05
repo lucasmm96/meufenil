@@ -217,9 +217,9 @@ describe("referencias.service", () => {
       return b;
     }
 
-    it("sem marca informada, persiste o canônico 'Produto In Natura'", async () => {
+    it("sem marca informada, persiste marca EM BRANCO ('')", async () => {
       const returned = {
-        id: "1", nome: "Banana", marca: "Produto In Natura",
+        id: "1", nome: "Banana", marca: "",
         fenil_mg_por_100g: 30, is_global: false,
       };
       const b = mockCreate(returned);
@@ -233,7 +233,7 @@ describe("referencias.service", () => {
       expect(from).toHaveBeenCalledWith("referencias");
       expect(b.insert).toHaveBeenCalledWith({
         nome: "Banana",
-        marca: "Produto In Natura",
+        marca: "",
         fenil_mg_por_100g: 30,
         criado_por: "123",
         is_global: false,
@@ -347,7 +347,7 @@ describe("referencias.service", () => {
       expect(guard.eq).toHaveBeenCalledWith("id", "1");
       expect(upd.update).toHaveBeenCalledWith({
         nome: "Banana",
-        marca: "Produto In Natura",
+        marca: "",
         fenil_mg_por_100g: 31,
       });
       expect(upd.eq).toHaveBeenCalledWith("id", "1");

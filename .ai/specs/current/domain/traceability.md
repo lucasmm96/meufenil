@@ -42,7 +42,7 @@
 | BR-032 | UI | `useReferencias.ts:28-56,182-194` | idem | service/hook (parcial) | partial |
 | BR-033 | cálculo | `dashboard.service.ts:34-43` | [dashboard](../frontend/pages/dashboard.md) | `dashboard.service.test.ts` | tested |
 | BR-034 | lifecycle (identidade) | guard `referencias.service.ts:242-261` + `Referencias.tsx:66-94` (arquivar+criar) | [business-rules](business-rules.md) · [referencias](../database/referencias.md) | `referencias.service.test.ts` (guarda de global) | partial |
-| BR-035 | modelo de dados | migration 20260904000000 + `lib/referencias.ts` + service (busca nome/marca) | [referencias](../database/referencias.md) · [modal-referencia](../frontend/components/modal-referencia.md) | `lib/referencias.test.ts`, `referencias.service.test.ts` | tested |
+| BR-035 | modelo de dados | migrations 20260904000000/020000/030000 (canônico revisto) + `lib/referencias.ts` + service (busca nome/marca) | [referencias](../database/referencias.md) · [modal-referencia](../frontend/components/modal-referencia.md) | `lib/referencias.test.ts`, `referencias.service.test.ts` | tested |
 | BR-036 | lifecycle | ausência de trigger (DROPs na 20260904000000) | [triggers](../database/triggers.md) · [referencias_favoritas](../database/referencias_favoritas.md) | — | none |
 | BR-037 | lifecycle | RPC `remover_ou_desativar_referencia` (20260904000000, linhas 96-164) | [rpc](../database/rpc.md) · [referencias](../database/referencias.md) | T3.7 | tested |
 

@@ -7,6 +7,8 @@
 **Issue:** #49
 **Created on:** 2026-09-02
 **Decision:** A1(b) — único composto parcial da identidade `(nome, marca, fenil_mg_por_100g)` em ativas (DROPs dos índices antigos) · A2 — `numeric(10,1)` · A3(a) + canônico `Produto In Natura` (OQ2, mantida) · A4(b) — eliminar `nome_normalizado` e o trigger de normalização (matching runtime é escopo do FEAT-0017)
+**Decision revision (2026-09-04, pré-release):** o sub-decision do canônico de marca foi REVOGADO pelo usuário antes da release — "Em branco = Produto In Natura" não vale (produto sem marca declarada não é necessariamente in natura); canônico final: `marca` EM BRANCO `''` = não declarada (default da coluna alterado) e `'Produto In Natura'` mantido apenas onde a planilha ANVISA declara in natura. Implementado pelas migrations 20260904020000 (correção do invólucro — bug do backfill) e 20260904030000 (canônico revisto), que compõem o trem de release junto com a 20260904000000/010000. BR-035 e specs atuais refletem o canônico final.
+**Decision revision 2 (2026-09-04, pré-release):** o usuário pediu que a coluna `marca` fique logo após `nome` também no SCHEMA (ordem física), reconhecendo que a posição não tem significado funcional no Postgres — a solicitação foi registrada para que a release entregue prod já no layout final. Implementado pela migration 20260904040000 (recriação da tabela com `marca` na posição 3; 4 políticas cross-tabela dropadas/recriadas verbatim — 1ª aplicação falhou com 2BP01 e foi corrigida). Última do trem 000000→040000; verificado em dev (3.164 linhas preservadas; segurança 28/28).
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-09-04
 

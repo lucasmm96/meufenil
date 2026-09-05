@@ -9,7 +9,7 @@ import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
 import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { LayoutSkeleton, ReferenciasSkeleton } from "@skeletons";
 import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
-import { nomeComMarca } from "@/react-app/lib/referencias";
+import { nomeComMarca, normalizarMarca } from "@/react-app/lib/referencias";
 
 interface PrefillCopiaReferencia {
   nome: string;
@@ -499,6 +499,10 @@ export default function ReferenciasPage() {
                         )}
                       </th>
 
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Marca
+                      </th>
+
                       <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
                         onClick={() => toggleSort("fenil")}
@@ -524,6 +528,7 @@ export default function ReferenciasPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {referenciasPaginadas.map((r) => {
                       const bloqueado = !podeEditarOuRemover(r) || !r.is_ativa;
+                      const marcaExibida = normalizarMarca(r.marca);
 
                       return (
                         <tr key={r.id} className="hover:bg-gray-50">
@@ -542,7 +547,17 @@ export default function ReferenciasPage() {
 
                           <td className="px-6 py-4">
                             <p className={`text-sm font-medium ${r.is_ativa ? "text-gray-900" : "text-gray-400 line-through"}`}>
-                              {nomeComMarca(r.nome, r.marca)}
+                              {r.nome}
+                            </p>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <p className={`text-sm ${r.is_ativa ? "text-gray-600" : "text-gray-400"}`}>
+                              {marcaExibida ? (
+                                marcaExibida
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
                             </p>
                           </td>
 

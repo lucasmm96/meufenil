@@ -34,7 +34,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 | Nível | Arquivos | Característica |
 |---|---|---|
 | Unit (shared) | `src/shared/background-jobs.test.ts` | helper puro com client mockado |
-| Unit (lib frontend) | `src/react-app/lib/referencias.test.ts` (ENH-0004) | helpers puros do modelo canônico de referências — `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca` (12 testes) |
+| Unit (lib frontend) | `src/react-app/lib/referencias.test.ts` (ENH-0004 + canônico revisto 2026-09-04) | helpers puros do modelo canônico de referências — `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca` (20 testes) |
 | Service (client-side) | 10 arquivos em `services/*.service.test.ts` | mocks do supabase; assertions de chamadas e AppError |
 | Hook | 12 arquivos em `hooks/use*.test.ts(x)` | `renderHook` (Testing Library) + mocks de services/supabase |
 | Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 72 testes (3+17+25+12+13+2) cobrindo estados loading/empty/error, interações e fluxos destrutivos |

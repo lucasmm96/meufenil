@@ -1,7 +1,6 @@
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
-import { MARCA_SEM_MARCA } from "@/react-app/lib/referencias";
 
 export interface DadosModalReferencia {
   nome: string;
@@ -98,11 +97,11 @@ export default function ModalReferencia({
                 value={marca}
                 onChange={(e) => setMarca(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder={MARCA_SEM_MARCA}
+                placeholder="Ex: Nestlé"
               />
 
               <p className="text-xs text-gray-500">
-                Em branco = {MARCA_SEM_MARCA}.
+                Em branco = sem marca declarada.
               </p>
             </div>
 
