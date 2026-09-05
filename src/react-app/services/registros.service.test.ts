@@ -128,7 +128,8 @@ describe("registros.service", () => {
           peso_g: 200,
           fenil_mg: 80,
           created_at: "2024-01-01T10:00:00Z",
-          nome_alimento: "Feijão",
+          // 'Produto In Natura' é marca declarada pela fonte (canônico 2026-09-04) — exibe como qualquer marca.
+          nome_alimento: "Feijão (Marca: Produto In Natura)",
         },
       ];
 

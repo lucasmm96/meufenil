@@ -178,6 +178,38 @@ describe("Referencias page", () => {
     expect(screen.getByText("Total: 2 registros")).toBeTruthy();
   });
 
+  it("exibe a coluna Marca ao lado de Nome — marca real, invólucro normalizado e '—' para marca em branco", () => {
+    setupReferencias({
+      data: [
+        { ...refPropria, marca: "Tio João" },
+        { ...refGlobalDeOutro, marca: "(Marca: Feijão Carioca)" },
+        { ...refPropria, id: "ref-3", nome: "Maçã", criado_por: "user-1" },
+      ],
+    });
+    render(<Referencias />);
+
+    // coluna Marca logo após a coluna Nome (desktop)
+    const cabecalhos = screen
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent?.trim());
+    expect(cabecalhos.indexOf("Nome")).toBeLessThan(cabecalhos.indexOf("Marca"));
+
+    // desktop: nome limpo na coluna Nome e marca em coluna própria
+    const linhas = screen.getAllByRole("row");
+    const linhaArroz = linhas.find((l) => within(l).queryByText("Arroz"))!;
+    expect(within(linhaArroz).getByText("Tio João")).toBeTruthy();
+    expect(within(linhaArroz).queryByText("Arroz (Marca: Tio João)")).toBeNull();
+
+    // regressão do bug do invólucro: marca persistida "(Marca: X)" aparece como X
+    const linhaFeijao = linhas.find((l) => within(l).queryByText("Feijão"))!;
+    expect(within(linhaFeijao).getByText("Feijão Carioca")).toBeTruthy();
+    expect(within(linhaFeijao).queryByText("(Marca: Feijão Carioca)")).toBeNull();
+
+    // marca não declarada (em branco): '—' na coluna Marca
+    const linhaMaca = linhas.find((l) => within(l).queryByText("Maçã"))!;
+    expect(within(linhaMaca).getByText("—")).toBeTruthy();
+  });
+
   it("pagina os resultados e reseta ao trocar itens por página", () => {
     const refs = Array.from({ length: 25 }, (_, i) => ({
       ...refPropria,
