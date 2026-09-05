@@ -5,6 +5,7 @@
 **Title:** Sincronização controlada de referências com a fonte ANVISA/Power BI
 **Issue:** #50
 **Created on:** 2026-09-02
+**Decision:** B1(a) — biblioteca no monorepo (módulos do `powerbi-export` portados) · B2(a) — novo cron em `vercel.json` + API route dedicada · B3(a) — snapshots/backups em tabelas jsonb com RLS (backups 12 meses; retenção de snapshots a avaliar) · B4(a) — log de alterações + operações inversas · B5(a) — ator "Sistema" real via Admin API do Supabase Auth · B6(b) — tabela própria de syncs · B7(a) — tabela única de eventos · B8(b) — derivação por auditoria · B9(a) — abort imediato sem retry (margens após 1ª extração real) · B10(a) — single-flight na tabela de syncs
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-09-04 (rodadas R1–R3 — todas as Alternatives B1–B10 decididas)
 
