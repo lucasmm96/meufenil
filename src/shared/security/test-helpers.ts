@@ -466,3 +466,24 @@ export async function isEnh0004MigrationApplied(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Detecta se o M1 da FEAT-0017 (migrations 20260905xxxxxx — tabelas de
+ * sincronização, auditoria de `is_ativa` e endurecimento de
+ * `ativar_referencia`) está aplicado no banco de desenvolvimento. Sem efeitos
+ * colaterais: um SELECT na tabela `referencia_syncs` falha (PGRST204) no
+ * schema antigo e sucede no novo. Requer service role (getAdminClient) — sem
+ * credenciais, false.
+ */
+export async function isFeat0017M1Applied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin
+      .from("referencia_syncs")
+      .select("id")
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+}
