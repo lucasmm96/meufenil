@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comparar, derivarOrigemArquivada } from "./compare";
+import { comparar, derivarModoSync, derivarOrigemArquivada } from "./compare";
 import type { EntradaComparacao } from "./compare";
 import type { ArquivadaGlobal, GlobalAtiva, IdentidadeReferencia, ModoSync } from "./types";
 
@@ -70,6 +70,29 @@ describe("derivarOrigemArquivada (B8(b), §6.4)", () => {
     expect(derivarOrigemArquivada([manual11h, arquivada10h])).toBe("bloqueada_manual");
     expect(derivarOrigemArquivada([manual11h, arquivada12h])).toBe("arquivada_pela_origem");
     expect(derivarOrigemArquivada([arquivada12h, manual11h])).toBe("arquivada_pela_origem");
+  });
+});
+
+describe("derivarModoSync (§14.1/§14.4 — 1ª sync × sync confiável)", () => {
+  it("nenhuma sync anterior → bootstrap", () => {
+    expect(derivarModoSync([])).toBe("bootstrap");
+  });
+
+  it("histórico sem extração válida concluída → bootstrap", () => {
+    expect(derivarModoSync([{ status: "failure" }])).toBe("bootstrap");
+    expect(derivarModoSync([{ status: "origin_invalid" }])).toBe("bootstrap");
+    expect(derivarModoSync([{ status: "running" }])).toBe("bootstrap");
+    expect(derivarModoSync([{ status: "failure" }, { status: "origin_invalid" }])).toBe(
+      "bootstrap",
+    );
+  });
+
+  it("sync anterior com extração válida concluída → pos_bootstrap", () => {
+    expect(derivarModoSync([{ status: "success" }])).toBe("pos_bootstrap");
+    expect(derivarModoSync([{ status: "pending_review" }])).toBe("pos_bootstrap");
+    expect(
+      derivarModoSync([{ status: "failure" }, { status: "origin_invalid" }, { status: "success" }]),
+    ).toBe("pos_bootstrap");
   });
 });
 
