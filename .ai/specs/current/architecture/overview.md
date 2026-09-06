@@ -1,6 +1,6 @@
 # Architecture Overview — MeuFenil
 
-**Última verificação:** 2026-09-04 (ENH-0004 — migrations 20260904000000/20260904010000 aplicadas em DEV; prod segue no schema anterior até a release)
+**Última verificação:** 2026-09-06 (FEAT-0017 M1/M4 — migrations 20260905*/20260906000000 aplicadas em DEV; prod segue no schema pré-ENH-0004 até a release)
 
 Índice ARQUITETURAL de alto nível (o índice FUNCIONAL é o [system-map](../system-map.md)). Este documento aponta para as specs especializadas — não duplica conteúdo. Decisões arquiteturais: [decisions](../../decisions/).
 
@@ -28,7 +28,7 @@ flowchart TB
         KEEP --> BJ[src/shared/background-jobs.ts]
     end
     KEEP -->|service role| PG
-    PG --> TAB[(7 tabelas + 2 triggers + 8 funções — dev pós-ENH-0004)]
+    PG --> TAB[(12 tabelas + 4 triggers + 12 funções — dev pós-FEAT-0017 M1/M4)]
 ```
 
 Todas as arestas do diagrama são confirmadas por código/configuração `[CONFIRMED: code — Fases 4–5]`.
@@ -42,12 +42,12 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 ## Backend
 
 - Sem servidor de aplicação: lógica server-side distribuída entre RPCs do banco (PostgREST), 2 Edge Functions (Deno, service role + validação de Bearer) e 1 função Vercel (keepalive) — [backend/overview](../backend/overview.md).
-- RPCs de negócio: `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](../database/rpc.md).
+- RPCs de negócio (frontend): `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs da sincronização de referências (FEAT-0017 M4): `aplicar_sync_referencias` (service_role — rota `/api/referencias-sync`, estágio 7) e `decidir_pendencia_referencia` (authenticated admin — curadoria de divergências; chamador de UI chega no M6); RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](../database/rpc.md).
 - Operação: CLI (5 comandos) e `apply-supabase-migrations.sh` — [backend/cli](../backend/cli.md).
 
 ## Database
 
-- PostgreSQL Supabase: 7 tabelas, RLS em TODAS, 31 políticas; em DEV desde 2026-09-04 (ENH-0004): 8 funções, 1 trigger em `public` (+1 em `auth.users`) — as funções/triggers de normalização de nome e de limpeza de favoritos foram eliminadas; PROD permanece com 10 funções e 3 triggers em `public` (+1 em `auth.users`) até a release. Todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
+- PostgreSQL Supabase (dev, 2026-09-06): **12 tabelas** (7 legadas + 5 de sincronização do FEAT-0017 M1: `referencia_syncs`, `referencia_sync_pendencias`, `referencia_eventos`, `referencia_snapshots`, `referencia_backups`), RLS em TODAS, **36 políticas** (31 legadas + 5 `admin_select_*` das tabelas de sync), **12 funções** em `public` — todas SECURITY DEFINER: 8 pós-ENH-0004 + 2 de trigger do M1 (`fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`) + 2 RPCs do M4 (`aplicar_sync_referencias`, `decidir_pendencia_referencia`) — e **4 triggers** (3 em `public` + 1 em `auth.users`). PROD permanece no schema **pré-ENH-0004/pré-FEAT-0017** até a release: 7 tabelas, 31 políticas, 10 funções (com as 2 eliminadas em dev) e 3 triggers em `public` (+1 em `auth.users`). Todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
 
 ## Authentication / Authorization
 
@@ -59,7 +59,7 @@ Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dado
 
 ## Deployment / Environments
 
-- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; desde 2026-09-04 DIVERGEM: dev recebeu as migrations da ENH-0004 (marca/identidade de referencias) e prod aguarda a release; diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
+- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; desde 2026-09-04 DIVERGEM: dev recebeu a ENH-0004 (2026-09-04 — marca/identidade de referencias) e o FEAT-0017 M1–M4 (2026-09-05/06 — tabelas de sincronização, auditoria de `is_ativa`, RPCs de aplicação/curadoria) e prod aguarda a release (pré-ENH-0004); diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
 
 ## Testing
 
