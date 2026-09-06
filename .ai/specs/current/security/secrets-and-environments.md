@@ -1,6 +1,6 @@
 # Secrets e Ambientes — MeuFenil
 
-**Última verificação:** 2026-08-23 (DEBT-0006)
+**Última verificação:** 2026-09-06 (FEAT-0017 M2)
 
 > ⚠️ Este documento registra SOMENTE nomes, finalidade, escopo e localização das variáveis. **Nenhum valor real de secret é documentado.**
 
@@ -41,6 +41,16 @@
 | `SUPABASE_URL` | fallback adicional na resolução | `api/keepalive.ts` |
 
 O keepalive conecta nos DOIS bancos por execução (prod `meufenil` e dev `meufenil-dev`), usando service role, e grava uma linha em `background_job_executions` de cada banco com o mesmo `run_id` `[CONFIRMED: code — api/keepalive.ts]`. O alvo dev exige `KEEPALIVE_DEV_*` sem fallback (endurecido pelo DEBT-0006, 2026-08-23). (Histórico: entre 2026-08-11 e 2026-08-23 o código executava 1 alvo por execução — regressão `879a6c0` corrigida pelo DEBT-0006; o DEBT-0003, 2026-08-15, havia codificado o drift na documentação.)
+
+### Backend — Vercel function (`api/referencias-sync.ts`)
+
+| Variável | Uso | Evidência |
+|---|---|---|
+| `REFERENCIAS_SYNC_SUPABASE_URL` / `REFERENCIAS_SYNC_SUPABASE_SERVICE_ROLE_KEY` | credenciais service role do alvo único `prod` da sincronização — **dedicadas, obrigatórias, sem fallback** (mesmo endurecimento do DEBT-0006) | `api/referencias-sync.ts` |
+| `CRON_SECRET` | Bearer do cron (GET) — comparação timing-safe | `api/referencias-sync.ts` |
+| `POWERBI_RESOURCE_KEY` | resource key pública do relatório Power BI/ANVISA — nunca hardcoded (D-1) | `api/referencias-sync.ts`, `src/shared/powerbi/extract.ts` |
+
+A rota de sincronização grava em `referencia_syncs`, `referencia_eventos`, `referencia_snapshots` e `referencia_backups` (schema M1 da FEAT-0017; RLS admin-only SELECT) — ver [../backend/api-referencias-sync.md](../backend/api-referencias-sync.md). As credenciais NÃO caem de volta para `SUPABASE_SERVICE_ROLE_KEY`/`VITE_SUPABASE_URL` (lição do DEBT-0006: fallback cruzado gravaria no banco errado).
 
 ### Edge Functions (Supabase/Deno — `Deno.env`)
 
@@ -86,7 +96,7 @@ O keepalive conecta nos DOIS bancos por execução (prod `meufenil` e dev `meufe
 ## 4. Plataformas e integrações (o que existe de fato)
 
 - **GitHub:** nenhuma integração versionada no repositório — NÃO existe `.github/workflows` (sem CI/CD versionado) `[CONFIRMED: filesystem — ausência]`.
-- **Vercel:** `vercel.json` com cron diário `/api/keepalive` (`0 12 * * *`) e rewrite SPA; artefatos locais do CLI em `.vercel/` (ignorados); README documenta que variáveis de keepalive podem existir no painel da Vercel como override — configuração do painel em si não é verificável pelo repositório (`UNKNOWN`) `[CONFIRMED: vercel.json, README.md, filesystem]`.
+- **Vercel:** `vercel.json` com crons `/api/keepalive` (diário, `0 12 * * *`) e `/api/referencias-sync` (semanal, `0 12 * * 1`) e rewrite SPA; artefatos locais do CLI em `.vercel/` (ignorados); README documenta que variáveis de keepalive podem existir no painel da Vercel como override — configuração do painel em si não é verificável pelo repositório (`UNKNOWN`) `[CONFIRMED: vercel.json, README.md, filesystem]`.
 - **Supabase:** `supabase/config.toml` mínimo (apenas `[functions.delete-account]` com `verify_jwt = true`); migrations versionadas; 2 edge functions no diretório `supabase/functions/` `[CONFIRMED: configuration, filesystem]`.
 - **Ambientes:** dois bancos Supabase (development e production) acessados via `SUPABASE_DATABASE_URL` de cada arquivo `.env` `[CONFIRMED: configuration, database — Fase 2]`.
 
@@ -96,7 +106,7 @@ O keepalive conecta nos DOIS bancos por execução (prod `meufenil` e dev `meufe
 - **CLI:** comandos de escrita exigem confirmação (`--confirm`); bypass de RLS exige `--service-role` + `--i-understand-rls` `[CONFIRMED: code — scripts/cli/index.js, utils.js]`.
 - **Secrets:** nenhum secret hardcoded no código (todos via env) `[CONFIRMED: code — grep 2026-08-13; analise 11 validada]`; `.env*`, `.cli-token`, `.cli-sql*` ignorados pelo Git `[CONFIRMED: .gitignore]`.
 - **Background jobs:** cada execução registra `environment` (`prod`/`dev`) em `background_job_executions`; retenção de 365 dias por trigger; leitura admin-only `[CONFIRMED: code, database — ../database/background_job_executions.md]`.
-- **Cron:** keepalive diário via Vercel Cron `[CONFIRMED: vercel.json]`.
+- **Crons:** keepalive diário (`/api/keepalive`) e sincronização semanal de referências (`/api/referencias-sync`, segunda 12:00 UTC) via Vercel Cron — a plataforma envia `Authorization: Bearer $CRON_SECRET` automaticamente quando a env existe `[CONFIRMED: vercel.json, code — api/referencias-sync.ts]`.
 - **Logs:** edge functions usam `console.error`/`console.log` com mensagens próprias; keepalive registra detalhes em `background_job_executions.details` (jsonb) `[CONFIRMED: code]`.
 - **Permissões de tabela:** grants amplos por default privileges (todas as roles); a fronteira efetiva é o RLS (ver [security-model.md](security-model.md)) `[CONFIRMED: database]`.
 

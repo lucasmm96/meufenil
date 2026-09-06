@@ -1,6 +1,6 @@
 # Backend — Visão Geral
 
-**Última verificação:** 2026-09-04 (ENH-0004 — migrations aplicadas em DEV; prod segue no estado anterior até a release)
+**Última verificação:** 2026-09-06 (FEAT-0017 M2 — rota /api/referencias-sync; prod segue pré-ENH-0004 até a release)
 
 ## Propósito
 
@@ -13,9 +13,11 @@ Documenta a arquitetura REAL do backend do MeuFenil: componentes server-side, on
 | Componente | Onde executa | Quem chama | Acesso privilegiado | Spec |
 |---|---|---|---|---|
 | `api/keepalive.ts` | Vercel (serverless, Node) | Vercel Cron (diário, `0 12 * * *`) | service role (2 ambientes definidos em env; 1 alvo por execução) | [api-keepalive.md](api-keepalive.md) |
+| `api/referencias-sync.ts` | Vercel (serverless, Node) | Vercel Cron (semanal, `0 12 * * 1`) + POST manual (admin) | service role dedicada (`REFERENCIAS_SYNC_*`; alvo único `prod`) | [api-referencias-sync.md](api-referencias-sync.md) |
 | `supabase/functions/delegar-acesso` | Supabase Edge (Deno) | frontend (`delegacoesAcesso.service.ts`) | service role + validação do Bearer token | [edge-function-delegar-acesso.md](edge-function-delegar-acesso.md) |
 | `supabase/functions/delete-account` | Supabase Edge (Deno) | frontend (página Perfil) | service role + validação do Bearer token | [edge-function-delete-account.md](edge-function-delete-account.md) |
 | `src/shared/background-jobs.ts` | Vercel (helper importado pelo keepalive) | `api/keepalive.ts` | usa o client passado (service role) | [background-jobs.md](background-jobs.md) |
+| `src/shared/powerbi/` (5 módulos) | Vercel (helpers importados pela rota) | `api/referencias-sync.ts` | resource key de env (`POWERBI_RESOURCE_KEY`) | [api-referencias-sync.md](api-referencias-sync.md) |
 | `scripts/cli/` (5 comandos) | máquina local (Node ESM) | desenvolvedor | anon/JWT do `.cli-token` ou service role (`--service-role --i-understand-rls`) ou conexão pg direta (`run-sql`) | [cli.md](cli.md) |
 | `scripts/apply-supabase-migrations.sh` | máquina local (bash + Supabase CLI) | desenvolvedor | `supabase link`/`db push` com senha extraída de `SUPABASE_DATABASE_URL` | [cli.md](cli.md) |
 | RPCs do banco (dev pós-ENH-0004: 8 funções em `public`; prod: 10 até a release) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`) e policies | SECURITY DEFINER (7 funções) | [../database/rpc.md](../database/rpc.md) |
@@ -35,10 +37,13 @@ flowchart LR
         SVC -->|Bearer + POST| ED2[edge: delete-account]
     end
     subgraph Vercel
-        CRON[Vercel Cron 0 12 * * *] --> KEEP[api/keepalive.ts]
+        CRON[Vercel Cron diário 0 12 * * *] --> KEEP[api/keepalive.ts]
         KEEP --> BGJ[src/shared/background-jobs.ts]
+        CRONW[Vercel Cron semanal 0 12 * * 1] --> SYNC[api/referencias-sync.ts]
+        SYNC --> PBI[src/shared/powerbi]
     end
     KEEP -->|service role| PG
+    SYNC -->|service role| PG
     ED1 -->|service role| PG
     ED2 -->|service role| PG
     subgraph Local
@@ -80,12 +85,13 @@ Não há um padrão único — cada componente tem seu próprio estilo, document
 | `delegar-acesso` | JSON `{ error }` com status HTTP (400/401/403/404/405/500); catch genérico → 500 "Erro interno" | `supabase/functions/delegar-acesso/index.ts` |
 | `delete-account` | JSON `{ error, details }` com status (401/500); catch genérico → 500 com `err.message` | `supabase/functions/delete-account/index.ts` |
 | `api/keepalive.ts` | 405 para método inválido; 200 ok / 500 falha no ping; persistência de log NÃO bloqueia a resposta; `console.info`/`console.error` com prefixo `[keepalive]` | `api/keepalive.ts` |
+| `api/referencias-sync.ts` | 401 (cron) / 403 (manual) / 405 / 409 (single-flight) / 500; respostas `{ sync_id, status }`; falha vira sync `failure` com evento do estágio; origem inválida vira `origin_invalid` (200); `console.*` com prefixo `[referencias-sync]` | `api/referencias-sync.ts` |
 | `background-jobs.ts` | lança `Error(message)` quando o INSERT falha | `src/shared/background-jobs.ts:34-37` |
 | CLI | lança erros com mensagem pt-BR; `index.js` captura e imprime `[cli] erro:` com `exitCode = 1` | `scripts/cli/index.js`, `commands/*` |
 
 ## Observabilidade (o que existe)
 
-- **Logs de execução:** `console.info`/`console.error` no keepalive (com timings em ms) e `console.error` nas edge functions `[CONFIRMED: code]`.
+- **Logs de execução:** `console.info`/`console.error` no keepalive (com timings em ms), `console.error` nas edge functions e logs com prefixo `[referencias-sync]` na rota de sincronização (tempos por estágio em `details.estagios[]`) `[CONFIRMED: code]`.
 - **Persistência de execuções:** cada execução do keepalive é gravada em `public.background_job_executions` com `job_key`, `environment`, `run_id`, status e `details` (ver [background-jobs.md](background-jobs.md) e [../database/background_job_executions.md](../database/background_job_executions.md)) `[CONFIRMED: code, database]`.
 - **Consulta das execuções:** painel admin (`useBackgroundJobsAdmin`) com filtros por job/status/período — leitura client-side (Fase 5) `[CONFIRMED: code]`.
 - **Retenção:** trigger remove execuções com mais de 365 dias `[CONFIRMED: migration — ../database/triggers.md]`.
@@ -93,7 +99,7 @@ Não há um padrão único — cada componente tem seu próprio estilo, document
 
 ## Configuração
 
-- `vercel.json`: cron `/api/keepalive` (`0 12 * * *`) + rewrite SPA `[CONFIRMED: configuration]`.
+- `vercel.json`: crons `/api/keepalive` (diário, `0 12 * * *`) e `/api/referencias-sync` (semanal, `0 12 * * 1`) + rewrite SPA `[CONFIRMED: configuration]`.
 - `supabase/config.toml`: apenas `[functions.delete-account]` (`enabled`, `verify_jwt = true`, import_map); `delegar-acesso` NÃO declarada `[CONFIRMED: configuration]`.
 - Variáveis de ambiente: inventário completo em [../security/secrets-and-environments.md](../security/secrets-and-environments.md) — não duplicado aqui.
 
@@ -102,6 +108,8 @@ Não há um padrão único — cada componente tem seu próprio estilo, document
 | Teste | Componente | Tipo | Evidência |
 |---|---|---|---|
 | `api/keepalive.test.ts` | keepalive | unitário com mocks (`createClient`, `recordBackgroundJobExecution`) — 4 cenários: env prod, env dev, persistência falha não bloqueia, erro principal → 500 | `api/keepalive.test.ts` |
+| `api/referencias-sync.test.ts` | rota de sincronização | unitário com mocks (`createClient`, módulo de extração; validação real) — 9 cenários: cron feliz, 401/403, 409, origin_invalid, falha técnica, manual, 405 | `api/referencias-sync.test.ts` |
+| `src/shared/powerbi/{decode,extract,validate}.test.ts` | módulos de extração Power BI | unitário puro — 46 casos (guards §4.2 + matriz de validação §6.3) | `src/shared/powerbi/*.test.ts` |
 | `src/shared/background-jobs.test.ts` | helper | unitário | `src/shared/background-jobs.test.ts` |
 | `src/shared/security/rpc-*.test.ts` | RPCs (ativar/remover) | integração REAL com JWTs contra o banco dev | `src/shared/security/` |
 | edge functions | delegar-acesso / delete-account | **nenhum teste identificado** `[CONFIRMED: ausência]` | — |
