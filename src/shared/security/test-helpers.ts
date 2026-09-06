@@ -487,3 +487,47 @@ export async function isFeat0017M1Applied(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Detecta se o M4 da FEAT-0017 (migration 20260906000000 — RPCs
+ * `aplicar_sync_referencias`/`decidir_pendencia_referencia`) está aplicado no
+ * banco de desenvolvimento. Detecção comportamental: a RPC existe quando a
+ * chamada service_role com sync inexistente devolve erro de negócio ("Sync
+ * não encontrada"); no schema antigo o PostgREST devolve PGRST202 ("Could not
+ * find the function..."). Requer service role — sem credenciais, false.
+ */
+export async function isFeat0017M4Applied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin.rpc("aplicar_sync_referencias", {
+      p_sync_id: "00000000-0000-0000-0000-000000000000",
+      p_plano: { versao: "1" },
+    });
+
+    if (!error) return true; // função existe (resumo de sync inexistente não chega)
+    return !/Could not find the function/i.test(error.message);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se o ator Sistema (FEAT-0017 B5/§12 — email fixo
+ * `sistema@meufenil.local` em `usuarios`, conta banida sem sessão) está
+ * provisionado no banco de desenvolvimento — pré-requisito das RPCs do M4
+ * quando o plano cria linhas (fail-high). Requer service role — sem
+ * credenciais, false.
+ */
+export async function isSistemaProvisionado(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { data, error } = await admin
+      .from("usuarios")
+      .select("id")
+      .eq("email", "sistema@meufenil.local")
+      .maybeSingle();
+    return !error && !!data;
+  } catch {
+    return false;
+  }
+}

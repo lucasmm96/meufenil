@@ -3,12 +3,27 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { extractPowerBiReport } from "../src/shared/powerbi/extract.js";
 import { validarExtracao, type ValidacaoExtracao } from "../src/shared/powerbi/validate.js";
 import type { LinhaOrigem } from "../src/shared/powerbi/types.js";
+import { derivarModoSync } from "../src/shared/referencias-sync/compare.js";
+import { construirPlanoSync } from "../src/shared/referencias-sync/engine.js";
+import type {
+  ArquivadaGlobal,
+  DecisaoPendencia,
+  GlobalAtiva,
+  IdentidadeReferencia,
+  ModoSync,
+  PendenciaAberta,
+  PlanoSync,
+} from "../src/shared/referencias-sync/types.js";
 
 /**
  * Rota da sincronização de referências com a origem ANVISA/Power BI
- * (FEAT-0017, M2 — estágios 1–5 do design §6.2: claim, extração, validação,
- * snapshot e backup; NADA de comparação/aplicação ainda — a sync registra a
- * extração validada e para; sem efeito em `referencias`/`registros`).
+ * (FEAT-0017, M4 — pipeline completo, estágios 1–8 do design §6.2: claim,
+ * extração, validação, snapshot, backup, comparação, aplicação e conclusão).
+ * A partir do M4 a sync aplica efeito real no catálogo global: compara o
+ * estado com o motor puro (M3), aplica via RPC `aplicar_sync_referencias`
+ * (transação única service_role-only) e conclui `success` (sem divergências)
+ * ou `pending_review` (pendências de curadoria — decididas por admin via RPC
+ * `decidir_pendencia_referencia`).
  *
  * - GET  = cron (Vercel): Bearer CRON_SECRET, comparação timing-safe; a
  *   plataforma envia o header automaticamente quando a env existe.
@@ -45,6 +60,46 @@ type SyncEventoTipo =
   | "backup_created";
 
 type DetalhesEvento = Record<string, unknown>;
+
+// Linhas do estado consultado no estágio 6 (service_role; shape do PostgREST —
+// a rota não usa os tipos gerados do Supabase, tipa o contrato que consome).
+type LinhaGlobalAtiva = {
+  id: string;
+  nome: string;
+  marca: string;
+  fenil_mg_por_100g: number;
+};
+
+type LinhaEventoAuditoria = {
+  id: string;
+  tipo: string;
+  created_at: string;
+};
+
+type LinhaGlobalArquivada = LinhaGlobalAtiva & {
+  referencia_eventos: LinhaEventoAuditoria[] | null;
+};
+
+type LinhaPendencia = {
+  tipo: string;
+  referencia_id: string | null;
+  proposta: IdentidadeReferencia | null;
+};
+
+type LinhaDecisao = {
+  tipo: string;
+  referencia_id: string | null;
+  proposta: IdentidadeReferencia | null;
+  status: string;
+};
+
+/** Resumo retornado pela RPC `aplicar_sync_referencias` (estágio 7/8). */
+type ResumoAplicacao = {
+  equivalentes: number;
+  criadas: number;
+  arquivadas: number;
+  divergencias: number;
+};
 
 const AMBIENTE_ALVO = "prod";
 const STALE_APOS_MINUTOS = 25;
@@ -229,16 +284,19 @@ async function reclamarSync(
 }
 
 /**
- * Executa o estágio, cronometra, registra no `details.estagios` e grava o
- * evento de auditoria — ok com os detalhes produzidos pelo estágio, erro com
- * a mensagem (design §6.2). O registro do estágio acontece ANTES do rethrow
- * para o `details` final da sync carregar também os estágios que falharam.
+ * Executa o estágio, cronometra e registra no `details.estagios` — com evento
+ * de auditoria quando `tipoEvento` é informado (design §6.2). Comparação e
+ * aplicação NÃO têm evento no catálogo §11.1 (a aplicação gera os eventos de
+ * domínio dentro da própria RPC) — passam `tipoEvento = null` e só alimentam
+ * os tempos/contagens de `details.estagios` (base da calibração R5). O
+ * registro do estágio acontece ANTES do rethrow para o `details` final da sync
+ * carregar também os estágios que falharam.
  */
 async function executarEstagio(
   supabase: SupabaseClient,
   syncId: string,
   nome: string,
-  tipoEvento: SyncEventoTipo,
+  tipoEvento: SyncEventoTipo | null,
   acao: () => Promise<DetalhesEvento>,
   estagiosGravados: DetalhesEvento[]
 ): Promise<DetalhesEvento> {
@@ -247,27 +305,37 @@ async function executarEstagio(
   try {
     const detalhes = await acao();
     estagiosGravados.push({ estagio: nome, status: "ok", ...detalhes });
-    await registrarEvento(supabase, syncId, tipoEvento, detalhes);
+
+    if (tipoEvento) {
+      await registrarEvento(supabase, syncId, tipoEvento, detalhes);
+    }
 
     return { ...detalhes, duration_ms: Date.now() - inicio };
   } catch (erro) {
     const message = erro instanceof Error ? erro.message : String(erro);
     estagiosGravados.push({ estagio: nome, status: "erro", erro: message });
-    await registrarEvento(supabase, syncId, tipoEvento, {
-      erro: message,
-      duration_ms: Date.now() - inicio,
-    });
+
+    if (tipoEvento) {
+      await registrarEvento(supabase, syncId, tipoEvento, {
+        erro: message,
+        duration_ms: Date.now() - inicio,
+      });
+    }
+
     throw erro;
   }
 }
 
+type StatusFinalSync = "success" | "pending_review" | "origin_invalid" | "failure";
+
 async function concluirSync(
   supabase: SupabaseClient,
   syncId: string,
-  status: "success" | "origin_invalid" | "failure",
+  status: StatusFinalSync,
   message: string,
   totalOrigem: number | null,
-  detalhes: DetalhesEvento
+  detalhes: DetalhesEvento,
+  bootstrap?: boolean
 ): Promise<void> {
   const { error } = await supabase
     .from("referencia_syncs")
@@ -277,12 +345,131 @@ async function concluirSync(
       total_origem: totalOrigem,
       finished_at: new Date().toISOString(),
       details: detalhes,
+      ...(bootstrap === undefined ? {} : { bootstrap }),
     })
     .eq("id", syncId);
 
   if (error) {
     throw error;
   }
+}
+
+/** Eventos da referência em ordem cronológica determinística (id desempata). */
+function ordenarEventos(eventos: LinhaEventoAuditoria[]): LinhaEventoAuditoria[] {
+  return eventos
+    .slice()
+    .sort(
+      (a, b) =>
+        a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)
+    );
+}
+
+/**
+ * Estágio 6 — estado do catálogo para o motor (design §7.3): globais ativas,
+ * globais arquivadas com eventos de auditoria, pendências open de qualquer
+ * sync (dedupe global D-6), decisões approved/rejected de absence/new_item em
+ * ordem cronológica (a última vence) e o histórico de syncs do environment
+ * para derivar o modo (bootstrap × pos_bootstrap, §14). Tudo via service_role.
+ */
+async function consultarEstadoCatalogo(
+  supabase: SupabaseClient,
+  syncId: string
+): Promise<{
+  ativas: GlobalAtiva[];
+  arquivadas: ArquivadaGlobal[];
+  pendenciasAbertas: PendenciaAberta[];
+  decisoes: DecisaoPendencia[];
+  modo: ModoSync;
+}> {
+  const [resultadoAtivas, resultadoArquivadas, resultadoPendencias, resultadoDecisoes, resultadoHistorico] =
+    await Promise.all([
+      supabase
+        .from("referencias")
+        .select("id, nome, marca, fenil_mg_por_100g")
+        .eq("is_global", true)
+        .eq("is_ativa", true),
+      supabase
+        .from("referencias")
+        .select(
+          "id, nome, marca, fenil_mg_por_100g, referencia_eventos(id, tipo, created_at)"
+        )
+        .eq("is_global", true)
+        .eq("is_ativa", false),
+      supabase
+        .from("referencia_sync_pendencias")
+        .select("tipo, referencia_id, proposta")
+        .eq("status", "open"),
+      supabase
+        .from("referencia_sync_pendencias")
+        .select("tipo, referencia_id, proposta, status")
+        .in("tipo", ["absence", "new_item"])
+        .in("status", ["approved", "rejected"])
+        .order("decided_at", { ascending: true }),
+      supabase
+        .from("referencia_syncs")
+        .select("status")
+        .eq("environment", AMBIENTE_ALVO)
+        .neq("id", syncId),
+    ]);
+
+  if (
+    resultadoAtivas.error ||
+    resultadoArquivadas.error ||
+    resultadoPendencias.error ||
+    resultadoDecisoes.error ||
+    resultadoHistorico.error
+  ) {
+    throw (
+      resultadoAtivas.error ??
+      resultadoArquivadas.error ??
+      resultadoPendencias.error ??
+      resultadoDecisoes.error ??
+      resultadoHistorico.error
+    );
+  }
+
+  const ativas: GlobalAtiva[] = ((resultadoAtivas.data ?? []) as LinhaGlobalAtiva[]).map(
+    (linha) => ({
+      id: linha.id,
+      nome: linha.nome,
+      marca: linha.marca,
+      fenil_mg_por_100g: linha.fenil_mg_por_100g,
+    })
+  );
+
+  const arquivadas: ArquivadaGlobal[] = (
+    (resultadoArquivadas.data ?? []) as LinhaGlobalArquivada[]
+  ).map((linha) => ({
+    nome: linha.nome,
+    marca: linha.marca,
+    fenil_mg_por_100g: linha.fenil_mg_por_100g,
+    eventos: ordenarEventos(linha.referencia_eventos ?? []).map((evento) => ({
+      tipo: evento.tipo,
+      criadoEm: evento.created_at,
+    })),
+  }));
+
+  const pendenciasAbertas: PendenciaAberta[] = (
+    (resultadoPendencias.data ?? []) as LinhaPendencia[]
+  ).map((pendencia) => ({
+    tipo: pendencia.tipo as PendenciaAberta["tipo"],
+    referencia_id: pendencia.referencia_id,
+    proposta: pendencia.proposta,
+  }));
+
+  const decisoes: DecisaoPendencia[] = ((resultadoDecisoes.data ?? []) as LinhaDecisao[]).map(
+    (decisao) => ({
+      tipo: decisao.tipo as DecisaoPendencia["tipo"],
+      referencia_id: decisao.referencia_id,
+      proposta: decisao.proposta,
+      status: decisao.status as DecisaoPendencia["status"],
+    })
+  );
+
+  const historico = (resultadoHistorico.data ?? []) as { status: string }[];
+  const modo = derivarModoSync(historico);
+
+  return { ativas, arquivadas, pendenciasAbertas, decisoes, modo };
 }
 
 async function executarSync(
@@ -300,6 +487,9 @@ async function executarSync(
   const detalhesEstagios: DetalhesEvento[] = [];
   const resourceKey = process.env.POWERBI_RESOURCE_KEY as string;
   let syncId: string | null = null;
+  // Flag da decisão 5 do M4 (lida no catch — precisa do escopo da função):
+  // true sse a RPC de aplicação retornou ok (alterações são fato).
+  let aplicado = false;
 
   try {
     // Estágio 1 — claim: stale recovery (25 min) + INSERT running + evento.
@@ -430,22 +620,113 @@ async function executarSync(
       detalhesEstagios
     );
 
+    // Estágio 6 — comparação (design §6.2/§7.3): consulta o estado do catálogo
+    // e monta o plano com o motor puro (M3). Sem evento de auditoria próprio
+    // (o resultado vive no detalhe do estágio e no payload da aplicação).
+    let plano: PlanoSync | null = null;
+    let modo: ModoSync = "bootstrap";
+
+    await executarEstagio(
+      supabase,
+      syncId,
+      "comparison",
+      null,
+      async () => {
+        const estado = await consultarEstadoCatalogo(supabase, syncId);
+        modo = estado.modo;
+
+        const planoConstruido = construirPlanoSync({
+          origem: rows,
+          ativas: estado.ativas,
+          arquivadas: estado.arquivadas,
+          pendenciasAbertas: estado.pendenciasAbertas,
+          decisoes: estado.decisoes,
+          modo: estado.modo,
+        });
+        plano = planoConstruido;
+
+        return {
+          modo: estado.modo,
+          ativas: estado.ativas.length,
+          arquivadas: estado.arquivadas.length,
+          pendencias_abertas: estado.pendenciasAbertas.length,
+          decisoes_consideradas: estado.decisoes.length,
+          plano: {
+            criacoes: planoConstruido.criacoes.length,
+            arquivamentos: planoConstruido.arquivamentos.length,
+            pendencias_novas: planoConstruido.pendencias.length,
+            equivalentes: planoConstruido.resumo.equivalentes,
+          },
+        };
+      },
+      detalhesEstagios
+    );
+
+    if (!plano) {
+      throw new Error("Comparação não produziu plano.");
+    }
+
+    // Estágio 7 — aplicação (design §7.5): RPC SECURITY DEFINER
+    // service_role-only; transação única — qualquer exceção desfaz tudo
+    // (ops, pendências, eventos e contadores) e a sync é marcada failure.
+    let resumoAplicacao: ResumoAplicacao | null = null;
+
+    await executarEstagio(
+      supabase,
+      syncId,
+      "apply",
+      null,
+      async () => {
+        const { data, error } = await supabase.rpc("aplicar_sync_referencias", {
+          p_sync_id: syncId,
+          p_plano: plano,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        aplicado = true;
+        resumoAplicacao = (data ?? {}) as ResumoAplicacao;
+
+        return { ...resumoAplicacao };
+      },
+      detalhesEstagios
+    );
+
+    // Estágio 8 — conclusão: o resumo retornado pela RPC decide o status
+    // (design §7.5 item 6): divergências (pendências) → pending_review
+    // (curadoria); sem divergências → success.
+    const divergencias = resumoAplicacao?.divergencias ?? 0;
+    const statusFinal: StatusFinalSync =
+      divergencias > 0 ? "pending_review" : "success";
+
+    const mensagemFinal =
+      statusFinal === "success"
+        ? `Sincronização concluída: ${resumoAplicacao?.equivalentes ?? 0} equivalentes, ` +
+          `${resumoAplicacao?.criadas ?? 0} criadas, ${resumoAplicacao?.arquivadas ?? 0} arquivadas, ` +
+          `sem divergências pendentes.`
+        : `Sincronização concluída com ${divergencias} divergência(s) pendente(s) de curadoria: ` +
+          `${resumoAplicacao?.equivalentes ?? 0} equivalentes, ` +
+          `${resumoAplicacao?.criadas ?? 0} criadas, ${resumoAplicacao?.arquivadas ?? 0} arquivadas.`;
+
     await concluirSync(
       supabase,
       syncId,
-      "success",
-      "Extração validada; snapshot e backup registrados. " +
-        "(M2: comparação e aplicação ainda não executadas — estágios 6–8.)",
+      statusFinal,
+      mensagemFinal,
       contagemOrigem,
-      { estagios: detalhesEstagios }
+      { estagios: detalhesEstagios },
+      modo === "bootstrap"
     );
 
     console.info(
       `[referencias-sync] ${triggerSource} sync ${syncId} ok em ` +
-        `${Date.now() - inicioRun}ms (${contagemOrigem} linhas)`
+        `${Date.now() - inicioRun}ms (${contagemOrigem} linhas, modo ${modo}, ` +
+        `status ${statusFinal}, ${divergencias} divergências)`
     );
 
-    responder(res, 200, { sync_id: syncId, status: "success" });
+    responder(res, 200, { sync_id: syncId, status: statusFinal });
   } catch (erro) {
     const message = erro instanceof Error ? erro.message : String(erro);
 
@@ -459,7 +740,15 @@ async function executarSync(
     // Falha antes do claim (ex.: erro de rede no INSERT) não tem sync a marcar.
     if (syncId) {
       try {
-        await concluirSync(supabase, syncId, "failure", message, null, {
+        // Decisão 5 do M4: se a RPC de aplicação já retornou ok, as alterações
+        // SÃO fato (`alteracoes`/contadores gravados na sync) — a falha é da
+        // conclusão; a mensagem registra a verdade (rollback do M5 poderá
+        // reverter). Antes disso, nada foi aplicado (transação abortou).
+        const mensagemFalha = aplicado
+          ? `Alterações aplicadas; falha ao finalizar a sync: ${message}`
+          : message;
+
+        await concluirSync(supabase, syncId, "failure", mensagemFalha, null, {
           estagios: detalhesEstagios,
         });
       } catch (erroMarcar) {

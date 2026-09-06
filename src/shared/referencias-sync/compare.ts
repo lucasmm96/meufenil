@@ -17,7 +17,10 @@
  *   desfaz — a divergência volta como NOVA pendência enquanto persistir;
  * - `modo`: `bootstrap` (1ª sync do ambiente — zero auto, tudo vira pendência)
  *   vs. `pos_bootstrap` (auto: criar novo + arquivar ausente; substituição é
- *   SEMPRE pendência, nos dois modos).
+ *   SEMPRE pendência, nos dois modos). A rota (M4) deriva o modo do histórico
+ *   de syncs do environment com `derivarModoSync` (design §14.1/§14.4):
+ *   pós-bootstrap sse existe sync anterior com extração válida concluída
+ *   (`success`/`pending_review`).
  *
  * Classificação por divergência (matriz §7.3):
  *   matched                     → nada (equivalente)
@@ -100,6 +103,22 @@ export function derivarOrigemArquivada(eventos: EventoArquivada[]): OrigemArquiv
 
   const ultimo = decisivos[decisivos.length - 1];
   return ultimo.tipo === TIPO_EVENTO_ARQUIVADA ? "arquivada_pela_origem" : "bloqueada_manual";
+}
+
+/**
+ * Derivação do modo da sync a partir do histórico do environment (design
+ * §14.1/§14.4): pós-bootstrap sse existe sync ANTERIOR com extração válida
+ * concluída (`success` ou `pending_review` — sync confiável). Sem histórico
+ * confiável (nenhuma sync, só `failure`/`origin_invalid`/`running`) →
+ * `bootstrap` (1ª sync real: zero auto). A ordem do histórico é irrelevante
+ * (verifica existência); a rota (M4) consulta os status das syncs do mesmo
+ * environment e passa o resultado a esta função — determinística.
+ */
+export function derivarModoSync(historico: { status: string }[]): ModoSync {
+  const confiavel = historico.some(
+    (sync) => sync.status === "success" || sync.status === "pending_review",
+  );
+  return confiavel ? "pos_bootstrap" : "bootstrap";
 }
 
 export function comparar(entrada: EntradaComparacao): ResultadoComparacao {
