@@ -238,6 +238,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("id, nome, marca, fenil_mg_por_100g, is_global, is_ativa, criado_por")
         .eq("nome", nomeNovo)
         .single();
+      if (!criada) throw new Error("Fixture ausente: referência criada pelo plano");
       expect(criada).toMatchObject({
         nome: nomeNovo,
         marca: "",
@@ -254,6 +255,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("is_ativa")
         .eq("id", alvoArquivar.id)
         .single();
+      if (!alvo) throw new Error("Fixture ausente: referência arquivada");
       expect(alvo.is_ativa).toBe(false);
 
       // Pendência aberta da sync
@@ -261,6 +263,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .from("referencia_sync_pendencias")
         .select("tipo, proposta, diff, status")
         .eq("sync_id", syncId);
+      if (!pendencias) throw new Error("Fixture ausente: pendências da sync");
       expect(pendencias).toHaveLength(1);
       expect(pendencias[0]).toMatchObject({
         tipo: "new_item",
@@ -284,6 +287,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("status, equivalentes, criadas, arquivadas, divergencias, alteracoes")
         .eq("id", syncId)
         .single();
+      if (!sync) throw new Error("Fixture ausente: sync após aplicar");
       expect(sync).toMatchObject({
         status: "running", // a rota finaliza no estágio 8 — a RPC não transiciona
         equivalentes: 0,
@@ -341,6 +345,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("id, nome, marca, fenil_mg_por_100g, is_global, criado_por")
         .eq("nome", nomeNovo)
         .single();
+      if (!criada) throw new Error("Fixture ausente: referência criada pelo motor");
       expect(criada).toMatchObject({
         nome: nomeNovo,
         marca: "Marca Real",
@@ -405,6 +410,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
           .select("criadas, arquivadas, divergencias, alteracoes")
           .eq("id", syncId)
           .single();
+        if (!sync) throw new Error("Fixture ausente: registro de sync");
         expect(sync.alteracoes).toEqual([]);
       }
     });
@@ -523,6 +529,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("criadas, arquivadas, divergencias, alteracoes")
         .eq("id", syncId)
         .single();
+      if (!sync) throw new Error("Fixture ausente: registro de sync");
       expect(sync).toMatchObject({ criadas: 0, arquivadas: 0 });
       expect(sync.divergencias).not.toBe(1);
       expect(sync.alteracoes).toEqual([]);
@@ -573,6 +580,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("id, is_global, is_ativa, criado_por")
         .eq("nome", nomeProposta)
         .single();
+      if (!criada) throw new Error("Fixture ausente: referência proposta");
       expect(criada).toMatchObject({ is_global: true, is_ativa: true, criado_por: sistemaId });
       sistemaCreatedRefIds.push(criada.id);
 
@@ -592,6 +600,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("status, criadas, alteracoes")
         .eq("id", syncId)
         .single();
+      if (!sync) throw new Error("Fixture ausente: registro de sync");
       expect(sync.status).toBe("success");
       expect(sync.criadas).toBe(1);
       expect(sync.alteracoes).toHaveLength(1);
@@ -627,6 +636,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("is_ativa")
         .eq("id", alvo.id)
         .single();
+      if (!alvoFinal) throw new Error("Fixture ausente: referência alvo da curadoria");
       expect(alvoFinal.is_ativa).toBe(false);
 
       // GUC app.audit_origin='curadoria' (D-7): o arquivamento da decisão NÃO
@@ -647,6 +657,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("arquivadas, alteracoes")
         .eq("id", syncId)
         .single();
+      if (!sync) throw new Error("Fixture ausente: registro de sync");
       expect(sync.arquivadas).toBe(1);
       expect(sync.alteracoes).toHaveLength(1);
       expect(sync.alteracoes[0].op).toBe("archive");
@@ -682,6 +693,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .eq("nome", nomeAlvo)
         .eq("is_ativa", true)
         .single();
+      if (!criada) throw new Error("Fixture ausente: referência ativa do arquivamento");
       expect(criada).toMatchObject({ nome: nomeAlvo, fenil_mg_por_100g: 30, criado_por: sistemaId });
       sistemaCreatedRefIds.push(criada.id);
 
@@ -704,6 +716,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("criadas, arquivadas, alteracoes")
         .eq("id", syncId)
         .single();
+      if (!sync) throw new Error("Fixture ausente: registro de sync");
       expect(sync).toMatchObject({ criadas: 1, arquivadas: 1 });
       expect(sync.alteracoes).toHaveLength(2);
       expect(sync.alteracoes.map((a: { op: string }) => a.op).sort()).toEqual([
@@ -733,6 +746,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("status")
         .eq("id", pendenciaId)
         .single();
+      if (!pendencia) throw new Error("Fixture ausente: pendência da sync");
       expect(pendencia.status).toBe("open");
     });
 
@@ -775,6 +789,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("status, motivo, decided_by")
         .eq("id", pendenciaId)
         .single();
+      if (!pendencia) throw new Error("Fixture ausente: pendência decidida");
       expect(pendencia).toMatchObject({
         status: "rejected",
         motivo: "Alimento descontinuado pela fonte", // btrim
@@ -787,6 +802,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("is_ativa")
         .eq("id", alvo.id)
         .single();
+      if (!alvoFinal) throw new Error("Fixture ausente: referência alvo da curadoria");
       expect(alvoFinal.is_ativa).toBe(true);
 
       const eventos = await eventosPorPendencia(pendenciaId);
@@ -853,6 +869,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("status")
         .eq("id", pendenciaId)
         .single();
+      if (!pendencia) throw new Error("Fixture ausente: pendência da sync");
       expect(pendencia.status).toBe("open");
 
       const eventos = await eventosPorSync(syncId);
@@ -908,6 +925,7 @@ describeOrSkip("RPCs FEAT-0017 M4: aplicar_sync_referencias + decidir_pendencia_
         .select("status, message")
         .eq("id", syncId)
         .single();
+      if (!sync) throw new Error("Fixture ausente: registro de sync");
       expect(sync).toMatchObject({
         status: "success",
         message: "Curadoria concluída — todas as pendências foram decididas",
