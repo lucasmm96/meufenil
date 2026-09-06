@@ -1,6 +1,6 @@
 # Testing Strategy — Estado Atual
 
-**Última verificação:** 2026-09-04 (ENH-0004 — novo teste unitário `lib/referencias.test.ts`; T3.7 do rpc-remover condicionado às migrations ENH-0004; seção 5 não reexecutada nesta data)
+**Última verificação:** 2026-09-06 (FEAT-0017 M4/M5 — suítes reais de sync `rpc-referencias-sync.test.ts` (M4) e `rpc-referencias-sync-rollback.test.ts` (M5, 17 testes), guards FEAT-0017 em test-helpers, execução serial global; seção 5 reexecutada parcialmente — entrada 2026-09-06 abaixo)
 
 Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM hoje. A análise de gaps e as recomendações estão no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`) — NÃO aqui.
 
@@ -26,7 +26,7 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - **Naming:** `describe("<módulo>")` + `it("descrição em pt-BR")` ("deve ...", "define erro quando ..."); cenários de segurança numerados (`AV.x`, `T1.x`, `T2.x`, `T3.x`) `[CONFIRMED: test]`.
 - **Fixtures:** dados inline nos testes; nenhuma pasta de fixtures `[CONFIRMED: ausência]`.
 - **Mocks:** `vi.mock` de módulos (services mockam o cliente supabase e fazem assertions sobre chamadas — `toHaveBeenCalledWith`); `Admin.test.tsx` mocka 5 módulos (Layout, skeletons, AuthContext, useAdmin, useBackgroundJobsAdmin); os testes de páginas criados pelo TEST-0001 seguem o mesmo padrão de mocks de hooks (e.g. `Perfil.test.tsx` mocka Layout, skeletons, AuthContext, usePerfil, supabase, react-router-dom; `Referencias.test.tsx` e `Dashboard.test.tsx` mockam os hooks e, no Dashboard, os componentes filhos e o recharts); `api/keepalive.test.ts` mocka `createClient` e `recordBackgroundJobExecution` `[CONFIRMED: test]`.
-- **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied`, `isEnh0004MigrationApplied` (condiciona T3.7 do rpc-remover às migrations ENH-0004 aplicadas no banco dev — 2026-09-04) `[CONFIRMED: test]`.
+- **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied`, `isEnh0004MigrationApplied` (condiciona T3.7 do rpc-remover às migrations ENH-0004 aplicadas no banco dev — 2026-09-04), `isFeat0017M1Applied`/`isFeat0017M4Applied`/`isFeat0017M5Applied` (guards das suítes de sync FEAT-0017 — sondam a presença das funções no banco dev; a do M5 sonda `.rpc("reverter_sync_referencias")` com uuid zero: função presente ⇒ permissão negada; ausente ⇒ PGRST202) e `isSistemaProvisionado` (sonda o ator Sistema — pré-condição das RPCs M4/M5) `[CONFIRMED: test]`.
 - **Snapshots:** nenhum identificado `[CONFIRMED: ausência]`.
 
 ## 3. Níveis de teste existentes
@@ -38,8 +38,8 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 | Service (client-side) | 10 arquivos em `services/*.service.test.ts` | mocks do supabase; assertions de chamadas e AppError |
 | Hook | 12 arquivos em `hooks/use*.test.ts(x)` | `renderHook` (Testing Library) + mocks de services/supabase |
 | Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 72 testes (3+17+25+12+13+2) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
-| API/Serverless | `api/keepalive.test.ts` | handler Node-style com mocks; 4 cenários |
-| Security (integração real) | `src/shared/security/` — 4 suítes | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll |
+| API/Serverless | `api/keepalive.test.ts`, `api/referencias-sync.test.ts` (FEAT-0017 M4) | handler Node-style com mocks (`createClient` + módulo de extração; motor M3 e validação reais na rota de sync); 4 + 13 cenários |
+| Security (integração real) | `src/shared/security/` — 7 suítes: `auth-real-validation`, `rls-usuarios`, `rpc-ativar-referencia`, `rpc-remover-referencia`, `rls-referencia-sync` (FEAT-0017 M1), `rpc-referencias-sync` (FEAT-0017 M4), `rpc-referencias-sync-rollback` (FEAT-0017 M5) | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll; **execução serial global** (`fileParallelism: false` — banco dev compartilhado; ver seção 5, entrada 2026-09-06) |
 | E2E | **NÃO identificado** `[CONFIRMED: ausência]` | — |
 | Smoke | **NÃO identificado** `[CONFIRMED: ausência]` | — |
 
@@ -49,10 +49,20 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - `rls-usuarios.test.ts` (T1.0–T1.4): políticas de `usuarios` — incluindo T1.0 (detecção legada de `debug_allow_all`, "sempre passa").
 - `rpc-ativar-referencia.test.ts` (T2.0–T2.5): autorização de `ativar_referencia` (dono, delegado, admin, não autorizado, inexistente; T2.0 legado).
 - `rpc-remover-referencia.test.ts` (T3.0–T3.8): autorização de `remover_ou_desativar_referencia` (dono, delegado, admin, global, vínculo soft-delete, inexistente; T3.0 legado). **T3.7 (ENH-0004):** remoção de referência GLOBAL por admin sempre arquiva (`'deactivated'`, linha permanece com `is_ativa = false`) — condicionado a `isEnh0004MigrationApplied` (migrations ENH-0004 aplicadas em dev) `[CONFIRMED: test]`.
-- **Skip condicional:** as 4 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente) `[CONFIRMED: test]`.
+- `rls-referencia-sync.test.ts` (FEAT-0017 M1, guard `isFeat0017M1Applied`): RLS das tabelas de sync — anon/authenticated sem INSERT/UPDATE/DELETE; SELECT admin-only.
+- `rpc-referencias-sync.test.ts` (FEAT-0017 M4, guards `isFeat0017M4Applied`/`isSistemaProvisionado`): aplicar exclusivo service_role (authenticated → permissão negada; rollback total em 23505/estado mudado; `criado_por` = Sistema); decidir exclusivo admin com sessão (service_role → permissão negada; aprovar os 3 tipos com GUC D-7; rejeitar com/sem motivo; terminais; sync running).
+- `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5, 17 testes, guards `isFeat0017M5Applied`/`isSistemaProvisionado`): reverter (11) — permissões (admin sem flag, não-admin, service_role), guarda de execução por environment, status restritos, no-op, preservação de alterações posteriores (skip), colisão 23505 → skip por op, pendências → `cancelled`, status → `reverted`; restaurar (6) — permissões, backup inexistente, integridade sha256 (conteúdo corrompido), conflito de identidade aborta a transação, happy path DENTRO de transação PG real (forge de `request.jwt.claims` + ROLLBACK — zero persistência; timeout de 120s no teste) `[CONFIRMED: test]`.
+- **Skip condicional:** as 7 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente); as suítes de sync exigem ainda os guards de migration correspondentes (M1/M4/M5 + ator Sistema) `[CONFIRMED: test]`.
 - Pré-condição: `isSecurityMigrationApplied()` (exige `admin_can_select_all_usuarios` em pg_policies) `[CONFIRMED: test]`.
 
 ## 5. Resultados observados
+
+**2026-09-06 (FEAT-0017 M4/M5):**
+- Suítes de segurança agora são **7** (M1/M4/M5 adicionaram `rls-referencia-sync`, `rpc-referencias-sync`, `rpc-referencias-sync-rollback`); os guards de migration correspondentes vivem em `test-helpers.ts` (seção 4).
+- `rpc-referencias-sync-rollback.test.ts` (M5): **17/17 verdes** — suíte isolada em ~51.8s (o happy path da restauração reescreve o catálogo global real dentro de transação PG + ROLLBACK; ver guarda serial abaixo).
+- **Execução serial global** (`fileParallelism: false` em `vitest.config.ts`): as suítes reais compartilham o banco dev e a restauração toca o catálogo global de `referencias` — paralelismo entre arquivos reintroduziria a classe de não-determinismo registrada em 2026-08-15 (execução 3) e 2026-08-13 (Fase 6); serial elimina o mecanismo na raiz.
+- Suite completa pós-M5 (`npm run test:run`, serial, 2026-09-06): **58 arquivos / 569 testes — todos verdes** em 239.5s (a suíte M5 levou 57.2s dentro da rodada completa; `tsc -b && vite build` e eslint também verdes).
+- Descoberta de ambiente: dentro de SECURITY DEFINER com `search_path = public`, `digest` da pgcrypto NÃO resolve (pgcrypto vive no schema `extensions`) — a migration M5 usa `extensions.digest(...)`; documentado nas specs ([../database/rpc.md](../database/rpc.md)).
 
 **2026-08-15 (pós-TEST-0001):**
 - **34 arquivos de teste, 197 testes.**
