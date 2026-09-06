@@ -182,11 +182,9 @@ describe("extractPowerBiReport", () => {
     });
 
     expect(decodeImpl).toHaveBeenCalledTimes(1);
-    const payloadRecebido = decodeImpl.mock.calls[0]?.[1] as typeof QUERY_PAYLOAD;
-    expect(
-      payloadRecebido.queries[0].Query.Commands[0].SemanticQueryDataShapeCommand
-        .Binding.DataReduction.Primary.Window.Count
-    ).toBe(500);
+    // O payload passado ao decode é o ORIGINAL (Count 500) — nunca o clone
+    // patchado (Count 30000) que vai no corpo do fetch (igualdade profunda).
+    expect(decodeImpl).toHaveBeenCalledWith(expect.anything(), QUERY_PAYLOAD);
     expect(resultado.contagem).toBe(1);
     expect(resultado.rows).toEqual([{ qualquer: "linha" }]);
   });
