@@ -16,6 +16,13 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './vitest.setup.ts',
+    // Suítes REAL (Abordagem B) compartilham o MESMO dev DB com dados reais.
+    // A RPC restaurar_referencias_de_backup (FEAT-0017 M5) reescreve o
+    // catálogo global por design — com arquivos em paralelo ela corromperia
+    // fixtures das suítes irmãs (M1–M4) a cada run. Execução serial dos
+    // arquivos elimina o flake; o happy path do restore roda em transação PG
+    // com rollback (zero persistência), ver rpc-referencias-sync-rollback.
+    fileParallelism: false,
     // Passa variáveis de ambiente para os arquivos de teste.
     // process.env.SUPABASE_SERVICE_ROLE_KEY é necessário para Abordagem B.
     env: Object.fromEntries(

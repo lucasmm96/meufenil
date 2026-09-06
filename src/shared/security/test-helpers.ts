@@ -512,6 +512,31 @@ export async function isFeat0017M4Applied(): Promise<boolean> {
 }
 
 /**
+ * Detecta se a migration M5 da FEAT-0017 (20260906010000 — coluna
+ * `usuarios.pode_recuperacao`, helper `pode_operar_recuperacao` e RPCs
+ * `reverter_sync_referencias`/`restaurar_referencias_de_backup`) está aplicada
+ * no banco de desenvolvimento. Mesmo probe do isFeat0017M4Applied: chamada
+ * service_role de RPC inexistente devolve PGRST202 ("Could not find the
+ * function..."); as RPCs do M5 concedem EXECUTE apenas a authenticated
+ * (decisão de grants) → service_role recebe "permission denied" quando a
+ * função existe. Requer service role — sem credenciais, false.
+ */
+export async function isFeat0017M5Applied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin.rpc("reverter_sync_referencias", {
+      p_sync_id: "00000000-0000-0000-0000-000000000000",
+    });
+
+    // Com a função presente o erro é de permissão ("permission denied for
+    // function..."), não PGRST202 — a existência está confirmada.
+    return !error || !/Could not find the function/i.test(error.message);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Detecta se o ator Sistema (FEAT-0017 B5/§12 — email fixo
  * `sistema@meufenil.local` em `usuarios`, conta banida sem sessão) está
  * provisionado no banco de desenvolvimento — pré-requisito das RPCs do M4

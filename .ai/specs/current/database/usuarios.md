@@ -1,7 +1,7 @@
 # Tabela public.usuarios
 
-**Última verificação:** 2026-08-15 (DEBT-0002 — migration 20260815000000)
-**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 201–275); políticas consolidadas ("Usuário vê/atualiza/cria próprio perfil"): `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001). Também presente no legado `migrations/usuarios.sql`
+**Última verificação:** 2026-09-06 (FEAT-0017 M5 — coluna `pode_recuperacao` e helper na migration 20260906010000 aplicada em dev; demais conteúdos verificados em 2026-08-15 — DEBT-0002)
+**DDL versionado em:** `supabase/migrations/20260103015052_remote_schema.sql` (linhas 201–275); políticas consolidadas ("Usuário vê/atualiza/cria próprio perfil"): `supabase/migrations/20260814000000_baseline_objetos_nao_versionados.sql` (DEBT-0001); coluna `pode_recuperacao` (FEAT-0017 M5 — somente dev até a release): `supabase/migrations/20260906010000_referencias_sync_rollback_restauracao.sql` (linhas 52–53). Também presente no legado `migrations/usuarios.sql`
 
 ## Propósito
 
@@ -22,6 +22,7 @@ Perfil do usuário da aplicação: papel (`user`/`admin`), limite diário de fen
 | `consentimento_lgpd_em` | timestamp with time zone | — | YES | — | data/hora do consentimento LGPD |
 | `created_at` | timestamp with time zone | `now()` | YES | — | |
 | `updated_at` | timestamp with time zone | `now()` | YES | — | |
+| `pode_recuperacao` | boolean | `false` | NO | — | FEAT-0017 M5 (20260906010000 — somente dev até a release): flag de recuperação de sync — NÃO é papel nem privilégio amplo; admin **E** flag habilitam `reverter_sync_referencias`/`restaurar_referencias_de_backup` (helper `pode_operar_recuperacao`). Default `false`; concedida MANUALMENTE pelo dono do projeto (nenhum fluxo de app auto-concede) |
 
 ## Constraints e índices
 
@@ -58,12 +59,14 @@ Notas factuais:
 - A política de UPDATE não restringe colunas: o RLS permite que o usuário altere qualquer coluna da própria linha, incluindo `role` `[CONFIRMED: database — pg_policies.with_check vazio]`.
 - As políticas do baseline com nomes antigos ("usuario ve seu perfil", "usuarios_select_own", "usuarios_insert_self", "usuarios_update_own", "usuario cria seu perfil", "usuario atualiza seu perfil", "Usuarios podem ler seu próprio perfil", "debug_allow_all") NÃO existem no banco real; o conjunto atual foi consolidado/renomeado e versionado pela migration 20260814000000 (DEBT-0001) `[CONFIRMED: database × migration]`.
 - `debug_allow_all` foi removida pela migration de segurança (2026-08-11) `[CONFIRMED: migration]`.
+- A política de UPDATE (WITH CHECK vazio) também alcança a coluna `pode_recuperacao` (FEAT-0017 M5): o usuário pode alterar qualquer coluna da própria linha — mas auto-conceder a flag a si mesmo **não** eleva privilégio: `pode_operar_recuperacao` exige admin **E** flag, e a elevação de `role` já era possível pela mesma política (fato pré-existente, nota acima). A flag só tem efeito combinada com `role = 'admin'` pré-existente `[CONFIRMED: migration — helper exige role='admin'; pg_policies.with_check vazio]`.
 
 ## Regras de negócio associadas
 
 - Papel de administrador = `usuarios.role = 'admin'` (implementado em `is_admin_user` — ver [rpc.md](rpc.md)).
 - Limite diário: o default da COLUNA é `500`; o trigger `handle_new_user` não define limite no sign-up — o default vale para todo novo usuário (DEBT-0002, decisão B) (ver [triggers.md](triggers.md)).
 - Delegação de acesso referencia esta tabela em `delegacoes_acesso` (ver spec própria e `../security/security-model.md` — Fase 3).
+- Recuperação de sync (FEAT-0017 M5): operar `reverter_sync_referencias`/`restaurar_referencias_de_backup` exige `role = 'admin'` **E** `pode_recuperacao = true` (helper `pode_operar_recuperacao` — ver [rpc.md](rpc.md)). A flag sozinha (usuário comum) não habilita nada; admin **sem** a flag também não opera recuperação — é permissão específica, não decorre de ser admin.
 
 ## Lifecycle
 
@@ -76,6 +79,7 @@ Notas factuais:
 
 - `handle_new_user` (INSERT) — [rpc.md](rpc.md)
 - `is_admin_user` (SELECT sobre `role`) — [rpc.md](rpc.md)
+- `pode_operar_recuperacao` (SELECT sobre `role` + `pode_recuperacao` — FEAT-0017 M5) — [rpc.md](rpc.md)
 - `dashboard_hoje` (SELECT sobre `limite_diario_mg`) — [rpc.md](rpc.md)
 - Edge functions `delegar-acesso` e `delete-account` leem/escrevem nesta tabela (detalhe na Fase 4) `[CONFIRMED: code — supabase/functions/*]`
 
@@ -92,6 +96,7 @@ Notas factuais:
 - E3 — Políticas: `pg_policies` dev e prod (2026-08-13) `[CONFIRMED: database]`
 - E4 — Chamadores no código: 27 referências `.from("usuarios")` em `src/` e 3 em `supabase/functions/` `[CONFIRMED: code — grep, 2026-08-13]`
 - E5 — Contagens de linhas: dev = 2, prod = 7 (2026-08-13) `[CONFIRMED: database]`
+- E6 — Coluna `pode_recuperacao` + helper `pode_operar_recuperacao`: migration 20260906010000 (FEAT-0017 M5 — aplicada em dev 2026-09-06; prod aguarda release) `[CONFIRMED: migration, database]`
 
 ## Veja também
 
