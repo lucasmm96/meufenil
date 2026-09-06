@@ -216,8 +216,8 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Given:** referência
 - **When:** criação / desativação / reativação
 - **Then:** criada com `is_ativa = true` (default) e identidade única entre ATIVAS (índice único parcial — BR-034/BR-035); desativada (arquivada, `is_ativa = false`) via RPC quando pessoal com vínculo OU sempre que global (BR-037); reativada via RPC `ativar_referencia` (pessoal pelo dono/delegado; global por admin); arquivadas coexistem livremente com ativas de mesma identidade; desativação NÃO remove favoritos (trigger eliminado na ENH-0004 — BR-036)
-- **Evidence:** `[CONFIRMED: database, migration — referencias.md, triggers.md, rpc.md; migration 20260904000000]`
-- **Tests:** T2.2/T2.3/T2.4, T3.3, T3.7 (RPCs)
+- **Evidence:** `[CONFIRMED: database, migration — referencias.md, triggers.md, rpc.md; migrations 20260904000000, 20260905020000 (R4-3 — guarda de global no ativar_referencia)]`
+- **Tests:** T2.2/T2.3/T2.4, T2.6–T2.10 (global), T3.3, T3.7 (RPCs)
 - **Status:** Confirmed + partially tested
 
 ### BR-025 — Novo usuário recebe limite 500 e timezone São Paulo
@@ -341,8 +341,8 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Given:** referência global (`is_global = true`)
 - **When:** remoção via RPC `remover_ou_desativar_referencia` (única via da aplicação)
 - **Then:** SEMPRE arquivamento — `is_ativa = false`, `updated_at = now()`, retorna `'deactivated'` — inclusive quando não há registros vinculados; nunca DELETE físico pela aplicação; reativação de global apenas por admin
-- **Evidence:** `[CONFIRMED: migration 20260904000000 (linhas 96-164); code — referencias.service.ts:323-338]`
-- **Tests:** T3.7 de `src/shared/security/rpc-remover-referencia.test.ts` (condicionado a `isEnh0004MigrationApplied`) `[CONFIRMED: test]`
+- **Evidence:** `[CONFIRMED: migration 20260904000000 (linhas 96-164); migration 20260905020000 (guarda de reativação global — FEAT-0017 M1/R4-3); code — referencias.service.ts:323-338]`
+- **Tests:** T3.7 de `src/shared/security/rpc-remover-referencia.test.ts` (condicionado a `isEnh0004MigrationApplied`); T2.6–T2.8 de `rpc-ativar-referencia.test.ts` (guarda de reativação — condicionado a `isFeat0017M1Applied`) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ## Evidências (documento)

@@ -21,16 +21,16 @@ Grants (fato do catálogo): todas as roles (`anon`, `authenticated`, `postgres`,
 
 ## public.ativar_referencia
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** `20260811210456_fix_security_rls_rpc.sql` (linhas 24–56) — idêntica no banco `[CONFIRMED: migration, database]`
+**Última verificação:** 2026-09-06 (FEAT-0017 M1 — migration 20260905020000 aplicada em dev)
+**Definição em:** original `20260811210456_fix_security_rls_rpc.sql` (linhas 24–56); **redefinida** pela migration FEAT-0017 `20260905020000_referencias_ativar_global_somente_admin.sql` (R4-3) — aplicada em dev em 2026-09-06; prod segue com a versão 20260811 até a release `[CONFIRMED: migration, database]`
 
 - **Assinatura:** `ativar_referencia(p_referencia_id uuid) RETURNS text` — plpgsql
 - **SECURITY DEFINER?** Sim — `SET search_path TO 'public'`
-- **Autorização implementada:** o UPDATE só ocorre se o chamador for dono (`criado_por = auth.uid()`), delegado ativo do dono (via `delegacoes_acesso`, com `revoked_at IS NULL`) ou admin (`is_admin_user`). Se a condição não for atendida: `RAISE EXCEPTION 'Referência não encontrada ou permissão negada'` — mesma mensagem para inexistente ou sem permissão
+- **Autorização implementada (pós-FEAT-0017 M1/R4-3):** referências GLOBAIS (`is_global = true`) só reativam por admin — senão `RAISE EXCEPTION 'Permissão negada: apenas administradores podem reativar referências globais'` (alinhamento BR-024/BR-037 — a versão 20260811 permitia dono/delegado reativar global pelo branch de pessoal); PESSOAIS: o UPDATE só ocorre se o chamador for dono (`criado_por = auth.uid()`), delegado ativo do dono (via `delegacoes_acesso`, com `revoked_at IS NULL`) ou admin (`is_admin_user`). Se a condição não for atendida: `RAISE EXCEPTION 'Referência não encontrada ou permissão negada'` — mesma mensagem para inexistente ou sem permissão
 - **Efeitos:** `UPDATE referencias SET is_ativa = true, updated_at = now()`; retorna `'activated'`
 - **Erros e edge cases:** exceção quando a referência não existe ou o chamador não tem permissão
 - **Chamadores no código:** `src/react-app/services/referencias.service.ts:246` (`activateReferencia`, envolto em `AppError REFERENCIA_ACTIVATE_ERROR`) `[CONFIRMED: code]`
-- **Testes:** `src/shared/security/rpc-ativar-referencia.test.ts` (cenários: dono, delegado, admin, não autorizado) `[CONFIRMED: test]`
+- **Testes:** `src/shared/security/rpc-ativar-referencia.test.ts` (cenários: dono, delegado, admin, não autorizado; T2.6–T2.10 — FEAT-0017 M1: dono/delegado NÃO reativam global, admin reativa, auditoria `is_ativa_manual` do trigger — condicionados a `isFeat0017M1Applied`) `[CONFIRMED: test]`
 - **Evidências:** E1 — definição no banco = migration `[CONFIRMED: database, migration]`
 
 ## public.remover_ou_desativar_referencia
