@@ -3,7 +3,7 @@
 **ID:** FEAT-0013
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-08-23 (DEBT-0006)
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — promoção: a sincronização de referências compartilha a plataforma Vercel Cron com tabela própria (`referencia_syncs`); retenção e BR-027 inalteradas — ver ressalva BR-027)
 
 ## Purpose
 
@@ -46,6 +46,7 @@ Infraestrutura server-side de rotinas em background com persistência centraliza
 ## Backend
 
 - [api-keepalive](../backend/api-keepalive.md), [background-jobs](../backend/background-jobs.md)
+- [api-referencias-sync](../backend/api-referencias-sync.md) (FEAT-0017 — segunda função Vercel cron, semanal; persiste em `referencia_syncs`, fora da BR-027)
 
 ## Database
 
@@ -67,6 +68,7 @@ Infraestrutura server-side de rotinas em background com persistência centraliza
 ## Related Features
 
 - [FEAT-0012 Admin](FEAT-0012-painel-administrativo.md) (monitoramento)
+- [FEAT-0017 Sincronização de referências](FEAT-0017-sincronizacao-referencias-anvisa.md) (cron semanal próprio; job com retenção própria, fora do trim 365d da BR-027)
 
 ## Evidence
 

@@ -3,7 +3,7 @@
 **ID:** FEAT-0012
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — UI do Admin estendida com seções de sincronização de referências/curadoria/recuperação; página [admin](../frontend/pages/admin.md))
 
 ## Purpose
 
@@ -41,6 +41,7 @@ Visão administrativa (somente leitura) do sistema: usuários (totais), uso do b
 
 - [pages/admin](../frontend/pages/admin.md)
 - `useAdmin`, `useBackgroundJobsAdmin`, `admin.service`, `background-jobs.service`
+- `referencias-sync.service`, `useReferenciasSyncAdmin` (seções de sincronização/curadoria/recuperação no Admin — FEAT-0017 M6)
 
 ## Backend
 
@@ -56,16 +57,16 @@ Visão administrativa (somente leitura) do sistema: usuários (totais), uso do b
 
 ## Tests
 
-- `Admin.test.tsx` (6 — primeiro teste de página; Perfil, Referencias e Dashboard também têm teste desde TEST-0001), `useAdmin.test.ts` (100%), `useBackgroundJobsAdmin.test.tsx` (4), `admin.service.test.ts` (5), `background-jobs.service.test.ts` (4)
+- `Admin.test.tsx` (15 — com a seção de sincronização FEAT-0017 M6; primeiro teste de página; Perfil, Referencias e Dashboard também têm teste desde TEST-0001), `useAdmin.test.ts` (100%), `useBackgroundJobsAdmin.test.tsx` (4), `admin.service.test.ts` (5), `background-jobs.service.test.ts` (4), `referencias-sync.service.test.ts` (25 — M6), `useReferenciasSyncAdmin.test.tsx` (9 — M6)
 - **Coverage status:** PARTIALLY TESTED (mocks pesados no teste de página; monitoramento testado com dados mockados)
 
 ## Dependencies
 
-- FEAT-0001, FEAT-0013 (jobs)
+- FEAT-0001, FEAT-0013 (jobs), FEAT-0017 (sincronização — UI no Admin desde o M6)
 
 ## Related Features
 
-- [FEAT-0013 Background jobs](FEAT-0013-background-jobs.md), [FEAT-0008 Referências](FEAT-0008-referencias-alimentares.md)
+- [FEAT-0013 Background jobs](FEAT-0013-background-jobs.md), [FEAT-0008 Referências](FEAT-0008-referencias-alimentares.md), [FEAT-0017 Sincronização de referências](FEAT-0017-sincronizacao-referencias-anvisa.md) (seções de sincronização/curadoria/recuperação no Admin — M6)
 
 ## Evidence
 
