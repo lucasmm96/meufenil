@@ -1,7 +1,7 @@
 # System Map — MeuFenil
 
 **Status:** COMPLETO (Fase 8 — 2026-08-13). Todas as linhas são capabilities CONFIRMADAS das Fases 2–7; a lista preliminar da Fase 0 foi validada e consolidada (ver `.ai/.temp/analyses/24-features-system-map.md`).
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-09-07 (promoção FEAT-0017 — linha Sincronização de referências; ENH-0004/FEAT-0017 já refletidos nas linhas 0008/0012/0013 nas verificações anteriores)
 
 > Este mapa cobre SOMENTE capabilities do Current State. Itens Proposed são indexados no [`README`](../README.md). É um ÍNDICE: cada célula aponta para a documentação canônica — não duplica conteúdo.
 
@@ -39,6 +39,7 @@ Convenções de célula: **N/A** = componente não existe para esta capability (
 | Painel administrativo (usuários + DB + jobs) | [FEAT-0012](features/FEAT-0012-painel-administrativo.md) | [admin](frontend/pages/admin.md), [modal-mensagem-execucao](frontend/components/modal-mensagem-execucao.md) | [rpc](database/rpc.md) (`get_estatisticas_admin`) | [usuarios](database/usuarios.md), [background_job_executions](database/background_job_executions.md) | [security-model](security/security-model.md) | `Admin.test.tsx`, `useAdmin.test.ts`, `useBackgroundJobsAdmin.test.tsx`, `admin.service.test.ts`, `background-jobs.service.test.ts` |
 | Background jobs (keepalive + retenção) | [FEAT-0013](features/FEAT-0013-background-jobs.md) | N/A (consulta no [admin](frontend/pages/admin.md)) | [api-keepalive](backend/api-keepalive.md), [background-jobs](backend/background-jobs.md) | [background_job_executions](database/background_job_executions.md), [triggers](database/triggers.md) | [security-model](security/security-model.md) | `api/keepalive.test.ts`, `background-jobs.test.ts` |
 | PWA / multi-dispositivo | [FEAT-0014](features/FEAT-0014-pwa.md) | [overview](frontend/overview.md) (seção PWA) | N/A | N/A | N/A | NONE |
+| Sincronização de referências (origem ANVISA/Power BI) | [FEAT-0017](features/FEAT-0017-sincronizacao-referencias-anvisa.md) | [admin](frontend/pages/admin.md) (seções M6) | [api-referencias-sync](backend/api-referencias-sync.md) | [referencia_syncs](database/referencia_syncs.md), [referencia_sync_pendencias](database/referencia_sync_pendencias.md), [referencia_eventos](database/referencia_eventos.md), [referencia_snapshots](database/referencia_snapshots.md), [referencia_backups](database/referencia_backups.md), [rpc](database/rpc.md), [triggers](database/triggers.md) | [security-model](security/security-model.md) (§11/§12) | `api/referencias-sync.test.ts`, `rpc-referencias-sync.test.ts`, `rpc-referencias-sync-rollback.test.ts`, `rpc-referencias-sync-seed.test.ts`, `canonical/compare/engine/validate.test.ts`, `referencias-sync.service.test.ts`, `Admin.test.tsx` |
 
 ## Notas de navegação (componentes fora das linhas)
 

@@ -1,7 +1,8 @@
 # FEAT-0017 — Sincronização controlada de referências com a fonte ANVISA/Power BI
 
 **Type:** FEAT
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED (2026-09-07 — M1–M6 merged via PRs #57–#62; M7: specs finais + housekeeping)
+**Implemented Through:** M1 schema (PR #57, merge `5b1ed18`) · M2 extração/validação/snapshot/backup (PR #58, merge `7ec0bf5`) · M3 motor puro (PR #59, merge `dd631d6`) · M4 aplicação + curadoria (PR #60, merge `6e7d3e5`) · M5 recuperação excepcional (PR #61, merge `cb5d776`) · M6 seed `pre_sync_inativa` + UI Admin (PR #62, merge `cb1123d`) · M7 specs finais (BR-038–047, ressalvas BR-023/024/026/027, páginas das 5 tabelas de sync, FEAT-0017 em `current/features/`, system-map, specs afetadas) — merges 2026-09-05/06/07 · suíte completa 61 arquivos/618 testes verdes (2026-09-07) · ACs 1–17 validadas com evidência (remanescentes registrados nos Unknowns: calibração de margens B9 e E2E do cron na 1ª execução real pós-release)
 **Title:** Sincronização controlada de referências com a fonte ANVISA/Power BI
 **Issue:** #50
 **Created on:** 2026-09-02

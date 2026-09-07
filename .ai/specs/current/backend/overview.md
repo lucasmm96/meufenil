@@ -1,6 +1,6 @@
 # Backend — Visão Geral
 
-**Última verificação:** 2026-09-06 (FEAT-0017 M4/M5 — rota /api/referencias-sync com estágios 6–8; recuperação M5 no banco — RPCs humanas de admin, fora da rota; prod segue pré-ENH-0004 até a release)
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` no estágio 7 (CREATE OR REPLACE da `aplicar_sync_referencias`) e UI do Admin M6 chamando curadoria/recuperação; prod segue pré-ENH-0004 até a release)
 
 ## Propósito
 
@@ -18,9 +18,10 @@ Documenta a arquitetura REAL do backend do MeuFenil: componentes server-side, on
 | `supabase/functions/delete-account` | Supabase Edge (Deno) | frontend (página Perfil) | service role + validação do Bearer token | [edge-function-delete-account.md](edge-function-delete-account.md) |
 | `src/shared/background-jobs.ts` | Vercel (helper importado pelo keepalive) | `api/keepalive.ts` | usa o client passado (service role) | [background-jobs.md](background-jobs.md) |
 | `src/shared/powerbi/` (5 módulos) | Vercel (helpers importados pela rota) | `api/referencias-sync.ts` | resource key de env (`POWERBI_RESOURCE_KEY`) | [api-referencias-sync.md](api-referencias-sync.md) |
+| `src/shared/referencias-sync/` (4 módulos — `canonical.ts`, `compare.ts`, `engine.ts`, `types.ts`) | Vercel (helpers importados pela rota — motor puro, sem banco) | `api/referencias-sync.ts` | nenhum (motor puro) | [api-referencias-sync.md](api-referencias-sync.md) |
 | `scripts/cli/` (5 comandos) | máquina local (Node ESM) | desenvolvedor | anon/JWT do `.cli-token` ou service role (`--service-role --i-understand-rls`) ou conexão pg direta (`run-sql`) | [cli.md](cli.md) |
 | `scripts/apply-supabase-migrations.sh` | máquina local (bash + Supabase CLI) | desenvolvedor | `supabase link`/`db push` com senha extraída de `SUPABASE_DATABASE_URL` | [cli.md](cli.md) |
-| Funções do banco em `public` (dev pós-FEAT-0017 M1–M5: 15 — 8 pós-ENH-0004 + 2 de trigger do M1 + 2 RPCs do M4 + 3 do M5: helper `pode_operar_recuperacao` + RPCs `reverter_sync_referencias`/`restaurar_referencias_de_backup`; prod: 10 pré-ENH-0004 até a release) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`), rota de sync (`aplicar_sync_referencias` — service role; `decidir_pendencia_referencia` — curadoria admin, UI no M6) e policies | SECURITY DEFINER (15/15 em dev) | [../database/rpc.md](../database/rpc.md) |
+| Funções do banco em `public` (dev pós-FEAT-0017 M1–M6: 15 — 8 pós-ENH-0004 + 2 de trigger do M1 + 2 RPCs do M4 + 3 do M5: helper `pode_operar_recuperacao` + RPCs `reverter_sync_referencias`/`restaurar_referencias_de_backup`; M6 não adiciona funções — seed é CREATE OR REPLACE da `aplicar_sync_referencias`; prod: 10 pré-ENH-0004 até a release) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`, `referencias-sync.service` — UI do Admin M6: `decidir_pendencia_referencia`/`reverter_sync_referencias`/`restaurar_referencias_de_backup`), rota de sync (`aplicar_sync_referencias` — service role) e policies | SECURITY DEFINER (15/15 em dev) | [../database/rpc.md](../database/rpc.md) |
 | Triggers do banco (dev pós-FEAT-0017 M1: 4 — 3 em `public` + 1 em `auth.users`; prod: 4 até a release — pré-ENH-0004: 3 em `public` + 1 em `auth.users`) | PostgreSQL | eventos de INSERT/UPDATE | conforme a função (definer/invoker) | [../database/triggers.md](../database/triggers.md) |
 | PostgREST + Supabase Auth | Supabase (BaaS) | frontend (via `supabase-js`) | anon key + JWT do usuário | [../security/security-model.md](../security/security-model.md) |
 
@@ -40,7 +41,8 @@ flowchart LR
         CRON[Vercel Cron diário 0 12 * * *] --> KEEP[api/keepalive.ts]
         KEEP --> BGJ[src/shared/background-jobs.ts]
         CRONW[Vercel Cron semanal 0 12 * * 1] --> SYNC[api/referencias-sync.ts]
-        SYNC --> PBI[src/shared/powerbi]
+        SYNC --> PBI[src/shared/powerbi — extração/validação]
+        SYNC --> MOT[src/shared/referencias-sync — motor puro]
     end
     KEEP -->|service role| PG
     SYNC -->|service role| PG
@@ -110,8 +112,9 @@ Não há um padrão único — cada componente tem seu próprio estilo, document
 | `api/keepalive.test.ts` | keepalive | unitário com mocks (`createClient`, `recordBackgroundJobExecution`) — 4 cenários: env prod, env dev, persistência falha não bloqueia, erro principal → 500 | `api/keepalive.test.ts` |
 | `api/referencias-sync.test.ts` | rota de sincronização | unitário com mocks (`createClient`, módulo de extração; motor M3 e validação reais) — 13 cenários: cron feliz (bootstrap → pending_review / pos_bootstrap → success), 401/403, 409, origin_invalid, falha técnica, RPC falha, pós-aplicação, manual, 405 | `api/referencias-sync.test.ts` |
 | `src/shared/powerbi/{decode,extract,validate}.test.ts` | módulos de extração Power BI | unitário puro — 46 casos (guards §4.2 + matriz de validação §6.3) | `src/shared/powerbi/*.test.ts` |
+| `src/shared/referencias-sync/{canonical,compare,engine}.test.ts` | motor de sincronização (M3 — matching/canonical/modo `bootstrap`×`pos_bootstrap`/silêncio) | unitário puro | `src/shared/referencias-sync/*.test.ts` |
 | `src/shared/background-jobs.test.ts` | helper | unitário | `src/shared/background-jobs.test.ts` |
-| `src/shared/security/rpc-*.test.ts` + `rls-*.test.ts` | RPCs e RLS (ativar/remover, sync M1/M4, rollback/restauração M5) | integração REAL com JWTs contra o banco dev | `src/shared/security/` |
+| `src/shared/security/rpc-*.test.ts` + `rls-*.test.ts` | RPCs e RLS (ativar/remover, sync M1/M4, rollback/restauração M5, seed M6) | integração REAL com JWTs contra o banco dev | `src/shared/security/` |
 | edge functions | delegar-acesso / delete-account | **nenhum teste identificado** `[CONFIRMED: ausência]` | — |
 
 ## Evidências

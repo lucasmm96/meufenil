@@ -1,12 +1,12 @@
 # Architecture Overview — MeuFenil
 
-**Última verificação:** 2026-09-06 (FEAT-0017 M1–M5 — migrations 20260905*/20260906000000/20260906010000 aplicadas em DEV; prod segue no schema pré-ENH-0004 até a release)
+**Última verificação:** 2026-09-07 (FEAT-0017 M1–M6 — migrations 20260905*/20260906*/20260907000000 aplicadas em DEV; prod segue no schema pré-ENH-0004 até a release)
 
 Índice ARQUITETURAL de alto nível (o índice FUNCIONAL é o [system-map](../system-map.md)). Este documento aponta para as specs especializadas — não duplica conteúdo. Decisões arquiteturais: [decisions](../../decisions/).
 
 ## Visão geral
 
-MeuFenil é uma **SPA sem servidor de aplicação próprio**: o frontend (React 19 + Vite) fala diretamente com o Supabase (PostgREST + Auth + Edge Functions); a única peça server-side própria é a função Vercel `api/keepalive` (cron diário); ferramentas de operação rodam localmente (CLI + script de migrations) `[CONFIRMED: código — ../backend/overview.md]`.
+MeuFenil é uma **SPA sem servidor de aplicação próprio**: o frontend (React 19 + Vite) fala diretamente com o Supabase (PostgREST + Auth + Edge Functions); as únicas peças server-side próprias são as funções Vercel `api/keepalive` (cron diário) e `api/referencias-sync` (cron semanal — sincronização de referências, FEAT-0017); ferramentas de operação rodam localmente (CLI + script de migrations) `[CONFIRMED: código — ../backend/overview.md]`.
 
 ## Arquitetura em camadas
 
@@ -24,11 +24,14 @@ flowchart TB
     S -->|Bearer + POST| ED[Edge Functions: delegar-acesso, delete-account]
     ED -->|service role| PG
     subgraph Vercel
-        CRON[Vercel Cron 0 12 * * *] --> KEEP[api/keepalive.ts]
+        CRON[Vercel Cron diário 0 12 * * *] --> KEEP[api/keepalive.ts]
         KEEP --> BJ[src/shared/background-jobs.ts]
+        CRONW[Vercel Cron semanal 0 12 * * 1] --> SYNC[api/referencias-sync.ts]
+        SYNC --> SR[src/shared/referencias-sync/ + powerbi/ — motor puro]
     end
     KEEP -->|service role| PG
-    PG --> TAB[(12 tabelas + 4 triggers + 15 funções — dev pós-FEAT-0017 M1–M5)]
+    SYNC -->|service role| PG
+    PG --> TAB[(12 tabelas + 4 triggers + 15 funções — dev pós-FEAT-0017 M1–M6)]
 ```
 
 Todas as arestas do diagrama são confirmadas por código/configuração `[CONFIRMED: code — Fases 4–5]`.
@@ -41,8 +44,8 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 ## Backend
 
-- Sem servidor de aplicação: lógica server-side distribuída entre RPCs do banco (PostgREST), 2 Edge Functions (Deno, service role + validação de Bearer) e 1 função Vercel (keepalive) — [backend/overview](../backend/overview.md).
-- RPCs de negócio (frontend): `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs da sincronização de referências (FEAT-0017 M4): `aplicar_sync_referencias` (service_role — rota `/api/referencias-sync`, estágio 7) e `decidir_pendencia_referencia` (authenticated admin — curadoria de divergências; chamador de UI chega no M6); RPCs de recuperação (FEAT-0017 M5): `reverter_sync_referencias`/`restaurar_referencias_de_backup` (authenticated admin com `pode_recuperacao` — rollback seletivo de sync e restauração excepcional por backup; ações humanas, sem chamador no código); RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](../database/rpc.md).
+- Sem servidor de aplicação: lógica server-side distribuída entre RPCs do banco (PostgREST), 2 Edge Functions (Deno, service role + validação de Bearer) e 2 funções Vercel (keepalive diário + referencias-sync semanal — FEAT-0017) — [backend/overview](../backend/overview.md).
+- RPCs de negócio (frontend): `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs da sincronização de referências (FEAT-0017): `aplicar_sync_referencias` (service_role — rota `/api/referencias-sync`, estágio 7) e `decidir_pendencia_referencia` (authenticated admin — curadoria de divergências; chamada pela UI do Admin via `referencias-sync.service`, M6); RPCs de recuperação (FEAT-0017 M5): `reverter_sync_referencias`/`restaurar_referencias_de_backup` (authenticated admin com `pode_recuperacao` — rollback seletivo de sync e restauração excepcional por backup; chamadas pela UI de recuperação do Admin, M6 — ações humanas, nunca automatizadas); RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](../database/rpc.md).
 - Operação: CLI (5 comandos) e `apply-supabase-migrations.sh` — [backend/cli](../backend/cli.md).
 
 ## Database
@@ -55,11 +58,11 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 ## Integrations
 
-Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dados) · GitHub (apenas repositório, sem CI) — [product/overview](../product/overview.md).
+Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dados) · Power BI/ANVISA (origem da sincronização de referências — FEAT-0017) · GitHub (apenas repositório, sem CI) — [product/overview](../product/overview.md).
 
 ## Deployment / Environments
 
-- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; desde 2026-09-04 DIVERGEM: dev recebeu a ENH-0004 (2026-09-04 — marca/identidade de referencias) e o FEAT-0017 M1–M5 (2026-09-05/06 — tabelas de sincronização, auditoria de `is_ativa`, RPCs de aplicação/curadoria e de recuperação) e prod aguarda a release (pré-ENH-0004); diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
+- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; desde 2026-09-04 DIVERGEM: dev recebeu a ENH-0004 (2026-09-04 — marca/identidade de referencias) e o FEAT-0017 M1–M6 (2026-09-05/06/07 — tabelas de sincronização, auditoria de `is_ativa`, RPCs de aplicação/curadoria/recuperação e seed de bootstrap) e prod aguarda a release (pré-ENH-0004); diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
 
 ## Testing
 

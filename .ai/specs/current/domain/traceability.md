@@ -1,6 +1,6 @@
 # Traceability — Business Rule × Implementation × Spec × Test
 
-**Última verificação:** 2026-09-04 (ENH-0004 — BR-018/023/024 atualizadas; BR-034–037 adicionadas)
+**Última verificação:** 2026-09-07 (FEAT-0017 — BR-038–047 adicionadas; BR-023/024/026/027 refletem ressalvas do sync)
 
 Índice/matriz de rastreabilidade VERSIONADA (consolidação da Fase 12 — antes vivia apenas em `.ai/.temp/analyses/23`). Responde: qual implementação realiza a BR? qual spec documenta? qual teste cobre? qual o estado de cobertura?
 
@@ -45,8 +45,18 @@
 | BR-035 | modelo de dados | migrations 20260904000000/020000/030000 (canônico revisto) + `lib/referencias.ts` + service (busca nome/marca) | [referencias](../database/referencias.md) · [modal-referencia](../frontend/components/modal-referencia.md) | `lib/referencias.test.ts`, `referencias.service.test.ts` | tested |
 | BR-036 | lifecycle | ausência de trigger (DROPs na 20260904000000) | [triggers](../database/triggers.md) · [referencias_favoritas](../database/referencias_favoritas.md) | — | none |
 | BR-037 | lifecycle | RPC `remover_ou_desativar_referencia` (20260904000000, linhas 96-164) | [rpc](../database/rpc.md) · [referencias](../database/referencias.md) | T3.7 | tested |
+| BR-038 | escopo (globals only) | motor `src/shared/referencias-sync/` (engine/compare) + RPCs aplicar/decidir/reverter/restaurar | [business-rules](business-rules.md) · [referencia_syncs](../database/referencia_syncs.md) · [rpc](../database/rpc.md) | suítes do motor + REAL M4–M6 | tested |
+| BR-039 | lifecycle (bootstrap) | `compare.ts:117-122` (derivarModoSync) + validação aborta antes de efeito | [business-rules](business-rules.md) · [referencia_syncs](../database/referencia_syncs.md) | `compare.test.ts`, `engine.test.ts` + REAL M4 | tested |
+| BR-040 | lifecycle (sem UPDATE in-place) | RPCs aplicar/decidir (20260906000000; guardas de estado) | [business-rules](business-rules.md) · [rpc](../database/rpc.md) | `rpc-referencias-sync.test.ts` | tested |
+| BR-041 | matching | `canonical.ts` (chaveRef) + índice único de identidade (ENH-0004) | [business-rules](business-rules.md) · [referencias](../database/referencias.md) | `canonical.test.ts` | tested |
+| BR-042 | lifecycle (arquivada/bloqueio manual) | `compare.ts:30-33` (reaparição) + seed 20260907000000 (pre_sync_inativa) | [business-rules](business-rules.md) · [referencia_eventos](../database/referencia_eventos.md) | `compare.test.ts`, `rpc-referencias-sync-seed.test.ts` | tested |
+| BR-043 | curadoria | `decidir_pendencia_referencia` (20260906000000:226-450) | [business-rules](business-rules.md) · [referencia_sync_pendencias](../database/referencia_sync_pendencias.md) | `rpc-referencias-sync.test.ts` | tested |
+| BR-044 | validação | `src/shared/powerbi/validate.ts:182-204` (conflitantes invalidam) | [business-rules](business-rules.md) · [api-referencias-sync](../backend/api-referencias-sync.md) | `validate.test.ts` | tested |
+| BR-045 | lifecycle/concorrência | single-flight índice parcial (20260905000000:90-92) + locks de rollback (20260906010000) | [business-rules](business-rules.md) · [referencia_syncs](../database/referencia_syncs.md) | REAL M1.1–M1.5 (single-flight), M4 | tested |
+| BR-046 | retenção/recuperação | `trg_trim_referencia_backups` (20260905000000:260-279) + reverter/restaurar (20260906010000) | [business-rules](business-rules.md) · [referencia_backups](../database/referencia_backups.md) | `rpc-referencias-sync-rollback.test.ts` | tested |
+| BR-047 | auditoria | `referencia_eventos` + `trg_auditar_is_ativa_manual` + ator Sistema (email fixo) | [business-rules](business-rules.md) · [referencia_eventos](../database/referencia_eventos.md) | suítes REAL M1–M6 (eventos, GUC, actor) | tested |
 
-**Resumo:** 37 BRs — 8 tested · 11 partial · 18 none. Recontagem em 2026-09-04: o resumo anterior (8 partial · 19 none) não batia com as linhas da tabela (9 partial · 18 none); corrigido ao adicionar BR-034–037. Fontes de gaps e propostas: `proposed/testing/TEST-*` e `.ai/.temp/analyses/22-auditoria-testes.md`.
+**Resumo:** 47 BRs — 18 tested · 11 partial · 18 none. Recontagem em 2026-09-07 (FEAT-0017): +10 BRs (BR-038–047), todas com teste identificado (suítes do motor + REAL M1–M6). Recontagem em 2026-09-04: o resumo anterior (8 partial · 19 none) não batia com as linhas da tabela (9 partial · 18 none); corrigido ao adicionar BR-034–037. Fontes de gaps e propostas: `proposed/testing/TEST-*` e `.ai/.temp/analyses/22-auditoria-testes.md`.
 
 ## Uso
 

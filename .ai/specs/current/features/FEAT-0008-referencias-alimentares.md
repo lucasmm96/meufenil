@@ -3,7 +3,7 @@
 **ID:** FEAT-0008
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-04 (ENH-0004 — modelo canônico: `marca` separada, identidade imutável de globais, arquivamento sem perda de favoritos; canônico de marca revisto 2026-09-04 — sem marca = em branco)
+**Última verificação:** 2026-09-07 (promoção FEAT-0017 — o conjunto global também muda pela sincronização com a origem: arquivamento/criação automáticos e por curadoria, seed `pre_sync_inativa`; ressalvas BR-023/024/026/027 e BR-038–047)
 
 ## Purpose
 
@@ -68,7 +68,7 @@ Gestão do catálogo de alimentos com fenilalanina por 100g: busca, filtros, ord
 
 ## Related Features
 
-- [FEAT-0003 Registro](FEAT-0003-registro-diario-consumo.md), [FEAT-0012 Admin](FEAT-0012-painel-administrativo.md)
+- [FEAT-0003 Registro](FEAT-0003-registro-diario-consumo.md), [FEAT-0012 Admin](FEAT-0012-painel-administrativo.md), [FEAT-0017 Sincronização de referências](FEAT-0017-sincronizacao-referencias-anvisa.md) (arquivamento/criação automáticos e por curadoria do conjunto global)
 
 ## Evidence
 
