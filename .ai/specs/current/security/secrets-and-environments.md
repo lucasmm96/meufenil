@@ -1,6 +1,6 @@
 # Secrets e Ambientes — MeuFenil
 
-**Última verificação:** 2026-09-06 (FEAT-0017 M2)
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — promoção; nenhuma variável nova de M3 a M6: seed e UI usam as envs registradas no M2)
 
 > ⚠️ Este documento registra SOMENTE nomes, finalidade, escopo e localização das variáveis. **Nenhum valor real de secret é documentado.**
 
@@ -34,7 +34,7 @@
 
 | Variável | Uso | Evidência |
 |---|---|---|
-| `VERCEL_ENV` | decide ambiente do keepalive (`production` → `prod`; caso contrário `dev`) | `api/keepalive.ts` |
+| `VERCEL_ENV` | **uso REMOVIDO** pelo DEBT-0006 (2026-08-23): durante a regressão `879a6c0` decidia o alvo único do keepalive; o código atual ignora — dois alvos por execução | `api/keepalive.ts` (histórico) |
 | `KEEPALIVE_SUPABASE_URL` / `KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY` | credenciais do alvo PROD (override explícito) | `api/keepalive.ts` |
 | `KEEPALIVE_DEV_SUPABASE_URL` / `KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY` | credenciais do alvo DEV — **obrigatórias, sem fallback** (DEBT-0006) | `api/keepalive.ts` |
 | `VITE_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | fallback (a rota aceita como fallback) | `api/keepalive.ts`, README.md |
@@ -95,7 +95,7 @@ A rota de sincronização grava em `referencia_syncs`, `referencia_eventos`, `re
 
 ## 4. Plataformas e integrações (o que existe de fato)
 
-- **GitHub:** nenhuma integração versionada no repositório — NÃO existe `.github/workflows` (sem CI/CD versionado) `[CONFIRMED: filesystem — ausência]`.
+- **GitHub:** CI determinístico versionado em `.github/workflows/` (7 workflows — sem IA, ADR-0013): `ci.yml` (W1 — push/PR: lint → test:run → build; `contents: read`), `issue-responder.yml`, `issue-reconcile.yml`, `release-gate.yml`, `release-verify.yml`, `spec-sync.yml`, `sync-wiki.yml` `[CONFIRMED: filesystem]`.
 - **Vercel:** `vercel.json` com crons `/api/keepalive` (diário, `0 12 * * *`) e `/api/referencias-sync` (semanal, `0 12 * * 1`) e rewrite SPA; artefatos locais do CLI em `.vercel/` (ignorados); README documenta que variáveis de keepalive podem existir no painel da Vercel como override — configuração do painel em si não é verificável pelo repositório (`UNKNOWN`) `[CONFIRMED: vercel.json, README.md, filesystem]`.
 - **Supabase:** `supabase/config.toml` mínimo (apenas `[functions.delete-account]` com `verify_jwt = true`); migrations versionadas; 2 edge functions no diretório `supabase/functions/` `[CONFIRMED: configuration, filesystem]`.
 - **Ambientes:** dois bancos Supabase (development e production) acessados via `SUPABASE_DATABASE_URL` de cada arquivo `.env` `[CONFIRMED: configuration, database — Fase 2]`.
@@ -116,7 +116,7 @@ A rota de sincronização grava em `referencia_syncs`, `referencia_eventos`, `re
 
 1. Extensão `pg_graphql` presente em dev, ausente em prod.
 2. Prod possui coluna dropped (artefato) na posição física 8 de `referencias`; dev não.
-3. Estrutura lógica (tabelas/policies/funções/triggers) idêntica nos dois ambientes.
+3. Estrutura lógica (tabelas/policies/funções/triggers) idêntica até 2026-08-14; DIVERGE desde 2026-09-04: dev recebeu a ENH-0004 e o FEAT-0017 M1–M6 (12 tabelas / 36 policies / 15 funções / 4 triggers — 3 em `public` + 1 em `auth.users`), prod permanece pré-ENH-0004/pré-FEAT-0017 (7 tabelas / 31 policies / 10 funções / 3 triggers em `public` + 1 em `auth.users`) até a release.
 4. Conteúdo de dados distinto (contagens na Fase 2).
 5. Configurações dos painéis Vercel/Supabase (vars de keepalive explícitas, configuração de deploy das edge functions): não verificáveis pelo repositório — `UNKNOWN`.
 
@@ -125,7 +125,7 @@ A rota de sincronização grava em `referencia_syncs`, `referencia_eventos`, `re
 - E1 — Nomes de variáveis por arquivo `.env` (valores não inspecionados) `[CONFIRMED: filesystem]`
 - E2 — Uso de env no código: grep em `src/`, `api/`, `supabase/functions/`, `scripts/`, `vite.config.ts`, `vitest.config.ts` (2026-08-13) `[CONFIRMED: code]`
 - E3 — `.gitignore`, `vercel.json`, `supabase/config.toml` `[CONFIRMED: configuration]`
-- E4 — Ausência de `.github/` (sem CI/CD versionado) `[CONFIRMED: filesystem — ausência]`
+- E4 — Presença de `.github/workflows/` (7 workflows versionados — CI determinístico sem IA, ADR-0013) `[CONFIRMED: filesystem]`
 - E5 — Comentário sobre precedência `.env.development` × `.env.local` em `test-helpers.ts:24-45` `[CONFIRMED: code]`
 
 ## Veja também

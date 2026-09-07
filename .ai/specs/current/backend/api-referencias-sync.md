@@ -1,6 +1,6 @@
 # API Route — /api/referencias-sync
 
-**Última verificação:** 2026-09-06 (FEAT-0017 M4; M5 — rollback/restauração implementados no banco como ação humana, fora desta rota — seção "Recuperação excepcional")
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` no estágio 7 (migration 20260907000000); UI de curadoria/recuperação entregue no M6, fora desta rota)
 **Código:** `api/referencias-sync.ts` — função Vercel serverless (Node)
 
 ## Propósito
@@ -25,7 +25,7 @@ Executa a **sincronização de referências** com a origem ANVISA/Power BI (FEAT
 4. **Snapshot (estágio 4):** INSERT em `referencia_snapshots` do payload decodificado exato (`payload_sha256 = sha256(JSON.stringify(rows))`, `contagem`) — evento `snapshot_created` `[CONFIRMED: code]`.
 5. **Backup (estágio 5):** INSERT em `referencia_backups` das linhas completas de `referencias` (`SELECT *` — estado pré-aplicação; retenção 12 meses por trigger `trg_trim_referencia_backups`) — evento `backup_created` `[CONFIRMED: code, database — migration 20260905000000]`.
 6. **Comparação (estágio 6, M4):** consulta o estado do catálogo via service role — ativas (`is_global AND is_ativa`), arquivadas (`is_global AND NOT is_ativa` com eventos de auditoria `referencia_eventos(id, tipo, created_at)` ordenados cronologicamente — base do dedupe global D-6), pendências `open`, decisões `approved`/`rejected` de `absence`/`new_item` em ordem cronológica (`decided_at` — a última vence) e o histórico de syncs do environment (para `derivarModoSync`: `pos_bootstrap` sse existe sync anterior `success`/`pending_review`, senão `bootstrap`, §14) — e monta o plano com `construirPlanoSync` do motor puro (M3). **Sem evento de auditoria próprio** (comparação/aplicação não têm evento no catálogo — §11.1): o resultado vive em `details.estagios[]` (com `modo`, contagens do estado e contagens do plano) `[CONFIRMED: code]`.
-7. **Aplicação (estágio 7, M4):** `supabase.rpc("aplicar_sync_referencias", { p_sync_id, p_plano })` — RPC SECURITY DEFINER **exclusiva service_role** (design §7.5): transação única (criações com `criado_por` = ator Sistema, arquivamentos por ausência com guarda `is_ativa`, pendências `open` 1:1 do plano, eventos `referencia_criada`/`referencia_arquivada`, contadores e `alteracoes` da sync). Qualquer exceção (estado mudou, 23505, ator ausente…) desfaz **tudo** — resposta `500` + sync `failure`, nada aplicado. Retorna o resumo `{ sync_id, equivalentes, criadas, arquivadas, divergencias }`, registrado no detalhe do estágio `apply` `[CONFIRMED: code, database — migration 20260906000000]`.
+7. **Aplicação (estágio 7, M4):** `supabase.rpc("aplicar_sync_referencias", { p_sync_id, p_plano })` — RPC SECURITY DEFINER **exclusiva service_role** (design §7.5): transação única (criações com `criado_por` = ator Sistema, arquivamentos por ausência com guarda `is_ativa`, pendências `open` 1:1 do plano, eventos `referencia_criada`/`referencia_arquivada`, contadores e `alteracoes` da sync). Qualquer exceção (estado mudou, 23505, ator ausente…) desfaz **tudo** — resposta `500` + sync `failure`, nada aplicado. Retorna o resumo `{ sync_id, equivalentes, criadas, arquivadas, divergencias }`, registrado no detalhe do estágio `apply`; no modo `bootstrap` (1ª sync confiável do ambiente), a RPC grava ainda 1 evento `pre_sync_inativa` por global inativa legada SEM evento de auditoria (actor NULL, idempotente, sem tocar contadores — migration M6) `[CONFIRMED: code, database — migrations 20260906000000/20260907000000]`.
 8. **Conclusão (estágio 8, M4):** o resumo da RPC decide o status final — `divergencias > 0` → `pending_review` (pendências de curadoria) | senão `success`. `concluirSync` grava `total_origem` e `message` factual:
    - `success`: "Sincronização concluída: X equivalentes, Y criadas, Z arquivadas, sem divergências pendentes."
    - `pending_review`: "Sincronização concluída com N divergência(s) pendente(s) de curadoria: X equivalentes, Y criadas, Z arquivadas."
@@ -37,7 +37,7 @@ Falha técnica em qualquer estágio → `failure` (evento do estágio com `{ err
 
 ## Curadoria de divergências (fora desta rota)
 
-Pendências `open` criadas na aplicação são decididas por **admin autenticado** via RPC `decidir_pendencia_referencia` (nunca service_role): aprovar (`absence` arquiva a atual; `new_item` cria a proposta; `substitution` arquiva a atual e cria a proposta — sempre `criado_por` = ator Sistema, GUC `app.audit_origin='curadoria'` suprime `is_ativa_manual` duplicado) ou rejeitar com motivo obrigatório (nenhuma alteração de dados). A última pendência `open` decidida → sync `success` com message "Curadoria concluída — todas as pendências foram decididas". Detalhes em [../database/rpc.md](../database/rpc.md). A UI de curadoria chega no M6 `[CONFIRMED: code, database — migration 20260906000000]`.
+Pendências `open` criadas na aplicação são decididas por **admin autenticado** via RPC `decidir_pendencia_referencia` (nunca service_role): aprovar (`absence` arquiva a atual; `new_item` cria a proposta; `substitution` arquiva a atual e cria a proposta — sempre `criado_por` = ator Sistema, GUC `app.audit_origin='curadoria'` suprime `is_ativa_manual` duplicado) ou rejeitar com motivo obrigatório (nenhuma alteração de dados). A última pendência `open` decidida → sync `success` com message "Curadoria concluída — todas as pendências foram decididas". Detalhes em [../database/rpc.md](../database/rpc.md). UI de curadoria entregue no M6 — página Admin via `referencias-sync.service.ts:534` `[CONFIRMED: code — referencias-sync.service.ts; database — migration 20260906000000]`.
 
 ## Recuperação excepcional (M5 — fora desta rota)
 
@@ -46,7 +46,7 @@ A partir do M5 a recuperação existe no banco como ação **humana** de admin �
 - **Rollback seletivo de sync** — RPC `reverter_sync_referencias` (admin E `usuarios.pode_recuperacao`): desfaz as alterações da sync escolhida — inversas das `alteracoes` em ordem reversa com guarda "preservar alterações posteriores" por operação (reativações com evento `rollback`, nunca `ativar`); pendências `open` do alvo → `cancelled`; status → `reverted`. Restrito a syncs `success`/`pending_review`.
 - **Restauração por backup** — RPC `restaurar_referencias_de_backup` (admin E flag): o conjunto global volta a refletir um backup do estágio 5 (M2) — integridade sha256 verificada antes de qualquer efeito; reativa arquivadas do backup, recria ausentes (id original, `criado_por` = Sistema) e arquiva globais ativas fora do backup; nunca DELETE, não toca pessoais; cancela TODAS as pendências `open`; não cria sync (evento único `restore`).
 
-Detalhes (definições, guardas de serialização, erros, testes): [../database/rpc.md](../database/rpc.md). UI de recuperação: milestone posterior (M6+) `[CONFIRMED: migration 20260906010000; ausência de chamador na rota — code]`.
+Detalhes (definições, guardas de serialização, erros, testes): [../database/rpc.md](../database/rpc.md). UI de recuperação entregue no M6 — página Admin via `referencias-sync.service.ts:555` (`reverter`) e `:574` (`restaurar`); ações humanas, nenhuma via automatizada `[CONFIRMED: code — referencias-sync.service.ts; migration 20260906010000; ausência de chamador na rota]`.
 
 ## Autenticação / autorização
 
@@ -81,7 +81,7 @@ Env ausente → `500 { error: "Missing environment variable: ..." }` antes do cl
 - `console.error` em falha de estágio, falha ao marcar failure e falha inesperada, com prefixo `[referencias-sync]` `[CONFIRMED: code]`.
 - Auditoria estruturada em `referencia_eventos` (sync_started/extraction/validation/snapshot_created/backup_created; comparação/aplicação sem evento — §11.1) e `details.estagios[]` em `referencia_syncs` (tempos por estágio — base da calibração R5) `[CONFIRMED: code]`.
 
-## Relação com o banco (M1 — 20260905000000; M4 — 20260906000000; recuperação M5 — 20260906010000)
+## Relação com o banco (M1 — 20260905000000; M4 — 20260906000000; recuperação M5 — 20260906010000; seed M6 — 20260907000000)
 
 Execução grava em `referencia_syncs` (unidade, `sync_status`, single-flight B10, `alteracoes`/contadores), `referencia_eventos` (auditoria B7), `referencia_snapshots`/`referencia_backups` (B3). Efeito no catálogo: `referencias` globais criadas/arquivadas **somente via RPC `aplicar_sync_referencias`** (transação única, `alteracoes` registradas para o rollback do M5); `referencia_sync_pendencias` recebe as pendências de curadoria (decididas por admin — RPC `decidir_pendencia_referencia`) `[CONFIRMED: code, database]`.
 
@@ -90,14 +90,15 @@ Execução grava em `referencia_syncs` (unidade, `sync_status`, single-flight B1
 - `src/shared/powerbi/{decode,extract,validate}.test.ts` — port + guardas do design §4.2 (máscaras, 32 colunas, desalinhamento, nomes, fail-high do patch) e matriz de validação §6.3 (46 casos) `[CONFIRMED: test]`.
 - `api/referencias-sync.test.ts` — no espelho de `api/keepalive.test.ts` (mock `createClient` + mock do módulo de extração; motor M3 e validação reais): fluxos M4 — bootstrap → `pending_review` com pendências `new_item`; `pos_bootstrap` (histórico `success`) → aplicação → `success`; sem divergências → `success`; RPC falha → `failure` + `500` sem conclusão; RPC ok + UPDATE final falho → `failure` com mensagem "Alterações aplicadas…"; mais 401/403, 409 single-flight, `origin_invalid` sem artifacts, falha técnica → failure, manual admin, 405 (13 casos) `[CONFIRMED: test]`.
 - `src/shared/security/rpc-referencias-sync.test.ts` (REAL, Abordagem B) — suítes das RPCs do M4: aplicar (plano manual e via `construirPlanoSync` real; `criado_por` = Sistema; rollback total em 23505/estado mudado/versão/op desconhecida; exclusividade service_role) e decidir (aprovar os 3 tipos com GUC D-7; rejeitar com/sem motivo; terminais; sync running; última aberta → `success`) `[CONFIRMED: test]`.
+- `src/shared/security/rpc-referencias-sync-rollback.test.ts` (REAL, M5 — 17 testes) e `rpc-referencias-sync-seed.test.ts` (REAL, M6 — 6 testes): rollback seletivo/restauração por backup e seed `pre_sync_inativa` — executados contra o banco dev com os guards de migration (M5/M6 + ator Sistema) `[CONFIRMED: test]`.
 
 ## Evidências
 
 - E1 — Código: `api/referencias-sync.ts`, `src/shared/powerbi/*.ts`, `src/shared/referencias-sync/*.ts` (motor M3) `[CONFIRMED: code]`
-- E2 — Testes: `api/referencias-sync.test.ts`, `src/shared/powerbi/*.test.ts`, `src/shared/security/rpc-referencias-sync.test.ts` `[CONFIRMED: test]`
+- E2 — Testes: `api/referencias-sync.test.ts`, `src/shared/powerbi/*.test.ts`, `src/shared/security/rpc-referencias-sync.test.ts`, `rpc-referencias-sync-rollback.test.ts` (M5), `rpc-referencias-sync-seed.test.ts` (M6) `[CONFIRMED: test]`
 - E3 — Cron: `vercel.json` `[CONFIRMED: configuration]`
 - E4 — Schema das tabelas de sync: `supabase/migrations/20260905000000_referencias_sync_tabelas.sql` `[CONFIRMED: database]`
-- E5 — RPCs de aplicação/curadoria + ator Sistema: `supabase/migrations/20260906000000_referencias_sync_aplicacao_curadoria.sql`, `scripts/provisionar-ator-sistema.js`; RPCs de recuperação (M5): `supabase/migrations/20260906010000_referencias_sync_rollback_restauracao.sql` `[CONFIRMED: database]`
+- E5 — RPCs de aplicação/curadoria + ator Sistema: `supabase/migrations/20260906000000_referencias_sync_aplicacao_curadoria.sql`, `scripts/provisionar-ator-sistema.js`; RPCs de recuperação (M5): `supabase/migrations/20260906010000_referencias_sync_rollback_restauracao.sql`; seed (M6): `supabase/migrations/20260907000000_referencias_sync_seed_pre_sync_inativa.sql` `[CONFIRMED: database]`
 - E6 — Design: `.ai/.temp/feat0017-fase1-design-2026-09-04.md` §4.3/§6.2/§7.5/§8/§16 `[CONFIRMED: .temp — design FEAT-0017]`
 
 ## Veja também
@@ -105,4 +106,4 @@ Execução grava em `referencia_syncs` (unidade, `sync_status`, single-flight B1
 - [api-keepalive.md](api-keepalive.md), [overview.md](overview.md), [background-jobs.md](background-jobs.md)
 - [../database/rpc.md](../database/rpc.md) — `aplicar_sync_referencias`, `decidir_pendencia_referencia`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`
 - [../security/secrets-and-environments.md](../security/secrets-and-environments.md)
-- Migrations M1/M4/M5: `supabase/migrations/20260905000000_referencias_sync_tabelas.sql`, `20260906000000_referencias_sync_aplicacao_curadoria.sql`, `20260906010000_referencias_sync_rollback_restauracao.sql`
+- Migrations M1/M4/M5/M6: `supabase/migrations/20260905000000_referencias_sync_tabelas.sql`, `20260906000000_referencias_sync_aplicacao_curadoria.sql`, `20260906010000_referencias_sync_rollback_restauracao.sql`, `20260907000000_referencias_sync_seed_pre_sync_inativa.sql` (seed `pre_sync_inativa` — M6)

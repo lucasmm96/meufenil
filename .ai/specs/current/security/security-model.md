@@ -1,6 +1,6 @@
 # Modelo de Segurança — MeuFenil
 
-**Última verificação:** 2026-09-06 (ENH-0004 e FEAT-0017 M1/M4/M5 — migrations 20260904*/20260905*/20260906000000/20260906010000 aplicadas em DEV; prod segue no modelo anterior até a release)
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` (migration 20260907000000) e UI do Admin M6 chamando as RPCs de curadoria/recuperação; ENH-0004 e FEAT-0017 M1–M6 aplicadas em DEV; prod segue no modelo anterior até a release)
 
 Este documento consolida o modelo de segurança ATUAL do MeuFenil (autenticação, autorização, RLS, delegação e RPCs). A definição canônica de cada política RLS permanece nas specs das tabelas em `../database/` — aqui o modelo é explicado, relacionado e sintetizado em matrizes (regra "link, não copie").
 
@@ -165,9 +165,9 @@ Resumo dos aspectos de segurança; especificação completa em [../database/rpc.
 | `ativar_referencia` | Sim | `public` | postgres | postgres (superuser) | bypassado pelo definer | `referencias.service.ts:246` | ../database/rpc.md |
 | `remover_ou_desativar_referencia` | Sim | `public` | postgres | postgres | bypassado | `referencias.service.ts:323-338` | ../database/rpc.md |
 | `aplicar_sync_referencias` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | `api/referencias-sync.ts` (estágio 7 — service role) | ../database/rpc.md |
-| `decidir_pendencia_referencia` | Sim | `public` | postgres | postgres | bypassado | nenhum no código (UI M6) | ../database/rpc.md |
-| `reverter_sync_referencias` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | nenhum no código (ação humana M5 — UI M6+) | ../database/rpc.md |
-| `restaurar_referencias_de_backup` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | nenhum no código (ação humana M5 — UI M6+) | ../database/rpc.md |
+| `decidir_pendencia_referencia` | Sim | `public` | postgres | postgres | bypassado | UI do Admin M6 — `src/react-app/services/referencias-sync.service.ts:534` | ../database/rpc.md |
+| `reverter_sync_referencias` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | UI do Admin M6 — `src/react-app/services/referencias-sync.service.ts:555` (ação humana, nunca automatizada) | ../database/rpc.md |
+| `restaurar_referencias_de_backup` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | UI do Admin M6 — `src/react-app/services/referencias-sync.service.ts:574` (ação humana, nunca automatizada) | ../database/rpc.md |
 | `pode_operar_recuperacao` | Sim | `public` | postgres | postgres | bypassado (leitura) | RPCs de recuperação (guarda interna) | ../database/rpc.md |
 | `is_admin_user` | Sim | `public` | postgres | postgres | bypassado (leitura) | policies + 3 RPCs | ../database/rpc.md |
 | `get_estatisticas_admin` | Sim | `public` | postgres | postgres | bypassado (agregados) | `admin.service.ts:75` | ../database/rpc.md |
@@ -182,7 +182,7 @@ Funções de trigger ELIMINADAS na ENH-0004 (migration 20260904000000, dev 2026-
 
 ## 12. Testes de segurança
 
-- **Localização:** `src/shared/security/` — `auth-real-validation.test.ts`, `rls-usuarios.test.ts`, `rpc-ativar-referencia.test.ts`, `rpc-remover-referencia.test.ts`, `rls-referencia-sync.test.ts` (FEAT-0017 M1), `rpc-referencias-sync.test.ts` (FEAT-0017 M4), `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5) + `test-helpers.ts` `[CONFIRMED: filesystem]`.
+- **Localização:** `src/shared/security/` — `auth-real-validation.test.ts`, `rls-usuarios.test.ts`, `rpc-ativar-referencia.test.ts`, `rpc-remover-referencia.test.ts`, `rls-referencia-sync.test.ts` (FEAT-0017 M1), `rpc-referencias-sync.test.ts` (FEAT-0017 M4), `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5), `rpc-referencias-sync-seed.test.ts` (FEAT-0017 M6) + `test-helpers.ts` `[CONFIRMED: filesystem]`.
 - **Abordagem:** "Abordagem B" — clientes Supabase JS com **JWTs reais** (auth real contra o ambiente de development), usando `.env.development`; service role para criar usuários de teste `[CONFIRMED: code — test-helpers.ts:1-14]`.
 - **Cenários cobertos:**
   - Autenticação real (AV.1–AV.7): criação de usuário de teste, cliente anon bloqueado por RLS, visibilidade de role própria, admin vê todos, usuário comum não vê terceiros `[CONFIRMED: test]`
@@ -192,10 +192,11 @@ Funções de trigger ELIMINADAS na ENH-0004 (migration 20260904000000, dev 2026-
   - RLS das tabelas de sync (FEAT-0017 M1, `rls-referencia-sync.test.ts` — guard `isFeat0017M1Applied`): anon/authenticated não INSERT/UPDATE/DELETE; SELECT admin-only `[CONFIRMED: test]`
   - RPCs de sync (FEAT-0017 M4, `rpc-referencias-sync.test.ts` — guards `isFeat0017M4Applied`/`isSistemaProvisionado`): aplicar exclusivo service_role (authenticated → permissão negada; rollback total em 23505/estado mudado; `criado_por` = Sistema); decidir exclusivo admin com sessão (service_role → permissão negada; aprovar os 3 tipos com GUC D-7 sem `is_ativa_manual`; rejeitar com/sem motivo; terminais; sync running) `[CONFIRMED: test]`
   - RPCs de recuperação (FEAT-0017 M5, `rpc-referencias-sync-rollback.test.ts` — guards `isFeat0017M5Applied`/`isSistemaProvisionado`): reverter (11) — permissão (admin sem flag, não-admin, service_role), guarda de execução por environment, status restritos, no-op, preservação de alterações posteriores (skip por op), colisão 23505 → skip, pendências `open` → `cancelled`, status → `reverted`; restaurar (6) — permissão, backup inexistente, integridade sha256 (conteúdo corrompido), conflito de identidade aborta tudo, happy path DENTRO de transação PG real (forge de `request.jwt.claims` + ROLLBACK — zero persistência) `[CONFIRMED: test]`
+  - Seed de globais inativas legadas (FEAT-0017 M6, `rpc-referencias-sync-seed.test.ts` — guard `isFeat0017M6Applied`): bootstrap com global inativa legada → 1 evento `pre_sync_inativa` por inativa sem evento (actor NULL, sync da 1ª sync); inativa que JÁ TEM evento → sem seed; `pos_bootstrap`/plano sem `modo` → sem seed; idempotência (2ª aplicação não duplica); seed é INSERT de evento e não dispara o trigger `is_ativa_manual` `[CONFIRMED: test]`
 - **Testes legados de vulnerabilidade:** T1.0, T2.0 e T3.0 documentam o comportamento PRÉ-correção e são construídos para "sempre passar" (apenas registram o estado via `console.warn`) `[CONFIRMED: test — rls-usuarios.test.ts:53-67]`.
 - **Helper de estado de migration:** `isSecurityMigrationApplied()` (test-helpers.ts:352) verifica via `pg_policies` se `admin_can_select_all_usuarios` existe antes de executar os testes de RLS `[CONFIRMED: test]`.
-- **Execução serial global (FEAT-0017 M4/M5 — `fileParallelism: false` em `vitest.config.ts`):** as suítes reais compartilham o banco dev e a restauração (M5) reescreve o catálogo global de `referencias`; paralelismo entre arquivos reintroduziria na raiz o não-determinismo registrado (colisão de email/estado compartilhado entre workers — Fase 6, execução 3 de 2026-08-15) `[CONFIRMED: configuration — vitest.config.ts]`.
-- **Helpers de estado FEAT-0017 (test-helpers.ts):** `isFeat0017M1Applied` (:478 — sonda `fn_auditar_is_ativa_manual`), `isFeat0017M4Applied` (:499 — sonda `aplicar_sync_referencias`), `isFeat0017M5Applied` (:524 — sonda `.rpc("reverter_sync_referencias")` com uuid zero: função presente ⇒ service_role recebe permissão negada; ausente ⇒ PGRST202), `isSistemaProvisionado` (:546 — sonda o ator Sistema) `[CONFIRMED: test]`.
+- **Execução serial global (FEAT-0017 M4–M6 — `fileParallelism: false` em `vitest.config.ts`):** as suítes reais compartilham o banco dev e a restauração (M5) reescreve o catálogo global de `referencias`; paralelismo entre arquivos reintroduziria na raiz o não-determinismo registrado (colisão de email/estado compartilhado entre workers — Fase 6, execução 3 de 2026-08-15) `[CONFIRMED: configuration — vitest.config.ts]`.
+- **Helpers de estado FEAT-0017 (test-helpers.ts):** `isFeat0017M1Applied` (:478 — sonda `fn_auditar_is_ativa_manual`), `isFeat0017M4Applied` (:499 — sonda `aplicar_sync_referencias`), `isFeat0017M5Applied` (:524 — sonda `.rpc("reverter_sync_referencias")` com uuid zero: função presente ⇒ service_role recebe permissão negada; ausente ⇒ PGRST202), `isSistemaProvisionado` (:546 — sonda o ator Sistema) e `isFeat0017M6Applied` (M6 — sonda o catálogo `pg_proc` por conexão direta: `prosrc` da `aplicar_sync_referencias` contém `pre_sync_inativa`; sem `SUPABASE_DATABASE_URL` → false, safe default) `[CONFIRMED: test]`.
 - Sem cobertura dedicada identificada para policies de `referencias_favoritas` e `delegacoes_acesso` `[CONFIRMED: ausência — filesystem]`. (Avaliação de suficiência pertence à Fase 6.)
 
 ## 13. Vulnerabilidades históricas × estado atual
