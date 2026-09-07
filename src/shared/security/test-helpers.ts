@@ -537,6 +537,55 @@ export async function isFeat0017M5Applied(): Promise<boolean> {
 }
 
 /**
+ * Detecta se o M6 da FEAT-0017 (migration 20260907000000 — seed
+ * `pre_sync_inativa` dentro de `aplicar_sync_referencias`, passo 7
+ * condicionado a p_plano.modo = 'bootstrap') está aplicado no banco de
+ * desenvolvimento. Detecção determinística via catálogo: o corpo da função
+ * contém o passo de seed (INSERT de eventos `pre_sync_inativa`) somente na
+ * versão do M6. Requer conexão direta (SUPABASE_DATABASE_URL/DATABASE_URL,
+ * carregada do .env.development) — sem ela, false (safe default, como os
+ * demais guards).
+ */
+export async function isFeat0017M6Applied(): Promise<boolean> {
+  const databaseUrl =
+    process.env.SUPABASE_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.SUPABASE_DB_URL;
+
+  if (!databaseUrl) {
+    return false;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pgModule: any = await import("pg");
+    const client = new pgModule.Client({
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    try {
+      await client.connect();
+      const { rows } = await client.query(`
+        SELECT prosrc LIKE '%pre_sync_inativa%' AS seeded
+        FROM pg_proc
+        WHERE proname = 'aplicar_sync_referencias'
+          AND pronamespace = 'public'::regnamespace
+        LIMIT 1
+      `);
+      const result = (rows[0] as Record<string, unknown> | undefined)?.seeded === true;
+      await client.end();
+      return result;
+    } catch {
+      try { await client.end(); } catch { /* ok */ }
+      return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Detecta se o ator Sistema (FEAT-0017 B5/§12 — email fixo
  * `sistema@meufenil.local` em `usuarios`, conta banida sem sessão) está
  * provisionado no banco de desenvolvimento — pré-requisito das RPCs do M4
