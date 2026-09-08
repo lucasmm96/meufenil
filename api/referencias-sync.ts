@@ -26,10 +26,13 @@ import type {
  * `decidir_pendencia_referencia`).
  *
  * - GET  = cron (Vercel): Bearer CRON_SECRET, comparação timing-safe; a
- *   plataforma envia o header automaticamente quando a env existe.
+ *   plataforma envia o header automaticamente quando a env existe. O cron só
+ *   dispara no deployment de produção → sempre `environment='prod'`.
  * - POST = manual: Bearer com JWT de sessão válida; papel `admin` em
  *   `usuarios` (mesmo critério do painel); `requested_by` registrado.
- * - Alvo fixo `environment='prod'` (R4-1); sem lógica de ambiente dev.
+ *   Disponível em dev e prod (revisão parcial do R4-1, decisão 2026-09-08).
+ * - Ambiente da sync derivado de `VERCEL_ENV` (`ambienteAlvo()`): produção →
+ *   `'prod'`; preview/development (incl. `vercel dev` local) → `'dev'`.
  * - Single-flight (B10): segunda sync `running` viola o índice parcial
  *   único → 23505 → 409 sem registrar linha.
  *
@@ -101,7 +104,6 @@ type ResumoAplicacao = {
   divergencias: number;
 };
 
-const AMBIENTE_ALVO = "prod";
 const STALE_APOS_MINUTOS = 25;
 const STALE_MENSAGEM = "execução interrompida (timeout da plataforma)";
 
@@ -118,6 +120,22 @@ function exigirEnv(nome: string): string {
   }
 
   return valor;
+}
+
+/**
+ * Ambiente em que a rota executa (revisão parcial do R4-1, decisão humana
+ * 2026-09-08): deployment de produção → `'prod'`; qualquer outro (`preview`,
+ * `vercel dev` local — `VERCEL_ENV=development`) → `'dev'`. O cron só dispara
+ * no deployment de produção; a execução manual fica disponível em dev e prod.
+ * Deriva-se de `VERCEL_ENV` — e não de env dedicada — porque o ambiente muda
+ * de escopo junto com as `REFERENCIAS_SYNC_*`: um deployment nunca grava no
+ * environment errado, e não há env nova para configurar por escopo. O racional
+ * do DEBT-0006 (o cron precisava alcançar dev) não se aplica: aqui o cron é
+ * prod-only por requisito. Ausência de `VERCEL_ENV` (fora do Vercel) → dev
+ * (nunca `prod` acidental).
+ */
+function ambienteAlvo(): string {
+  return process.env.VERCEL_ENV === "production" ? "prod" : "dev";
 }
 
 function criarClienteSupabase(url: string, serviceRoleKey: string): SupabaseClient {
@@ -264,7 +282,7 @@ async function reclamarSync(
   const { data, error } = await supabase
     .from("referencia_syncs")
     .insert({
-      environment: AMBIENTE_ALVO,
+      environment: ambienteAlvo(),
       trigger_source: triggerSource,
       requested_by: requestedBy,
       status: "running",
@@ -408,7 +426,7 @@ async function consultarEstadoCatalogo(
       supabase
         .from("referencia_syncs")
         .select("status")
-        .eq("environment", AMBIENTE_ALVO)
+        .eq("environment", ambienteAlvo())
         .neq("id", syncId),
     ]);
 
@@ -497,7 +515,7 @@ async function executarSync(
 
     await registrarEvento(supabase, syncId, "sync_started", {
       trigger_source: triggerSource,
-      environment: AMBIENTE_ALVO,
+      environment: ambienteAlvo(),
     });
 
     // Estágio 2 — extração (fetch + decode; fail-high D-1).
