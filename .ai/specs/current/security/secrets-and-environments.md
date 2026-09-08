@@ -1,6 +1,6 @@
 # Secrets e Ambientes — MeuFenil
 
-**Última verificação:** 2026-09-07 (FEAT-0017 M6 — promoção; nenhuma variável nova de M3 a M6: seed e UI usam as envs registradas no M2)
+**Última verificação:** 2026-09-08 (revisão R4-1 da FEAT-0017 — `VERCEL_ENV` passa a ser usada pela rota `api/referencias-sync.ts` para derivar o environment da sync: produção → prod, demais → dev; execução manual disponível em dev e prod)
 
 > ⚠️ Este documento registra SOMENTE nomes, finalidade, escopo e localização das variáveis. **Nenhum valor real de secret é documentado.**
 
@@ -34,7 +34,7 @@
 
 | Variável | Uso | Evidência |
 |---|---|---|
-| `VERCEL_ENV` | **uso REMOVIDO** pelo DEBT-0006 (2026-08-23): durante a regressão `879a6c0` decidia o alvo único do keepalive; o código atual ignora — dois alvos por execução | `api/keepalive.ts` (histórico) |
+| `VERCEL_ENV` | **uso REMOVIDO no keepalive** pelo DEBT-0006 (2026-08-23): durante a regressão `879a6c0` decidia o alvo único do keepalive; o keepalive atual ignora — dois alvos por execução. (Reintroduzido na rota `referencias-sync` em 2026-09-08 — ver tabela abaixo) | `api/keepalive.ts` (histórico) |
 | `KEEPALIVE_SUPABASE_URL` / `KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY` | credenciais do alvo PROD (override explícito) | `api/keepalive.ts` |
 | `KEEPALIVE_DEV_SUPABASE_URL` / `KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY` | credenciais do alvo DEV — **obrigatórias, sem fallback** (DEBT-0006) | `api/keepalive.ts` |
 | `VITE_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | fallback (a rota aceita como fallback) | `api/keepalive.ts`, README.md |
@@ -46,11 +46,12 @@ O keepalive conecta nos DOIS bancos por execução (prod `meufenil` e dev `meufe
 
 | Variável | Uso | Evidência |
 |---|---|---|
-| `REFERENCIAS_SYNC_SUPABASE_URL` / `REFERENCIAS_SYNC_SUPABASE_SERVICE_ROLE_KEY` | credenciais service role do alvo único `prod` da sincronização — **dedicadas, obrigatórias, sem fallback** (mesmo endurecimento do DEBT-0006) | `api/referencias-sync.ts` |
+| `VERCEL_ENV` | system env da Vercel (não é secret) que **deriva o environment da sync** (`ambienteAlvo()` — revisão R4-1, 2026-09-08): `production` → `environment='prod'`; `preview`/`development` (incl. `vercel dev` local) → `'dev'`. Motivo de derivar da plataforma e não de env dedicada: o escopo das `REFERENCIAS_SYNC_*` muda junto com `VERCEL_ENV` — um deployment nunca grava no environment errado | `api/referencias-sync.ts` |
+| `REFERENCIAS_SYNC_SUPABASE_URL` / `REFERENCIAS_SYNC_SUPABASE_SERVICE_ROLE_KEY` | credenciais service role do banco **do deployment em que a rota roda** — no escopo Production o alvo é prod; no Preview/Development (`vercel dev`) o alvo é dev — **dedicadas, obrigatórias, sem fallback** (mesmo endurecimento do DEBT-0006) | `api/referencias-sync.ts` |
 | `CRON_SECRET` | Bearer do cron (GET) — comparação timing-safe | `api/referencias-sync.ts` |
 | `POWERBI_RESOURCE_KEY` | resource key pública do relatório Power BI/ANVISA — nunca hardcoded (D-1) | `api/referencias-sync.ts`, `src/shared/powerbi/extract.ts` |
 
-A rota de sincronização grava em `referencia_syncs`, `referencia_eventos`, `referencia_snapshots` e `referencia_backups` (schema M1 da FEAT-0017; RLS admin-only SELECT) — ver [../backend/api-referencias-sync.md](../backend/api-referencias-sync.md). As credenciais NÃO caem de volta para `SUPABASE_SERVICE_ROLE_KEY`/`VITE_SUPABASE_URL` (lição do DEBT-0006: fallback cruzado gravaria no banco errado).
+A rota de sincronização grava em `referencia_syncs` (com `environment` = `ambienteAlvo()` — prod ou dev, revisão R4-1 de 2026-09-08), `referencia_eventos`, `referencia_snapshots` e `referencia_backups` (schema M1 da FEAT-0017; RLS admin-only SELECT) — ver [../backend/api-referencias-sync.md](../backend/api-referencias-sync.md). As credenciais NÃO caem de volta para `SUPABASE_SERVICE_ROLE_KEY`/`VITE_SUPABASE_URL` (lição do DEBT-0006: fallback cruzado gravaria no banco errado).
 
 ### Edge Functions (Supabase/Deno — `Deno.env`)
 

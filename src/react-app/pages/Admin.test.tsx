@@ -379,7 +379,7 @@ describe("Admin page", () => {
     referencia: { nome: "Atual", marca: "", fenil_mg_por_100g: 55 },
   };
 
-  it("renderiza a seção de sincronização com matching validado e sem botão manual em dev", () => {
+  it("renderiza a seção de sincronização com matching validado e botão manual em dev", () => {
     renderAdminComoAdmin({ matchingValidado: true });
 
     render(<Admin />);
@@ -389,9 +389,8 @@ describe("Admin page", () => {
     expect(screen.getByText("Histórico")).toBeTruthy();
     expect(screen.getByText("Pendências de curadoria")).toBeTruthy();
     expect(screen.getByText("Auditoria")).toBeTruthy();
-    // R4-1: botão manual existe só em prod; em dev aparece a nota
-    expect(screen.queryByText("Executar sync agora")).toBeNull();
-    expect(screen.getByText(/produção/i)).toBeTruthy();
+    // Revisão R4-1 (decisão 2026-09-08): botão manual disponível em dev E prod
+    expect(screen.getByText("Executar sync agora")).toBeTruthy();
   });
 
   it("aguarda bootstrap quando ainda não há sync validada", () => {

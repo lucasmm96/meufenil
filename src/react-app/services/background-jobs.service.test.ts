@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { subDays } from "date-fns";
 import { AppError } from "@/react-app/lib/errors";
 
 vi.mock("@/react-app/lib/supabase", () => ({
@@ -93,9 +94,12 @@ describe("background-jobs.service", () => {
     expect(fromMock).toHaveBeenCalledWith("background_job_executions");
     expect(query.eq).toHaveBeenCalledWith("environment", "dev");
     expect(query.eq).toHaveBeenCalledWith("job_key", "keepalive");
+    // Corte esperado = subDays(hoje, periodDays) — prefixo YYYY-MM computado
+    // (mês literal fixo quebraria por drift de calendário a cada virada de mês).
+    const prefixoCorte = subDays(new Date(), 7).toISOString().slice(0, 7);
     expect(query.gte).toHaveBeenCalledWith(
       "started_at",
-      expect.stringMatching(/^2026-08-/),
+      expect.stringMatching(new RegExp(`^${prefixoCorte}-`)),
     );
     expect(query.order).toHaveBeenCalledWith("started_at", { ascending: false });
     expect(query.limit).toHaveBeenCalledWith(50);

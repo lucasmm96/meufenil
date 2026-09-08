@@ -1052,7 +1052,6 @@ function TrilhaSyncChip({
 
 function SecaoSincronizacaoReferencias({ data }: { data: SyncAdminData }) {
   const [aba, setAba] = useState<AbaSincronizacao>("historico");
-  const podeExecutarManual = CURRENT_APP_ENVIRONMENT === "prod";
 
   // Pontes entre sub-abas: o histórico abre a trilha de uma sync nas
   // pendências; o chip de trilha volta ao histórico.
@@ -1103,13 +1102,7 @@ function SecaoSincronizacaoReferencias({ data }: { data: SyncAdminData }) {
                   : "Aguardando bootstrap"}
             </span>
 
-            {podeExecutarManual ? (
-              <BotaoExecutarSync data={data} />
-            ) : (
-              <span className="text-xs text-gray-500">
-                Execução manual disponível apenas no ambiente de produção.
-              </span>
-            )}
+            <BotaoExecutarSync data={data} />
           </div>
         </div>
       </div>

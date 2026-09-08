@@ -13,7 +13,7 @@ Documenta a arquitetura REAL do backend do MeuFenil: componentes server-side, on
 | Componente | Onde executa | Quem chama | Acesso privilegiado | Spec |
 |---|---|---|---|---|
 | `api/keepalive.ts` | Vercel (serverless, Node) | Vercel Cron (diário, `0 12 * * *`) | service role (2 ambientes definidos em env; 1 alvo por execução) | [api-keepalive.md](api-keepalive.md) |
-| `api/referencias-sync.ts` | Vercel (serverless, Node) | Vercel Cron (semanal, `0 12 * * 1`) + POST manual (admin) | service role dedicada (`REFERENCIAS_SYNC_*`; alvo único `prod`) | [api-referencias-sync.md](api-referencias-sync.md) |
+| `api/referencias-sync.ts` | Vercel (serverless, Node) | Vercel Cron (semanal, `0 12 * * 1`) + POST manual (admin — dev e prod, revisão R4-1 2026-09-08) | service role dedicada (`REFERENCIAS_SYNC_*` do deployment; `environment` via `VERCEL_ENV`) | [api-referencias-sync.md](api-referencias-sync.md) |
 | `supabase/functions/delegar-acesso` | Supabase Edge (Deno) | frontend (`delegacoesAcesso.service.ts`) | service role + validação do Bearer token | [edge-function-delegar-acesso.md](edge-function-delegar-acesso.md) |
 | `supabase/functions/delete-account` | Supabase Edge (Deno) | frontend (página Perfil) | service role + validação do Bearer token | [edge-function-delete-account.md](edge-function-delete-account.md) |
 | `src/shared/background-jobs.ts` | Vercel (helper importado pelo keepalive) | `api/keepalive.ts` | usa o client passado (service role) | [background-jobs.md](background-jobs.md) |
