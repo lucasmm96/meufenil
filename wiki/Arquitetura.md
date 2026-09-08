@@ -89,7 +89,7 @@ Todas as arestas são confirmadas por código/configuração. (Fonte: `architect
   - Fluxo: **dois alvos por execução** (independente de `VERCEL_ENV`): prod (`meufenil`) e dev (`meufenil-dev`) — cada um com as próprias credenciais service role (`KEEPALIVE_*`; o alvo dev exige `KEEPALIVE_DEV_*` obrigatórias, sem fallback — DEBT-0006). Ping `SELECT id FROM usuarios LIMIT 1` por alvo em `Promise.allSettled` → persistência por alvo no banco de cada alvo via `src/shared/background-jobs.ts` (`job_key = "keepalive"`, mesmo `run_id` para os dois, status success/failure, tempos, details). Resposta `200` apenas se os dois alvos ok; `500` se qualquer alvo falhou. (Fonte: `backend/api-keepalive.md`; FEAT-0013)
   - Retenção: trigger remove execuções com mais de 365 dias a cada INSERT. (Fonte: `database/triggers.md`)
 - **`api/referencias-sync.ts`** (serverless Node) — cron semanal `0 12 * * 1` UTC (segunda-feira), FEAT-0017. (Fonte: `backend/api-referencias-sync.md`; verificado em: `vercel.json`)
-  - Executa a sincronização do conjunto **global** de referências com a origem ANVISA/Power BI em 8 estágios (claim single-flight → extração → validação → snapshot → backup → comparação → aplicação → conclusão), com alvo **somente prod**. Extração/validação em `src/shared/powerbi/`; motor puro de comparação em `src/shared/referencias-sync/`; aplicação via RPC `aplicar_sync_referencias` (service role, transação única); divergências viram pendências de curadoria decididas por admin; conclui `success` ou `pending_review`. GET (cron) exige `CRON_SECRET`; POST manual exige JWT de admin. (Fonte: `backend/api-referencias-sync.md`; FEAT-0017)
+  - Executa a sincronização do conjunto **global** de referências com a origem ANVISA/Power BI em 8 estágios (claim single-flight → extração → validação → snapshot → backup → comparação → aplicação → conclusão), gravando no banco do **deployment em que a rota roda** — `environment` derivado de `VERCEL_ENV` via `ambienteAlvo()` (`production` → `prod`; `preview`/`development`, incl. `vercel dev`, → `dev`; revisão R4-1, 2026-09-08). A execução **manual** (POST, admin) está disponível em **dev e prod**; o **cron** (GET) só dispara no deployment de produção → alvo sempre `prod`. Extração/validação em `src/shared/powerbi/`; motor puro de comparação em `src/shared/referencias-sync/`; aplicação via RPC `aplicar_sync_referencias` (service role, transação única); divergências viram pendências de curadoria decididas por admin; conclui `success` ou `pending_review`. GET (cron) exige `CRON_SECRET`; POST manual exige JWT de admin. (Fonte: `backend/api-referencias-sync.md`; `security/secrets-and-environments.md`; FEAT-0017)
 
 ## Fluxos de dados
 
@@ -102,7 +102,7 @@ Todas as arestas são confirmadas por código/configuração. (Fonte: `architect
 | Delegação (login-as) | UI → edge function `delegar-acesso` (Bearer + service role) → `delegacoes_acesso`; autorização por RLS | FEAT-0011; `security/security-model.md` seção 9 |
 | Painel admin | UI → PostgREST/RPC `get_estatisticas_admin` + leitura admin-only das tabelas de sync | FEAT-0012; `database/rpc.md` |
 | Keepalive | Vercel Cron diário → service role → ping nos 2 bancos (prod e dev) + persistência por alvo em `background_job_executions` | FEAT-0013; `backend/api-keepalive.md` |
-| Sincronização de referências | Vercel Cron semanal → `api/referencias-sync` (service role) → extração `src/shared/powerbi/` + motor `src/shared/referencias-sync/` → RPC `aplicar_sync_referencias` → cria/arquiva globais (ator Sistema) + pendências de curadoria; admin decide via `decidir_pendencia_referencia`; recuperação excepcional via `reverter_sync_referencias`/`restaurar_referencias_de_backup` | FEAT-0017; `backend/api-referencias-sync.md`; `database/rpc.md` |
+| Sincronização de referências | Vercel Cron semanal (prod) ou POST manual de admin (dev e prod) → `api/referencias-sync` (service role) → extração `src/shared/powerbi/` + motor `src/shared/referencias-sync/` → RPC `aplicar_sync_referencias` → cria/arquiva globais (ator Sistema) + pendências de curadoria; admin decide via `decidir_pendencia_referencia`; recuperação excepcional via `reverter_sync_referencias`/`restaurar_referencias_de_backup` | FEAT-0017; `backend/api-referencias-sync.md`; `database/rpc.md` |
 | Exclusão de conta | UI → edge function `delete-account` (registros → usuarios → auth) | FEAT-0010; `backend/edge-function-delete-account.md` |
 
 ## Autenticação e autorização
@@ -125,7 +125,7 @@ Todas as arestas são confirmadas por código/configuração. (Fonte: `architect
 | Admin × recuperação | `usuarios.pode_recuperacao` (admin E flag; concedida manualmente) | banco (RPCs M5) |
 | anon/authenticated × service_role | bypass de RLS apenas server-side | segredo service role fora do browser |
 | Supabase × Vercel | rotas Vercel (keepalive, referencias-sync) → Supabase via service role | envs Vercel |
-| DEV × PROD | bancos distintos; keepalive pinga os dois por execução; sync alvo somente prod; labels `dev`/`prod` | envs |
+| DEV × PROD | bancos distintos; keepalive pinga os dois por execução; sync grava no banco do deployment (`ambienteAlvo()`/`VERCEL_ENV`; cron prod-only); labels `dev`/`prod` | envs |
 
 (Fonte: `architecture/overview.md` — runtime boundaries; `security/security-model.md`)
 

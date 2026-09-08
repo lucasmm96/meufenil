@@ -234,6 +234,7 @@ describe("referencias-sync handler", () => {
     delete process.env.POWERBI_RESOURCE_KEY;
     delete process.env.REFERENCIAS_SYNC_SUPABASE_URL;
     delete process.env.REFERENCIAS_SYNC_SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.VERCEL_ENV;
   });
 
   function setAmbiente() {
@@ -241,6 +242,10 @@ describe("referencias-sync handler", () => {
     process.env.POWERBI_RESOURCE_KEY = "resource-key-teste";
     process.env.REFERENCIAS_SYNC_SUPABASE_URL = "https://sync.example.supabase.co";
     process.env.REFERENCIAS_SYNC_SUPABASE_SERVICE_ROLE_KEY = "service-key-teste";
+    // Os cenários simulam o deployment de produção (cron e manual rodam no
+    // ambiente prod) → `ambienteAlvo()` resolve `prod` (revisão R4-1,
+    // 2026-09-08 — ambiente derivado de VERCEL_ENV).
+    process.env.VERCEL_ENV = "production";
   }
 
   function prepararHandler(
