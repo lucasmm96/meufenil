@@ -1,6 +1,6 @@
 # API Route — /api/referencias-sync
 
-**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` no estágio 7 (migration 20260907000000); UI de curadoria/recuperação entregue no M6, fora desta rota)
+**Última verificação:** 2026-09-08 (revisão R4-1 — execução manual disponível em dev e prod; `environment` da sync derivado de `VERCEL_ENV`. M6: seed `pre_sync_inativa` no estágio 7 (migration 20260907000000); UI de curadoria/recuperação entregue no M6, fora desta rota)
 **Código:** `api/referencias-sync.ts` — função Vercel serverless (Node)
 
 ## Propósito
@@ -15,11 +15,14 @@ Executa a **sincronização de referências** com a origem ANVISA/Power BI (FEAT
 
 ## Alvo
 
-- **Somente `prod`** — `environment = 'prod'` fixo (decisão R4-1 do design §4.3; catálogo global é dado real único; sem lógica de ambiente dev na rota) `[CONFIRMED: code — api/referencias-sync.ts]`.
+- **Ambiente do deployment em que a rota executa** (revisão parcial do R4-1, decisão humana 2026-09-08): `ambienteAlvo()` deriva de `VERCEL_ENV` — `production` → `environment = 'prod'`; `preview`/`development` (incl. `vercel dev` local) → `environment = 'dev'` `[CONFIRMED: code — api/referencias-sync.ts]`.
+- A **execução manual** (POST) está disponível em **dev e prod**; o **cron** (GET) só dispara no deployment de produção → sempre `prod`.
+- Por que derivar de `VERCEL_ENV` e não de env dedicada: o ambiente muda de escopo junto com as `REFERENCIAS_SYNC_*` (escopos Production vs Preview/Development do Vercel) — um deployment nunca grava no environment errado e não há env nova para configurar por escopo. O racional do DEBT-0006 (cron de produção precisava alcançar dev) **não se aplica**: aqui o cron é prod-only por requisito `[CONFIRMED: code; security/secrets-and-environments.md]`.
+- Registro: R4-1 original (design 2026-09-04) = rota somente prod; revisão 2026-09-08 (autor) = manual dev+prod, cron prod.
 
 ## Sequência de execução (estágios 1–8 do design §6.2)
 
-1. **Claim (estágio 1):** stale recovery primeiro — `UPDATE referencia_syncs SET status='failure', message='execução interrompida (timeout da plataforma)', finished_at=now() WHERE status='running' AND started_at < now() - interval '25 minutes'`; depois `INSERT` da sync `running` (`environment='prod'`, `trigger_source=cron|manual`, `requested_by=admin|null`); violação do índice single-flight (`23505`, B10) → `409` sem registrar linha; evento `sync_started` `[CONFIRMED: code — api/referencias-sync.ts]`.
+1. **Claim (estágio 1):** stale recovery primeiro — `UPDATE referencia_syncs SET status='failure', message='execução interrompida (timeout da plataforma)', finished_at=now() WHERE status='running' AND started_at < now() - interval '25 minutes'`; depois `INSERT` da sync `running` (`environment` = `ambienteAlvo()` — prod no deployment de produção, dev em preview/`vercel dev`, revisão R4-1; `trigger_source=cron|manual`, `requested_by=admin|null`); violação do índice single-flight (`23505`, B10) → `409` sem registrar linha; evento `sync_started` `[CONFIRMED: code — api/referencias-sync.ts]`.
 2. **Extração (estágio 2):** `extractPowerBiReport` de `src/shared/powerbi/` (fetch + decode DSR; resource key de env; patch fail-high `Window.Count` 500→30000) — evento `extraction` com `{ contagem, patch_aplicado }` `[CONFIRMED: code — api/referencias-sync.ts, src/shared/powerbi/extract.ts]`.
 3. **Validação (estágio 3):** `validarExtracao` (checks estrutura → quantidade → campos → duplicidades; abort na 1ª anomalia, B9) — evento `validation` com resultado completo. Origem inválida → sync `origin_invalid` + `message` com o motivo, **sem snapshot/backup**; resposta `200 { sync_id, status: "origin_invalid" }` `[CONFIRMED: code]`.
 4. **Snapshot (estágio 4):** INSERT em `referencia_snapshots` do payload decodificado exato (`payload_sha256 = sha256(JSON.stringify(rows))`, `contagem`) — evento `snapshot_created` `[CONFIRMED: code]`.
@@ -50,8 +53,8 @@ Detalhes (definições, guardas de serialização, erros, testes): [../database/
 
 ## Autenticação / autorização
 
-- **GET (cron):** exige `Authorization: Bearer ${CRON_SECRET}` — comparação **timing-safe** (`crypto.timingSafeEqual`); ausência/erro do Bearer → `401`. A Vercel envia o header automaticamente quando a env `CRON_SECRET` existe (design §4.3) `[CONFIRMED: code]`.
-- **POST (manual):** exige Bearer com JWT de sessão; validação via `supabase.auth.getUser(token)` + checagem `role = 'admin'` em `usuarios` (mesmo critério do painel) — sem JWT válido ou não-admin → `403`. O `id` do admin vai em `requested_by` `[CONFIRMED: code]`.
+- **GET (cron):** exige `Authorization: Bearer ${CRON_SECRET}` — comparação **timing-safe** (`crypto.timingSafeEqual`); ausência/erro do Bearer → `401`. A Vercel envia o header automaticamente quando a env `CRON_SECRET` existe (design §4.3). Só dispara no deployment de produção → alvo sempre `prod` `[CONFIRMED: code]`.
+- **POST (manual):** exige Bearer com JWT de sessão; validação via `supabase.auth.getUser(token)` + checagem `role = 'admin'` em `usuarios` (mesmo critério do painel) — sem JWT válido ou não-admin → `403`. O `id` do admin vai em `requested_by`. Disponível em **dev e prod** (revisão R4-1, decisão 2026-09-08) `[CONFIRMED: code]`.
 - **Método não permitido → `405` + `Allow: GET, POST`.**
 - Todas as escritas via **service role** (`REFERENCIAS_SYNC_*` dedicadas — sem fallback, DEBT-0006) `[CONFIRMED: code, database]`:
   - Diretas em `referencia_syncs`, `referencia_eventos`, `referencia_snapshots`, `referencia_backups` (nenhuma policy de escrita; RLS admin-only SELECT — migration M1).
