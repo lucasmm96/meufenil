@@ -195,10 +195,15 @@ export function decodeDsr(
     );
   }
 
-  // Descriptor vive em results[0].result.descriptor (o primeiro operando do
-  // original apontava para .data.descriptor, sempre ausente — mantido o
-  // caminho efetivo, sem o ramo morto).
-  const descriptor = resposta?.results?.[0]?.result?.descriptor?.Select ?? [];
+  // Descriptor: a API real entrega em results[0].result.data.descriptor.Select
+  // (caminho primário do decode.js original); algumas variações de resposta
+  // usam results[0].result.descriptor.Select — verificados nessa ordem, igual
+  // ao original (decode.js linha 96–99).
+  const resultData = resposta?.results?.[0]?.result?.data;
+  const descriptor =
+    resultData?.descriptor?.Select ??
+    resposta?.results?.[0]?.result?.descriptor?.Select ??
+    [];
 
   // Colunas esperadas: exatamente as 3 do relatório (B9). Nome resolvido via
   // payload/descriptor; a checagem de conjunto acontece na validação (§6.3).

@@ -68,7 +68,10 @@ export type RespostaPowerBi = {
             PH?: Array<{ DM0?: unknown[] }>;
           }>;
         };
+        /** Descriptor no payload de dados — caminho primário da API real. */
+        descriptor?: { Select?: ItemDescriptor[] };
       };
+      /** Descriptor alternativo (fora de data) — fallback para variações da API. */
       descriptor?: { Select?: ItemDescriptor[] };
     };
   }>;
