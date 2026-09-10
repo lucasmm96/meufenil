@@ -23,7 +23,7 @@ import {
   type LinhaDsrBruta,
   type LinhaOrigem,
   type RespostaPowerBi,
-} from "./types";
+} from "./types.js";
 
 /** Erro estrutural do DSR (resposta/forma inesperadas — fail-high). */
 export class ErroEstruturalDsr extends Error {}

@@ -26,7 +26,7 @@
  * interno da validação e nunca se mistura com as chaves do motor).
  */
 
-import type { IdentidadeReferencia } from "./types";
+import type { IdentidadeReferencia } from "./types.js";
 
 /** Separador das chaves compostas (design §7.1 — SOH, escape textual). */
 const SEPARADOR_CHAVE = "\u0001";
