@@ -22,7 +22,7 @@
  * (lower/trim — ENH-0004); o módulo canônico completo vive no motor (M3).
  */
 
-import { COLUNAS_ORIGEM, FENIL_MAX, FENIL_MIN, type LinhaOrigem } from "./types";
+import { COLUNAS_ORIGEM, FENIL_MAX, FENIL_MIN, type LinhaOrigem } from "./types.js";
 
 export const CHAVE_COLUNAS_ESPERADAS = [...COLUNAS_ORIGEM].sort();
 

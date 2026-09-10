@@ -19,9 +19,9 @@
  * as únicas operações emitidas são `create` (novo id) e `archive`.
  */
 
-import { chaveRef } from "./canonical";
-import { comparar } from "./compare";
-import type { LinhaOrigem } from "../powerbi/types";
+import { chaveRef } from "./canonical.js";
+import { comparar } from "./compare.js";
+import type { LinhaOrigem } from "../powerbi/types.js";
 import {
   PLANO_VERSAO,
   type ArquivadaGlobal,
@@ -35,7 +35,7 @@ import {
   type PlanoSync,
   type ResumoPlano,
   type TipoPendencia,
-} from "./types";
+} from "./types.js";
 
 export type EntradaPlanoSync = {
   /** Linhas da origem extraídas e validadas (contrato §6.3). */
