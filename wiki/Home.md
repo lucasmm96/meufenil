@@ -16,6 +16,6 @@ O **MeuFenil** é uma aplicação open source de controle pessoal da ingestão d
 
 - **Open source** sob licença **MIT**, 100% gratuito e sem fins lucrativos.
 - Criado para facilitar a administração da dieta extremamente restritiva exigida pela PKU, oferecendo organização, clareza e autonomia ao paciente e aos seus cuidadores.
-- Os dados iniciais de alimentos têm como base tabelas públicas da **ANVISA** (2.958 referências no cadastro inicial); o usuário também pode cadastrar seus próprios alimentos.
+- Os dados iniciais de alimentos têm como base tabelas públicas da **ANVISA** (2.959 referências no cadastro inicial); o usuário também pode cadastrar seus próprios alimentos.
 - A aplicação é uma **SPA web** (React + Vite) com suporte multi-dispositivo via **PWA instalável**, hospedada na Vercel, com autenticação via conta Google e banco de dados PostgreSQL gerenciado pelo Supabase.
 - Para saber mais sobre a motivação e a história do projeto, acesse a página "Sobre" dentro do aplicativo ou o [README do repositório](https://github.com/lucasmm96/meufenil).

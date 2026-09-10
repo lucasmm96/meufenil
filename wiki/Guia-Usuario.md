@@ -83,16 +83,24 @@ Na página **Estatísticas** você analisa o consumo por período:
 
 ## Referências alimentares
 
-A página **Referências** é o catálogo de alimentos com o valor de fenilalanina por 100g:
+A página **Referências** é o catálogo de alimentos com o valor de fenilalanina por 100g. Cada alimento tem um **nome**, uma **marca** (opcional) e o valor de **fenilalanina por 100g**:
 
-- **Busca:** digite no campo "Buscar alimento" para filtrar a lista.
-- **Filtros:** marque as opções "Mostrar referências inativas", "Somente favoritas" e "Somente customizadas" para ajustar a lista.
-- **Ordenação:** toque nos cabeçalhos da tabela para ordenar por nome ou por valor de fenilalanina.
-- **Favoritos:** toque na estrela para marcar/desmarcar um alimento como favorito — ele aparece primeiro na busca de alimentos.
-- **Criar alimento:** toque em **"+ Nova Referência"**, informe o nome e a quantidade de fenilalanina por 100g.
-- **Editar:** toque no lápis para alterar um alimento que você criou.
-- **Remover/desativar:** toque na lixeira. Se o alimento já tiver registros de consumo associados, ele não é apagado — é **desativado** (fica riscado na lista, com o aviso "(Inativa)") e não pode mais ser usado em novos registros. Alimentos desativados podem ser **reativados** com o botão de seta circular.
-- **Referências globais:** são os alimentos da base (dados da ANVISA) e de administradores — disponíveis para todos. Só administradores podem alterá-las.
+- **Busca:** digite no campo "Buscar alimento" para filtrar a lista — a busca encontra o alimento tanto pelo **nome** quanto pela **marca**.
+- **Filtros:** marque "Mostrar referências inativas", "Somente favoritas" ou "Somente customizadas" para ajustar a lista.
+- **Ordenação:** toque nos cabeçalhos das colunas **Nome** ou **Fenilalanina** para ordenar.
+- **Favoritos:** toque na estrela para marcar/desmarcar um alimento como favorito — os favoritos aparecem primeiro na lista. Um alimento inativo não pode ser favoritado, mas se um favorito for desativado a estrela **continua marcada** (e pode ser removida normalmente); se o alimento voltar a ficar ativo, ele volta a aparecer como favorito.
+- **Criar alimento:** toque em **"+ Nova Referência"** e informe o **nome**, a **marca (opcional** — deixe em branco se o alimento não tiver marca) e a **fenilalanina por 100g**.
+- **Editar:**
+  - Alimentos que **você criou**: toque no lápis e altere normalmente.
+  - Alimentos **globais** (base ANVISA ou criados por administradores) são **imutáveis**: para ajustar um deles, a versão atual é **arquivada** (fica inativa) e uma **nova referência** é criada com os dados alterados — o aplicativo avisa isso antes de continuar. Só administradores podem fazer isso.
+- **Remover/desativar** (ícone de lixeira):
+  - Alimento **seu** sem registros associados: é **removido** de verdade.
+  - Alimento **seu** com registros: é **desativado** (fica riscado, com "(Inativa)") e não pode mais ser usado em novos registros.
+  - Alimento **global**: nunca é excluído — ele só pode ser **arquivado** (desativado) por administradores.
+- **Reativar:** um alimento desativado que **você criou** pode ser reativado por você, com o botão de seta circular. A reativação de alimentos **globais** é exclusiva de administradores.
+- Alimentos desativados/arquivados só aparecem na lista quando o filtro "Mostrar referências inativas" está marcado.
+
+> **Sobre a base de alimentos:** os alimentos globais vêm de tabelas públicas da **ANVISA** e são sincronizados periodicamente pelo projeto. A cada atualização, novos alimentos podem ser adicionados e versões desatualizadas podem ser arquivadas (inativas). Por isso, um alimento que você usava pode aparecer como inativo — procure pelo novo (basta buscar pelo mesmo nome ou marca) e, se não encontrar, cadastre o seu próprio.
 
 ## Exames PKU
 
@@ -177,6 +185,9 @@ Não. Registros de consumo não podem ser editados — mas você pode **excluir*
 
 **O que acontece se eu ultrapassar meu limite diário?**
 Nada é bloqueado. O aplicativo mostra um **alerta** no Dashboard com o excesso, para você considerar ajustar as próximas refeições.
+
+**Um alimento que eu usava sumiu ou está riscado. O que houve?**
+Ele pode ter sido **desativado** — porque tinha registros e foi removido, ou porque a base de alimentos globais foi atualizada e a versão antiga foi arquivada. Procure na página de Referências com o filtro "Mostrar referências inativas" para vê-lo, busque pelo novo (nome ou marca) ou crie o seu próprio com os mesmos dados.
 
 **Outra pessoa consegue ver meus dados?**
 Não, a menos que você **conceda acesso** a ela explicitamente (delegação). Cada usuário só vê os próprios dados; os alimentos da base (referências globais) são públicos para todos os usuários.

@@ -1,6 +1,6 @@
 # Modelo de Segurança — MeuFenil
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` (migration 20260907000000) e UI do Admin M6 chamando as RPCs de curadoria/recuperação; ENH-0004 e FEAT-0017 M1–M6 aplicadas em DEV; prod segue no modelo anterior até a release)
 
 Este documento consolida o modelo de segurança ATUAL do MeuFenil (autenticação, autorização, RLS, delegação e RPCs). A definição canônica de cada política RLS permanece nas specs das tabelas em `../database/` — aqui o modelo é explicado, relacionado e sintetizado em matrizes (regra "link, não copie").
 
@@ -17,9 +17,10 @@ Este documento consolida o modelo de segurança ATUAL do MeuFenil (autenticaçã
 ## 2. Authorization
 
 - **Papéis:** `usuarios.role` (text, default `'user'`; `'admin'` confere privilégios). Não há roles customizadas do Supabase Auth versionadas no repositório `[CONFIRMED: migration, database — ../database/usuarios.md]`.
-- **Duas formas de checagem de admin coexistem** `[CONFIRMED: database, migration]`:
-  1. `public.is_admin_user(auth.uid())` — verifica `usuarios.role = 'admin'` (usada em policies de `usuarios`/`background_job_executions` e nos 2 RPCs);
-  2. `auth.jwt() ->> 'role' = 'admin'` — claim do JWT Supabase (usada nas policies UPDATE/DELETE de `referencias`).
+- **Três formas de checagem de admin coexistem** `[CONFIRMED: database, migration]`:
+  1. `public.is_admin_user(auth.uid())` — verifica `usuarios.role = 'admin'` (usada em policies de `usuarios`/`background_job_executions` e nos 3 RPCs: `ativar_referencia`, `remover_ou_desativar_referencia`, `decidir_pendencia_referencia`);
+  2. `auth.jwt() ->> 'role' = 'admin'` — claim do JWT Supabase (usada nas policies UPDATE/DELETE de `referencias`);
+  3. `public.pode_operar_recuperacao(auth.uid())` — FEAT-0017 M5 (migration 20260906010000, dev 2026-09-06): verifica `role = 'admin'` **E** `usuarios.pode_recuperacao = true` (flag default `false`, concedida manualmente — ver [../database/usuarios.md](../database/usuarios.md)) — guarda exclusiva das RPCs de recuperação `reverter_sync_referencias`/`restaurar_referencias_de_backup`; nenhuma policy a usa.
   - Se existem usuários com role JWT `admin` no Supabase Auth: `UNKNOWN` — requer acesso ao dashboard Supabase (não verificável pelo repositório/catálogo).
 - **Ownership:** colunas de dono comparadas com `auth.uid()` (`usuarios.id`, `referencias.criado_por`, `registros.usuario_id`, `exames_pku.usuario_id`, `referencias_favoritas.usuario_id`).
 - **Delegação:** `delegacoes_acesso` com `revoked_at IS NULL` = delegação ativa; usada por 15 policies ("dono ou delegado") e pelos 2 RPCs de referências (seção 9).
@@ -97,7 +98,7 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | RLS `referencias` | INSERT/UPDATE/SELECT/DELETE, incluindo referências GLOBAIS (exclusivo do admin) | policies "Admin ..." + `Remover...` |
 | RLS `background_job_executions` | SELECT do histórico de jobs | `admin_can_select_background_job_executions` |
 | RPC `ativar_referencia` | ativar qualquer referência | ../database/rpc.md |
-| RPC `remover_ou_desativar_referencia` | remover qualquer referência, inclusive global | ../database/rpc.md |
+| RPC `remover_ou_desativar_referencia` | remover referências pessoais (hard/soft pelo vínculo) e ARQUIVAR globais — nunca exclusão física de global pela aplicação (ENH-0004, OQ4/BR-037) | ../database/rpc.md |
 | RPC `get_estatisticas_admin` | chamado pelo painel admin (`admin.service.ts:75`) — a função em si NÃO verifica papel internamente | ../database/rpc.md |
 | RLS `registros` / `exames_pku` / `referencias_favoritas` / `delegacoes_acesso` | **nenhum acesso direto** (sem políticas de admin) | matriz acima |
 
@@ -106,16 +107,21 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | RPC | Quem pode chamar (grants) | Verificação de autorização INTERNA | Efeito autorizado | Evidência |
 |---|---|---|---|---|
 | `ativar_referencia` | todas as roles (EXECUTE) | Sim — dono OU delegado ativo OU admin | ativa referência | ../database/rpc.md |
-| `remover_ou_desativar_referencia` | todas as roles (EXECUTE) | Sim — dono/delegado/admin + global→admin + vínculo→soft-delete | remove/desativa | ../database/rpc.md |
+| `remover_ou_desativar_referencia` | todas as roles (EXECUTE) | Sim — dono/delegado/admin + global→admin + vínculo→soft-delete | remove/desativa — GLOBAIS: sempre arquiva (`'deactivated'`), nunca DELETE (definição 20260904000000, ENH-0004) | ../database/rpc.md |
+| `aplicar_sync_referencias` | **somente `service_role`** (REVOKE FROM PUBLIC) | Sim — `auth.role()` deve ser `service_role` (guarda de definer) | aplica plano de sync (FEAT-0017 §7.5): cria/arquiva globais com `criado_por` = ator Sistema, pendências `open`, eventos, contadores/`alteracoes` — transação única (qualquer exceção desfaz tudo) | ../database/rpc.md |
+| `decidir_pendencia_referencia` | **somente `authenticated`** (REVOKE FROM PUBLIC) | Sim — `is_admin_user(auth.uid())` | curadoria (FEAT-0017 §8): aprova (`substitution`/`absence`/`new_item` — arquiva/cria) ou rejeita (motivo obrigatório) pendência `open`; última aberta → sync `success` | ../database/rpc.md |
+| `reverter_sync_referencias` | **somente `authenticated`** (REVOKE FROM PUBLIC) | Sim — `pode_operar_recuperacao(auth.uid())` (admin **E** flag `pode_recuperacao`) | rollback seletivo de sync (FEAT-0017 M5 §10.1): inversas das `alteracoes` em ordem reversa com guarda "preservar alterações posteriores" por op; pendências `open` do alvo → `cancelled`; status → `reverted`; restrito a `success`/`pending_review` | ../database/rpc.md |
+| `restaurar_referencias_de_backup` | **somente `authenticated`** (REVOKE FROM PUBLIC) | Sim — `pode_operar_recuperacao(auth.uid())` (admin **E** flag `pode_recuperacao`) | restauração excepcional (FEAT-0017 M5 §10.2): catálogo global volta a refletir um backup (integridade sha256 ANTES de efeito); reativa/recria/arquiva conforme o backup; cancela TODAS as pendências `open`; nunca DELETE, não toca pessoais | ../database/rpc.md |
+| `pode_operar_recuperacao` | `authenticated` + `service_role` (REVOKE FROM PUBLIC) | Não (função de verificação) | retorna boolean (admin E `pode_recuperacao`) | ../database/rpc.md |
 | `is_admin_user` | `authenticated` + `service_role` (+ `anon` via default privileges) | Não (função de verificação) | retorna boolean | ../database/rpc.md |
 | `get_estatisticas_admin` | `anon`, `authenticated`, `service_role` (REVOKE FROM PUBLIC) | **Não** — qualquer chamador recebe as estatísticas | agregações globais | ../database/rpc.md |
 | `dashboard_hoje` | todas as roles (EXECUTE) | **Não** — aceita qualquer `uid` | soma do dia + limite | ../database/rpc.md |
 | `dashboard_ultimos_dias` | todas as roles (EXECUTE) | **Não** — aceita qualquer `uid` | soma por dia | ../database/rpc.md |
-| funções de trigger (`handle_new_user`, `fn_normalizar_nome_referencia`, `fn_trim_background_job_executions`, `fn_remover_favoritos_referencia_inativa`) | EXECUTE concedido a todas as roles | Não aplicável | efeitos de trigger; chamável diretamente como RPC é `UNKNOWN` (não verificado) | ../database/rpc.md |
+| funções de trigger (`handle_new_user`, `fn_trim_background_job_executions` — `fn_normalizar_nome_referencia` e `fn_remover_favoritos_referencia_inativa` foram ELIMINADAS na ENH-0004; FEAT-0017 M1 acrescentou `fn_auditar_is_ativa_manual` e `fn_trim_referencia_backups`) | EXECUTE concedido a todas as roles | Não aplicável | efeitos de trigger; chamável diretamente como RPC é `UNKNOWN` (não verificado) | ../database/rpc.md, ../database/triggers.md |
 
 ## 8. RLS — modelo consolidado
 
-- **RLS habilitado nas 7 tabelas** `[CONFIRMED: database]`. Grants de tabela são amplos (todas as roles com privilégios completos) — o RLS é a fronteira efetiva `[CONFIRMED: database — ../database/overview.md]`.
+- **RLS habilitado em TODAS as tabelas** — dev: 12 (7 legadas + 5 de sincronização do FEAT-0017 M1, estas com leitura somente por admin via policies `admin_select_*`); prod: 7 até a release `[CONFIRMED: database — catálogo dev 2026-09-06]`. Grants de tabela são amplos (todas as roles com privilégios completos) — o RLS é a fronteira efetiva `[CONFIRMED: database — ../database/overview.md]`.
 - **Padrões transversais**:
   1. **Ownership:** `auth.uid() = <coluna dono>`.
   2. **Delegação:** `EXISTS (delegacoes_acesso WHERE concedente_id = <dono> AND delegado_id = auth.uid() AND revoked_at IS NULL)`.
@@ -144,7 +150,9 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 
 Resumo dos aspectos de segurança; especificação completa em [../database/rpc.md](../database/rpc.md):
 
-- `ativar_referencia` / `remover_ou_desativar_referencia`: SECURITY DEFINER com verificação interna (dono/delegado/admin) — endurecidas na migration 20260811; idênticas no banco `[CONFIRMED: migration, database]`.
+- `ativar_referencia` / `remover_ou_desativar_referencia`: SECURITY DEFINER com verificação interna (dono/delegado/admin) — endurecidas na migration 20260811; `remover_ou_desativar_referencia` REDEFINIDA na migration 20260904000000 (ENH-0004, dev 2026-09-04): globais passam a ser SEMPRE arquivadas (`is_ativa = false`), mesmo sem registros vinculados — nunca DELETE físico pela aplicação; pessoais mantêm soft/hard pelo vínculo; `ativar_referencia` REDEFINIDA na migration 20260905020000 (FEAT-0017 M1 — R4-3, dev 2026-09-06): referência GLOBAL só reativa por admin (alinhamento BR-024/BR-037); pessoais inalteradas `[CONFIRMED: migration, database]`.
+- `aplicar_sync_referencias` / `decidir_pendencia_referencia` (FEAT-0017 M4 — migration 20260906000000, dev 2026-09-06; prod sem as RPCs até a release): SECURITY DEFINER com `search_path = public`; grants **seletivos** (REVOKE FROM PUBLIC) — aplicar tem EXECUTE **exclusivo `service_role`** (rota/scripts; nenhum cliente — nem admin com sessão — pode aplicar plano; guarda interna `auth.role()` como segunda barreira) e decidir tem EXECUTE **somente `authenticated`** (a guarda interna `is_admin_user(auth.uid())` decide; service_role fora — curadoria é ação humana de admin com sessão). Linhas criadas têm `criado_por` = **ator Sistema** (`sistema@meufenil.local` em `usuarios` — conta BANIDA, sem sessão; sob service_role `auth.uid()` é null e violaria o NOT NULL; a conta nunca autentica, então BR-026 (donos podem desativar) não a alcança) — resolvido por email fixo dentro das RPCs com **fail-high**: plano com criações e ator ausente → exceção clara de provisionamento (nada aplicado). GUC local `app.audit_origin='curadoria'` no decidir (D-7/§11.3 do design) suprime o trigger `trg_auditar_is_ativa_manual` no arquivamento — o admin autenticado arquivando pela curadoria não gera evento duplicado (o evento específico `referencia_arquivada` já é registrado) `[CONFIRMED: migration, database]`.
+- `reverter_sync_referencias` / `restaurar_referencias_de_backup` (FEAT-0017 M5 — migration 20260906010000, dev 2026-09-06; prod sem as RPCs até a release): SECURITY DEFINER com `search_path = public`; grants **somente `authenticated`** (REVOKE FROM PUBLIC — recuperação é ação humana de admin com sessão; service_role e anon fora, mesmo critério da curadoria). Guarda interna `pode_operar_recuperacao(auth.uid())` — admin **E** `usuarios.pode_recuperacao` (default `false`, concedida manualmente — a flag sozinha não habilita nada) — como segunda barreira; guarda de execução de sync **por environment** (B10c: sync `running` em OUTRO environment não bloqueia a recuperação); GUC `app.audit_origin='curadoria'` (D-7) em ambas. O reverter desfaz as inversas das `alteracoes` em ordem reversa com guarda "preservar alterações posteriores" por operação (23505 → skip por op); o restaurar verifica integridade sha256 com `extensions.digest` (pgcrypto vive no schema `extensions`, fora do `search_path` de definer) ANTES de qualquer efeito e aborta a transação inteira em conflito de identidade — nunca estado parcial `[CONFIRMED: migration, database]`.
 - `is_admin_user`: função de apoio de autorização; `STABLE`; grants revogados de PUBLIC (mas `anon` mantém EXECUTE via default privileges — fato do catálogo) `[CONFIRMED: database]`.
 - `get_estatisticas_admin`: SECURITY DEFINER, SEM verificação de papel interna; chamada pelo painel admin; qualquer role com EXECUTE recebe os agregados `[CONFIRMED: migration, database, code]`.
 - `dashboard_hoje` / `dashboard_ultimos_dias`: SECURITY DEFINER, SEM verificação interna, SEM `search_path` configurado; sem chamadores no código atual `[CONFIRMED: migration, database, code]`.
@@ -155,29 +163,40 @@ Resumo dos aspectos de segurança; especificação completa em [../database/rpc.
 | Função | SECURITY DEFINER | search_path | Owner | Identidade efetiva | RLS | Chamadores conhecidos | Evidência |
 |---|---|---|---|---|---|---|---|
 | `ativar_referencia` | Sim | `public` | postgres | postgres (superuser) | bypassado pelo definer | `referencias.service.ts:246` | ../database/rpc.md |
-| `remover_ou_desativar_referencia` | Sim | `public` | postgres | postgres | bypassado | `referencias.service.ts:263` | ../database/rpc.md |
-| `is_admin_user` | Sim | `public` | postgres | postgres | bypassado (leitura) | policies + 2 RPCs | ../database/rpc.md |
+| `remover_ou_desativar_referencia` | Sim | `public` | postgres | postgres | bypassado | `referencias.service.ts:323-338` | ../database/rpc.md |
+| `aplicar_sync_referencias` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | `api/referencias-sync.ts` (estágio 7 — service role) | ../database/rpc.md |
+| `decidir_pendencia_referencia` | Sim | `public` | postgres | postgres | bypassado | UI do Admin M6 — `src/react-app/services/referencias-sync.service.ts:534` | ../database/rpc.md |
+| `reverter_sync_referencias` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | UI do Admin M6 — `src/react-app/services/referencias-sync.service.ts:555` (ação humana, nunca automatizada) | ../database/rpc.md |
+| `restaurar_referencias_de_backup` | Sim | `public` | postgres | postgres | bypassado (efeito no catálogo) | UI do Admin M6 — `src/react-app/services/referencias-sync.service.ts:574` (ação humana, nunca automatizada) | ../database/rpc.md |
+| `pode_operar_recuperacao` | Sim | `public` | postgres | postgres | bypassado (leitura) | RPCs de recuperação (guarda interna) | ../database/rpc.md |
+| `is_admin_user` | Sim | `public` | postgres | postgres | bypassado (leitura) | policies + 3 RPCs | ../database/rpc.md |
 | `get_estatisticas_admin` | Sim | `public` | postgres | postgres | bypassado (agregados) | `admin.service.ts:75` | ../database/rpc.md |
 | `dashboard_hoje` | Sim | **não configurado** | postgres | postgres | bypassado | nenhum no código | ../database/rpc.md |
 | `dashboard_ultimos_dias` | Sim | **não configurado** | postgres | postgres | bypassado | nenhum no código | ../database/rpc.md |
 | `handle_new_user` | Sim | **não configurado** | postgres | postgres | bypassado | trigger `on_auth_user_created` | ../database/rpc.md |
 | `fn_trim_background_job_executions` | Sim | `public` | postgres | postgres | bypassado | trigger de retenção | ../database/rpc.md |
-| `fn_normalizar_nome_referencia` | Não (INVOKER) | — | postgres | chamador | respeita RLS | trigger BEFORE em referencias | ../database/rpc.md |
-| `fn_remover_favoritos_referencia_inativa` | Não (INVOKER) | — | postgres | chamador | respeita RLS | trigger AFTER em referencias | ../database/rpc.md |
 
-`[CONFIRMED: migration — ALTER FUNCTION ... OWNER TO postgres no baseline; database — pg_proc.prosecdef/proconfig]`
+Funções de trigger ELIMINADAS na ENH-0004 (migration 20260904000000, dev 2026-09-04; prod mantém até a release): `fn_normalizar_nome_referencia` (INVOKER — trigger BEFORE em `referencias`; normalização armazenada descontinuada) e `fn_remover_favoritos_referencia_inativa` (INVOKER — trigger AFTER em `referencias`; desativação passou a preservar favoritos).
+
+`[CONFIRMED: migration — ALTER FUNCTION ... OWNER TO postgres no baseline; database — pg_proc.prosecdef/proconfig; DROPs na 20260904000000]`
 
 ## 12. Testes de segurança
 
-- **Localização:** `src/shared/security/` — `auth-real-validation.test.ts`, `rls-usuarios.test.ts`, `rpc-ativar-referencia.test.ts`, `rpc-remover-referencia.test.ts` + `test-helpers.ts` `[CONFIRMED: filesystem]`.
+- **Localização:** `src/shared/security/` — `auth-real-validation.test.ts`, `rls-usuarios.test.ts`, `rpc-ativar-referencia.test.ts`, `rpc-remover-referencia.test.ts`, `rls-referencia-sync.test.ts` (FEAT-0017 M1), `rpc-referencias-sync.test.ts` (FEAT-0017 M4), `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5), `rpc-referencias-sync-seed.test.ts` (FEAT-0017 M6) + `test-helpers.ts` `[CONFIRMED: filesystem]`.
 - **Abordagem:** "Abordagem B" — clientes Supabase JS com **JWTs reais** (auth real contra o ambiente de development), usando `.env.development`; service role para criar usuários de teste `[CONFIRMED: code — test-helpers.ts:1-14]`.
 - **Cenários cobertos:**
   - Autenticação real (AV.1–AV.7): criação de usuário de teste, cliente anon bloqueado por RLS, visibilidade de role própria, admin vê todos, usuário comum não vê terceiros `[CONFIRMED: test]`
   - RLS de `usuarios` (T1.0–T1.4): próprio/admin × terceiros, incluindo T1.0 (detecção legada de `debug_allow_all`, "sempre passa" — ver abaixo) `[CONFIRMED: test]`
   - RPC `ativar_referencia` (T2.0–T2.5): não-autorizado, dono, delegado, admin, inexistente `[CONFIRMED: test]`
-  - RPC `remover_ou_desativar_referencia` (T3.0–T3.8): não-autorizado, dono (delete hard × soft), delegado, admin, global, inexistente `[CONFIRMED: test]`
+  - RPC `remover_ou_desativar_referencia` (T3.0–T3.8): não-autorizado, dono (delete hard × soft), delegado, admin, global, inexistente — T3.7 (ENH-0004): remoção de GLOBAL por admin retorna `'deactivated'` e a linha permanece (`is_ativa = false`), condicionado ao helper `isEnh0004MigrationApplied` (test-helpers.ts) `[CONFIRMED: test]`
+  - RLS das tabelas de sync (FEAT-0017 M1, `rls-referencia-sync.test.ts` — guard `isFeat0017M1Applied`): anon/authenticated não INSERT/UPDATE/DELETE; SELECT admin-only `[CONFIRMED: test]`
+  - RPCs de sync (FEAT-0017 M4, `rpc-referencias-sync.test.ts` — guards `isFeat0017M4Applied`/`isSistemaProvisionado`): aplicar exclusivo service_role (authenticated → permissão negada; rollback total em 23505/estado mudado; `criado_por` = Sistema); decidir exclusivo admin com sessão (service_role → permissão negada; aprovar os 3 tipos com GUC D-7 sem `is_ativa_manual`; rejeitar com/sem motivo; terminais; sync running) `[CONFIRMED: test]`
+  - RPCs de recuperação (FEAT-0017 M5, `rpc-referencias-sync-rollback.test.ts` — guards `isFeat0017M5Applied`/`isSistemaProvisionado`): reverter (11) — permissão (admin sem flag, não-admin, service_role), guarda de execução por environment, status restritos, no-op, preservação de alterações posteriores (skip por op), colisão 23505 → skip, pendências `open` → `cancelled`, status → `reverted`; restaurar (6) — permissão, backup inexistente, integridade sha256 (conteúdo corrompido), conflito de identidade aborta tudo, happy path DENTRO de transação PG real (forge de `request.jwt.claims` + ROLLBACK — zero persistência) `[CONFIRMED: test]`
+  - Seed de globais inativas legadas (FEAT-0017 M6, `rpc-referencias-sync-seed.test.ts` — guard `isFeat0017M6Applied`): bootstrap com global inativa legada → 1 evento `pre_sync_inativa` por inativa sem evento (actor NULL, sync da 1ª sync); inativa que JÁ TEM evento → sem seed; `pos_bootstrap`/plano sem `modo` → sem seed; idempotência (2ª aplicação não duplica); seed é INSERT de evento e não dispara o trigger `is_ativa_manual` `[CONFIRMED: test]`
 - **Testes legados de vulnerabilidade:** T1.0, T2.0 e T3.0 documentam o comportamento PRÉ-correção e são construídos para "sempre passar" (apenas registram o estado via `console.warn`) `[CONFIRMED: test — rls-usuarios.test.ts:53-67]`.
 - **Helper de estado de migration:** `isSecurityMigrationApplied()` (test-helpers.ts:352) verifica via `pg_policies` se `admin_can_select_all_usuarios` existe antes de executar os testes de RLS `[CONFIRMED: test]`.
+- **Execução serial global (FEAT-0017 M4–M6 — `fileParallelism: false` em `vitest.config.ts`):** as suítes reais compartilham o banco dev e a restauração (M5) reescreve o catálogo global de `referencias`; paralelismo entre arquivos reintroduziria na raiz o não-determinismo registrado (colisão de email/estado compartilhado entre workers — Fase 6, execução 3 de 2026-08-15) `[CONFIRMED: configuration — vitest.config.ts]`.
+- **Helpers de estado FEAT-0017 (test-helpers.ts):** `isFeat0017M1Applied` (:478 — sonda `fn_auditar_is_ativa_manual`), `isFeat0017M4Applied` (:499 — sonda `aplicar_sync_referencias`), `isFeat0017M5Applied` (:524 — sonda `.rpc("reverter_sync_referencias")` com uuid zero: função presente ⇒ service_role recebe permissão negada; ausente ⇒ PGRST202), `isSistemaProvisionado` (:546 — sonda o ator Sistema) e `isFeat0017M6Applied` (M6 — sonda o catálogo `pg_proc` por conexão direta: `prosrc` da `aplicar_sync_referencias` contém `pre_sync_inativa`; sem `SUPABASE_DATABASE_URL` → false, safe default) `[CONFIRMED: test]`.
 - Sem cobertura dedicada identificada para policies de `referencias_favoritas` e `delegacoes_acesso` `[CONFIRMED: ausência — filesystem]`. (Avaliação de suficiência pertence à Fase 6.)
 
 ## 13. Vulnerabilidades históricas × estado atual
@@ -194,7 +213,7 @@ Histórico completo: `.ai/.temp/analyses/02-auditoria-seguranca.md` a `12-aplica
 ## Evidências
 
 - E1 — Políticas, funções, grants e RLS: catálogo dev/prod (2026-08-13) `[CONFIRMED: database]`
-- E2 — Migrations: baseline, 20260807, 20260810, 20260811 `[CONFIRMED: migration]`
+- E2 — Migrations: baseline, 20260807, 20260810, 20260811, 20260905020000 (FEAT-0017 M1 — `ativar_referencia` global admin-only), 20260906000000 (FEAT-0017 M4 — RPCs de sync), 20260906010000 (FEAT-0017 M5 — RPCs de recuperação + helper `pode_operar_recuperacao`) `[CONFIRMED: migration]`
 - E3 — Código de auth/delegação: `AuthContext.tsx`, `useUser.ts`, `auth.service.ts`, `lib/supabase.ts`, `delegacoesAcesso.service.ts`, `useUsuarioAtivo.ts` `[CONFIRMED: code]`
 - E4 — Edge functions: `delegar-acesso/index.ts`, `delete-account/index.ts` `[CONFIRMED: code]`
 - E5 — Testes: `src/shared/security/*` `[CONFIRMED: test]`

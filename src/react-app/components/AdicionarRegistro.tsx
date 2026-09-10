@@ -5,7 +5,8 @@ import { useAuth } from "@/react-app/context/AuthContext";
 import { useReferencias } from "@/react-app/hooks/useReferencias";
 import { useCreateRegistro } from "@/react-app/hooks/useCreateRegistro";
 import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
-import ModalReferencia from "@/react-app/components/ModalReferencia";
+import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
+import { nomeComMarca } from "@/react-app/lib/referencias";
 
 interface AdicionarRegistroProps {
   onClose: () => void;
@@ -120,18 +121,18 @@ export default function AdicionarRegistro({
     setShowDropdown(true);
   }
 
-  async function handleCreateReferencia(data: { nome: string; fenil: number }) {
-    const { nome, fenil } = data;
+  async function handleCreateReferencia(data: DadosModalReferencia) {
+    const { nome, marca, fenil } = data;
 
     if (Number.isNaN(fenil)) return;
 
     setCreatingReferencia(true);
 
     try {
-      const ref = await createReferencia(nome, fenil);
+      const ref = await createReferencia(nome, marca, fenil);
 
       setSelectedReferencia(ref);
-      setSearch(ref.nome);
+      setSearch(nomeComMarca(ref.nome, ref.marca));
       setShowDropdown(false);
 
       searchReferencias("");
@@ -213,7 +214,7 @@ export default function AdicionarRegistro({
                       type="button"
                       onClick={() => {
                         setSelectedReferencia(ref);
-                        setSearch(ref.nome);
+                        setSearch(nomeComMarca(ref.nome, ref.marca));
                         setShowDropdown(false);
                       }}
                       className={`w-full px-4 py-3 flex items-start justify-between gap-3 text-left hover:bg-gray-50 ${
@@ -222,7 +223,7 @@ export default function AdicionarRegistro({
                     >
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="font-medium text-gray-900 text-sm sm:text-base break-words">
-                          {ref.nome}
+                          {nomeComMarca(ref.nome, ref.marca)}
                         </span>
 
                         <span className="text-xs sm:text-sm text-gray-500">
@@ -242,7 +243,7 @@ export default function AdicionarRegistro({
                 <div className="p-4 bg-indigo-50 rounded-xl flex justify-between items-start gap-3">
                   <div className="text-sm text-indigo-900 break-words">
                     <span className="font-semibold">
-                      {selectedReferencia.nome}
+                      {nomeComMarca(selectedReferencia.nome, selectedReferencia.marca)}
                     </span>{" "}
                     -{" "}
                     {selectedReferencia.fenil_mg_por_100g.toFixed(1)} mg de

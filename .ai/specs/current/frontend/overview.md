@@ -1,6 +1,6 @@
 # Frontend — Visão Geral
 
-**Última verificação:** 2026-08-13 (commit 6323664)
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — hook/service/DTO `referencias-sync`, contagens e acessibilidade)
 
 ## Propósito
 
@@ -18,9 +18,9 @@ Documenta a arquitetura REAL do frontend do MeuFenil (React 19 SPA) — camadas,
 ```mermaid
 flowchart TB
     P[pages/ 9] --> C[components/ + login-as/]
-    P --> H[hooks/ 14]
+    P --> H[hooks/ 15]
     C --> H
-    H --> S[services/ 12 + dtos/]
+    H --> S[services/ 13 + dtos/]
     P -.-> S
     S --> SUP[lib/supabase.ts anon]
     SUP --> PG[(PostgREST + RLS + RPCs)]
@@ -32,10 +32,10 @@ flowchart TB
 
 - **pages/ (9)** — composição de componentes + hooks; contém estado de UI local (modais, filtros temporários) `[CONFIRMED: code]`.
 - **components/ (6 + 5 login-as)** — reutilizáveis: `Layout`, `AdicionarRegistro`, `ModalReferencia`, `ModalMensagemExecucao`, `ConsentimentoLGPD` + suíte `login-as/` `[CONFIRMED: filesystem]`.
-- **hooks/ (14)** — padrão dominante: **1 hook de dados por página**, assinatura `useX(usuarioId?)`, retorno `{ data, loading, error, ações }`; usam `useState/useCallback/useEffect` com `logger.error` em catch (sem exibição de erro ao usuário) `[CONFIRMED: code]`.
-- **services/ (12)** — funções `export async function` finas sobre `supabase-js` (anon), mapeando snake_case (DB) → camelCase (DTO); erros via `AppError` com código simbólico + mensagem pt-BR `[CONFIRMED: code — ../backend/overview.md classifica como client-side]`.
-- **dtos/ (6)** — interfaces de saída (ver seção DTOs) `[CONFIRMED: filesystem]`.
-- **lib/** — `supabase.ts` (client anon), `errors.ts` (`AppError{code, message, cause}`), `logger.ts` (`console.*` com prefixos `[ERROR]/[WARN]/[INFO]`; comentário "futura integração com Sentry" — sem integração real), `app-environment.ts` (`CURRENT_APP_ENVIRONMENT: "prod"|"dev"`) `[CONFIRMED: code]`.
+- **hooks/ (15)** — padrão dominante: **1 hook de dados por página**, assinatura `useX(usuarioId?)`, retorno `{ data, loading, error, ações }`; usam `useState/useCallback/useEffect` com `logger.error` em catch (sem exibição de erro ao usuário) `[CONFIRMED: code]`. Exceção Admin (3 hooks: `useAdmin`, `useBackgroundJobsAdmin`, `useReferenciasSyncAdmin` — este com assinatura `useX(usuarioId?, isAdmin)` e domínios paginados com filtros server-side; FEAT-0017 M6) `[CONFIRMED: code]`.
+- **services/ (13)** — funções `export async function` finas sobre `supabase-js` (anon), mapeando snake_case (DB) → camelCase (DTO); erros via `AppError` com código simbólico + mensagem pt-BR `[CONFIRMED: code — ../backend/overview.md classifica como client-side]`.
+- **dtos/ (7)** — interfaces de saída (ver seção DTOs) `[CONFIRMED: filesystem]`.
+- **lib/** — `supabase.ts` (client anon), `errors.ts` (`AppError{code, message, cause}`), `logger.ts` (`console.*` com prefixos `[ERROR]/[WARN]/[INFO]`; comentário "futura integração com Sentry" — sem integração real), `app-environment.ts` (`CURRENT_APP_ENVIRONMENT: "prod"|"dev"`), `referencias.ts` (modelo canônico ENH-0004 revisto 2026-09-04: em branco = marca não declarada — `normalizarMarca` (extrai o conteúdo de invólucro `(Marca: X)` e mapeia variantes "não se aplica/in natura" para `''`), `extrairMarcaDoNome`, `nomeComMarca` — testado em `lib/referencias.test.ts` (20 testes)) `[CONFIRMED: code]`.
 - **skeletons/** — 14 componentes de loading (`LayoutSkeleton` + `Header/Nav/Footer` + `GenericPageSkeleton` + 8 page skeletons) via alias `@skeletons` `[CONFIRMED: code — skeletons/index.ts]`.
 
 ## Rotas (inventário real)
@@ -85,6 +85,7 @@ Nenhuma rota tem redirect de não-autenticado explícito (fora `/` → `/dashboa
 | `estatisticas.dto.ts` | `PeriodoEstatisticas = "semana"\|"mes"`, `EstatisticaRegistroDTO`, `EstatisticasDTO` | agregação client-side |
 | `admin.dto.ts` | `UsuarioAdminDTO`, `EstatisticasAdminDTO` | |
 | `background-jobs.dto.ts` | `BackgroundJobStatus`, `BackgroundJobEnvironment = "prod"\|"dev"`, DTOs de execução/overview/filtros | |
+| `referencias-sync.dto.ts` | tipos de status/tipo de sync, `ReferenciaSyncDTO` (com `alteracoes` e `details`), `PendenciaSyncDTO` (com `diff`), `EventoSyncDTO`, DTOs de página/backup/resultados de mutação | FEAT-0017 M6 (Admin) |
 
 Padrão real: DTOs simples com campos snake_case espelhando o DB (não há camada de mapper formal; o mapeamento é inline nos services com `any` em joins) `[CONFIRMED: code — services/*.service.ts]`. NÃO existe arquitetura de DTO/mapper além disso `[CONFIRMED: ausência]`.
 
@@ -119,7 +120,7 @@ Usa apenas breakpoints default do Tailwind; padrões recorrentes: colunas `grid-
 - HTML semântico: `table/thead/th/tbody`, `dl/dt/dd` (Admin), `section`, hierarquia h1–h5, `nav` `[CONFIRMED: code]`.
 - `title` em botões de ícone (paginação, limpar busca, badges) `[CONFIRMED: code]`.
 - Estados `disabled` com feedback visual `[CONFIRMED: code]`.
-- **Não existe:** `role=`, focus trap em modais, teclado customizado (exceto ESC para fechar dropdown em AdicionarRegistro) `[CONFIRMED: ausência — grep 2026-08-13]`. Único `aria-*` do app: `aria-label="Fechar"` no `ModalMensagemExecucao` (ENH-0003, 2026-08-27) `[CONFIRMED: code]`. Sem declaração de conformidade WCAG `[CONFIRMED: ausência]`.
+- **Não existe:** `role=`, focus trap em modais, teclado customizado (exceto ESC para fechar dropdown em AdicionarRegistro) `[CONFIRMED: ausência — grep 2026-08-13]`. Únicos `aria-*` do app: `aria-label="Fechar"` (`ModalMensagemExecucao` — ENH-0003; `ModalDecisaoPendencia` — FEAT-0017 M6) e `aria-label="Limpar trilha da sincronização"` (Admin, FEAT-0017 M6) `[CONFIRMED: code]`. Sem declaração de conformidade WCAG `[CONFIRMED: ausência]`.
 
 ## PWA
 
@@ -133,9 +134,9 @@ Localização colocalizada; componentes/hooks/services testados; 4 de 9 páginas
 
 | Grupo | Testes |
 |---|---|
-| services | 12 arquivos `*.service.test.ts` |
-| hooks | 12 arquivos `use*.test.ts(x)` (todos os hooks de dados têm teste) |
-| páginas | `Admin.test.tsx`, `Perfil.test.tsx`, `Referencias.test.tsx`, `Dashboard.test.tsx` (Estatisticas, Exames, Historico, Home, Sobre sem teste próprio) |
+| services | 11 arquivos `*.service.test.ts` (referencias-sync.service.test.ts incluso — FEAT-0017 M6) |
+| hooks | 13 arquivos `use*.test.ts(x)` (todos os hooks de dados têm teste) |
+| páginas | `Admin.test.tsx` (15 testes; seção de sincronização FEAT-0017 M6 incluída), `Perfil.test.tsx`, `Referencias.test.tsx`, `Dashboard.test.tsx` (Estatisticas, Exames, Historico, Home, Sobre sem teste próprio) |
 | componentes | `AdicionarRegistro.test.tsx`, `ConsentimentoLGPD.test.tsx` |
 | context | sem teste identificado `[CONFIRMED: ausência]` |
 

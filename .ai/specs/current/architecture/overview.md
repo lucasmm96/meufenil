@@ -1,12 +1,12 @@
 # Architecture Overview — MeuFenil
 
-**Última verificação:** 2026-08-14 (migration 20260814000000 aplicada em dev e prod)
+**Última verificação:** 2026-09-07 (FEAT-0017 M1–M6 — migrations 20260905*/20260906*/20260907000000 aplicadas em DEV; prod segue no schema pré-ENH-0004 até a release)
 
 Índice ARQUITETURAL de alto nível (o índice FUNCIONAL é o [system-map](../system-map.md)). Este documento aponta para as specs especializadas — não duplica conteúdo. Decisões arquiteturais: [decisions](../../decisions/).
 
 ## Visão geral
 
-MeuFenil é uma **SPA sem servidor de aplicação próprio**: o frontend (React 19 + Vite) fala diretamente com o Supabase (PostgREST + Auth + Edge Functions); a única peça server-side própria é a função Vercel `api/keepalive` (cron diário); ferramentas de operação rodam localmente (CLI + script de migrations) `[CONFIRMED: código — ../backend/overview.md]`.
+MeuFenil é uma **SPA sem servidor de aplicação próprio**: o frontend (React 19 + Vite) fala diretamente com o Supabase (PostgREST + Auth + Edge Functions); as únicas peças server-side próprias são as funções Vercel `api/keepalive` (cron diário) e `api/referencias-sync` (cron semanal — sincronização de referências, FEAT-0017); ferramentas de operação rodam localmente (CLI + script de migrations) `[CONFIRMED: código — ../backend/overview.md]`.
 
 ## Arquitetura em camadas
 
@@ -24,11 +24,14 @@ flowchart TB
     S -->|Bearer + POST| ED[Edge Functions: delegar-acesso, delete-account]
     ED -->|service role| PG
     subgraph Vercel
-        CRON[Vercel Cron 0 12 * * *] --> KEEP[api/keepalive.ts]
+        CRON[Vercel Cron diário 0 12 * * *] --> KEEP[api/keepalive.ts]
         KEEP --> BJ[src/shared/background-jobs.ts]
+        CRONW[Vercel Cron semanal 0 12 * * 1] --> SYNC[api/referencias-sync.ts]
+        SYNC --> SR[src/shared/referencias-sync/ + powerbi/ — motor puro]
     end
     KEEP -->|service role| PG
-    PG --> TAB[(7 tabelas + 4 triggers + 10 funções)]
+    SYNC -->|service role| PG
+    PG --> TAB[(12 tabelas + 4 triggers + 15 funções — dev pós-FEAT-0017 M1–M6)]
 ```
 
 Todas as arestas do diagrama são confirmadas por código/configuração `[CONFIRMED: code — Fases 4–5]`.
@@ -41,13 +44,13 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 ## Backend
 
-- Sem servidor de aplicação: lógica server-side distribuída entre RPCs do banco (PostgREST), 2 Edge Functions (Deno, service role + validação de Bearer) e 1 função Vercel (keepalive) — [backend/overview](../backend/overview.md).
-- RPCs de negócio: `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](../database/rpc.md).
+- Sem servidor de aplicação: lógica server-side distribuída entre RPCs do banco (PostgREST), 2 Edge Functions (Deno, service role + validação de Bearer) e 2 funções Vercel (keepalive diário + referencias-sync semanal — FEAT-0017) — [backend/overview](../backend/overview.md).
+- RPCs de negócio (frontend): `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs da sincronização de referências (FEAT-0017): `aplicar_sync_referencias` (service_role — rota `/api/referencias-sync`, estágio 7) e `decidir_pendencia_referencia` (authenticated admin — curadoria de divergências; chamada pela UI do Admin via `referencias-sync.service`, M6); RPCs de recuperação (FEAT-0017 M5): `reverter_sync_referencias`/`restaurar_referencias_de_backup` (authenticated admin com `pode_recuperacao` — rollback seletivo de sync e restauração excepcional por backup; chamadas pela UI de recuperação do Admin, M6 — ações humanas, nunca automatizadas); RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](../database/rpc.md).
 - Operação: CLI (5 comandos) e `apply-supabase-migrations.sh` — [backend/cli](../backend/cli.md).
 
 ## Database
 
-- PostgreSQL Supabase: 7 tabelas, RLS em TODAS, 31 políticas, 10 funções, 3 triggers em `public` (+1 em `auth.users`); todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
+- PostgreSQL Supabase (dev, 2026-09-06): **12 tabelas** (7 legadas + 5 de sincronização do FEAT-0017 M1: `referencia_syncs`, `referencia_sync_pendencias`, `referencia_eventos`, `referencia_snapshots`, `referencia_backups`), RLS em TODAS, **36 políticas** (31 legadas + 5 `admin_select_*` das tabelas de sync), **15 funções** em `public` — todas SECURITY DEFINER: 8 pós-ENH-0004 + 2 de trigger do M1 (`fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`) + 2 RPCs do M4 (`aplicar_sync_referencias`, `decidir_pendencia_referencia`) + 3 do M5 (`pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`) — e **4 triggers** (3 em `public` + 1 em `auth.users`). PROD permanece no schema **pré-ENH-0004/pré-FEAT-0017** até a release: 7 tabelas, 31 políticas, 10 funções (com as 2 eliminadas em dev) e 3 triggers em `public` (+1 em `auth.users`). Todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
 
 ## Authentication / Authorization
 
@@ -55,11 +58,11 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 ## Integrations
 
-Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dados) · GitHub (apenas repositório, sem CI) — [product/overview](../product/overview.md).
+Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dados) · Power BI/ANVISA (origem da sincronização de referências — FEAT-0017) · GitHub (apenas repositório, sem CI) — [product/overview](../product/overview.md).
 
 ## Deployment / Environments
 
-- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod) com estrutura lógica idêntica; diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
+- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; desde 2026-09-04 DIVERGEM: dev recebeu a ENH-0004 (2026-09-04 — marca/identidade de referencias) e o FEAT-0017 M1–M6 (2026-09-05/06/07 — tabelas de sincronização, auditoria de `is_ativa`, RPCs de aplicação/curadoria/recuperação e seed de bootstrap) e prod aguarda a release (pré-ENH-0004); diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
 
 ## Testing
 
@@ -102,7 +105,7 @@ Keepalive (cron) → ping service role → persistência em `background_job_exec
 2. **Camadas hooks→services** — hooks de dados por página; services finos com DTOs; erros codificados (AppError).
 3. **RLS como fronteira de autorização** — grants amplos; enforcement em policies/RPCs (ADR-0004).
 4. **RPC SECURITY DEFINER para operações sensíveis** — com verificação interna de dono/delegado/admin (ADR-0010).
-5. **Soft delete via coluna de estado** — `referencias.is_ativa` + RPC + trigger de limpeza (ADR-0006).
+5. **Soft delete/arquivamento via coluna de estado** — `referencias.is_ativa` + RPC (ADR-0006). Desde a ENH-0004: o trigger de limpeza de favoritos foi eliminado (arquivamento preserva favoritos), globais são SEMPRE arquivadas (nunca exclusão física) e o RPC decide soft/hard apenas para pessoais — ver [ADR-0006](../../decisions/ADR-0006-soft-delete-referencias.md) (nota de revisão) e [../database/referencias.md](../database/referencias.md).
 6. **Delegação sem troca de identidade** — login-as é estado de UI; banco autoriza por tabela de delegação (ADR-0005).
 7. **Background job com persistência própria** — tabela dedicada + retenção por trigger (ADR-0007).
 8. **Segurança testada com autenticação real** — Abordagem B (ADR-0011).

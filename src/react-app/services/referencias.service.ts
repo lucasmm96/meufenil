@@ -1,9 +1,14 @@
 import { supabase } from "@/react-app/lib/supabase";
 import { AppError } from "@/react-app/lib/errors";
+import {
+  extrairMarcaDoNome,
+  normalizarMarca,
+} from "@/react-app/lib/referencias";
 
 export interface ReferenciaDTO {
   id: string;
   nome: string;
+  marca: string;
   fenil_mg_por_100g: number;
   is_global?: boolean;
   is_ativa?: boolean;
@@ -48,6 +53,7 @@ export async function getReferencias(
       .select(`
         id,
         nome,
+        marca,
         fenil_mg_por_100g,
         is_global,
         is_ativa,
@@ -66,7 +72,17 @@ export async function getReferencias(
     }
 
     if (search?.trim()) {
-      baseQuery = baseQuery.ilike("nome", `%${search}%`);
+      // Busca sobre nome E marca (ENH-0004 — a marca deixou de viver dentro
+      // do nome; sem isto, buscar "Knorr" ou "in natura" não encontraria nada).
+      // Remove aspas do termo: dentro do filtro .or() do PostgREST, valores
+      // são embrulhados em aspas duplas para que vírgulas/parênteses digitados
+      // não quebrem o parser do filtro.
+      const termo = search.replace(/"/g, "").trim();
+      if (termo) {
+        baseQuery = baseQuery.or(
+          `nome.ilike.%${termo}%,marca.ilike.%${termo}%`
+        );
+      }
     }
 
     if (!showInativas) {
@@ -133,6 +149,7 @@ export async function getReferencias(
 
 interface CreateReferenciaParams {
   nome: string;
+  marca?: string;
   fenil_mg_por_100g: number;
   usuarioId: string;
 }
@@ -140,12 +157,15 @@ interface CreateReferenciaParams {
 export async function createReferencia(
   params: CreateReferenciaParams
 ): Promise<ReferenciaDTO> {
-  const { nome, fenil_mg_por_100g, usuarioId } = params;
+  const { nome, marca, fenil_mg_por_100g, usuarioId } = params;
+
+  const sanitizado = sanitizarIdentidadeReferencia(nome, marca);
 
   const { data, error } = await supabase
     .from("referencias")
     .insert({
-      nome,
+      nome: sanitizado.nome,
+      marca: sanitizado.marca,
       fenil_mg_por_100g,
       criado_por: usuarioId,
       is_global: false,
@@ -157,7 +177,7 @@ export async function createReferencia(
     if (error?.code === "23505") {
       throw new AppError(
         "REFERENCIA_DUPLICADA",
-        "Já existe uma referência com esse nome."
+        "Já existe uma referência ativa com esse nome e marca."
       );
     }
 
@@ -171,6 +191,7 @@ export async function createReferencia(
   return {
     id: data.id,
     nome: data.nome,
+    marca: data.marca,
     fenil_mg_por_100g: data.fenil_mg_por_100g,
     is_global: data.is_global,
     criado_por: data.criado_por,
@@ -212,10 +233,50 @@ export async function toggleFavoritoReferencia(referenciaId: string, usuarioId: 
   }
 }
 
-export async function updateReferencia(referenciaId: string, nome: string, fenil_mg_por_100g: number): Promise<void> {
+interface UpdateReferenciaParams {
+  nome: string;
+  marca?: string;
+  fenil_mg_por_100g: number;
+}
+
+/**
+ * Guarda de imutabilidade substantiva (BR-034+, ENH-0004): a identidade
+ * (nome, marca, fenil) de referência GLOBAL nunca é alterada por UPDATE —
+ * mudança substantiva em global = arquivar a atual + criar a nova. Pessoais
+ * seguem editáveis pelo dono (BR-023).
+ */
+async function assertReferenciaEditavel(referenciaId: string): Promise<void> {
+  const { data: atual } = await supabase
+    .from("referencias")
+    .select("is_global")
+    .eq("id", referenciaId)
+    .maybeSingle();
+
+  if (atual?.is_global) {
+    throw new AppError(
+      "REFERENCIA_GLOBAL_IMUTAVEL",
+      "Referências globais não podem ser editadas — arquive a atual e crie uma nova com os dados ajustados."
+    );
+  }
+}
+
+export async function updateReferencia(
+  referenciaId: string,
+  params: UpdateReferenciaParams
+): Promise<void> {
+  const { nome, marca, fenil_mg_por_100g } = params;
+
+  await assertReferenciaEditavel(referenciaId);
+
+  const sanitizado = sanitizarIdentidadeReferencia(nome, marca);
+
   const { data, error } = await supabase
     .from("referencias")
-    .update({ nome, fenil_mg_por_100g })
+    .update({
+      nome: sanitizado.nome,
+      marca: sanitizado.marca,
+      fenil_mg_por_100g,
+    })
     .eq("id", referenciaId)
     .select();
 
@@ -223,7 +284,7 @@ export async function updateReferencia(referenciaId: string, nome: string, fenil
     if (error?.code === "23505") {
       throw new AppError(
         "REFERENCIA_DUPLICADA",
-        "Já existe uma referência com esse nome."
+        "Já existe uma referência ativa com esse nome e marca."
       );
     }
 
@@ -259,8 +320,8 @@ export async function activateReferencia(id: string) {
   return data;
 }
 
-export async function deleteOrDeactivateReferencia(id: string) {
-  const { error } = await supabase.rpc(
+export async function deleteOrDeactivateReferencia(id: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc(
     "remover_ou_desativar_referencia",
     { p_referencia_id: id }
   );
@@ -272,5 +333,24 @@ export async function deleteOrDeactivateReferencia(id: string) {
       error
     );
   }
+
+  return data;
+}
+
+/**
+ * Sanitização da identidade nos fluxos de escrita (ENH-0004): remove o
+ * sufixo "(Marca: ...)" embutido no nome e o promove à coluna `marca`.
+ * Preferência explícita: o campo `marca` do formulário vence sobre a marca
+ * extraída do nome (que só vale quando o campo está vazio) — usuários podem
+ * colar nomes no formato legado.
+ */
+function sanitizarIdentidadeReferencia(nome: string, marca?: string) {
+  const extraido = extrairMarcaDoNome(nome);
+  const marcaDoCampo = marca?.trim();
+
+  return {
+    nome: extraido.nome,
+    marca: normalizarMarca(marcaDoCampo || extraido.marca),
+  };
 }
 

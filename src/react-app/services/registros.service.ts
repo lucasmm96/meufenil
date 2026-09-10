@@ -1,5 +1,6 @@
 import { supabase } from "@/react-app/lib/supabase";
 import { AppError } from "@/react-app/lib/errors";
+import { nomeComMarca } from "@/react-app/lib/referencias";
 
 export interface RegistroDTO {
   id: string;
@@ -46,7 +47,10 @@ interface RegistroRow {
   peso_g: number;
   fenil_mg: number;
   created_at: string;
-  referencias?: { nome: string } | { nome: string }[] | null;
+  referencias?:
+    | { nome: string; marca?: string }
+    | { nome: string; marca?: string }[]
+    | null;
 }
 
 export async function getRegistros(
@@ -62,7 +66,7 @@ export async function getRegistros(
       peso_g,
       fenil_mg,
       created_at,
-      referencias!inner ( nome )
+      referencias!inner ( nome, marca )
     `)
     .eq("usuario_id", usuarioId)
     .order("data", { ascending: false });
@@ -91,7 +95,11 @@ export async function getRegistros(
       peso_g: r.peso_g,
       fenil_mg: r.fenil_mg,
       created_at: r.created_at,
-      nome_alimento: referencia?.nome ?? "Alimento removido",
+      // Join ao vivo preservado (sem snapshot — ENH-0004); a apresentação
+      // combinada nome+marca é reconstituída dinamicamente.
+      nome_alimento: referencia
+        ? nomeComMarca(referencia.nome, referencia.marca)
+        : "Alimento removido",
     };
   });
 }

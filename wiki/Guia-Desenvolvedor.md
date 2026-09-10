@@ -17,7 +17,7 @@ Guia de desenvolvimento do **MeuFenil**: requisitos, configuração do ambiente,
 
 ## Visão geral do projeto
 
-O MeuFenil é uma **SPA React 19 + Vite** que fala diretamente com o **Supabase** (PostgREST + Auth + Edge Functions); a única peça server-side própria é a função Vercel `api/keepalive` (cron diário), e as ferramentas de operação rodam localmente (CLI + script de migrations). Não há servidor de aplicação próprio. (Fonte: `architecture/overview.md`)
+O MeuFenil é uma **SPA React 19 + Vite** que fala diretamente com o **Supabase** (PostgREST + Auth + Edge Functions); as peças server-side próprias são duas rotas Vercel — `api/keepalive` (cron diário) e `api/referencias-sync` (cron semanal, FEAT-0017) — e as ferramentas de operação rodam localmente (CLI + script de migrations + provisionamento do ator Sistema). Não há servidor de aplicação próprio. (Fonte: `architecture/overview.md`)
 
 A fonte da verdade da especificação é o **Specification System** em `.ai/specs/` — em divergência factual entre spec e implementação, a implementação vence e a divergência é registrada. (Fonte: `CLAUDE.md`)
 
@@ -26,7 +26,7 @@ A fonte da verdade da especificação é o **Specification System** em `.ai/spec
 - **Node.js 18+** (npm) — (Fonte: `README.md`, seção "Setup local").
 - **Supabase CLI** (devDependency `supabase`) — usada pelo script de migrations (`scripts/apply-supabase-migrations.sh`) (Fonte: `backend/cli.md`).
 - **Conta/projeto Supabase** (development e production; 2 ambientes) (Fonte: `database/overview.md`).
-- **Vercel** para deploy da SPA + cron (opcional para desenvolvimento local) (Fonte: `backend/api-keepalive.md`).
+- **Vercel** para deploy da SPA + crons (opcional para desenvolvimento local) (Fonte: `backend/api-keepalive.md`, `backend/api-referencias-sync.md`).
 - **Bash** no Windows (Git Bash/WSL) para o script de migrations (o script é `bash`).
 
 ## Configuração do ambiente
@@ -77,26 +77,31 @@ npm run dev
 │   ├── current/
 │   │   ├── system-map.md    # Índice funcional capability → camadas
 │   │   ├── architecture/    # overview.md
-│   │   ├── features/        # FEAT-0001..0014 (specs de features)
+│   │   ├── features/        # FEAT-0001..0014 e FEAT-0017 (specs de features)
 │   │   ├── product/ domain/ frontend/ backend/ database/ security/ testing/
 │   └── proposed/            # evoluções futuras (PROPOSED)
 ├── src/react-app/
 │   ├── pages/               # 9 páginas (Home, Dashboard, Referencias, ...)
 │   ├── components/          # Layout, AdicionarRegistro, ModalReferencia, ConsentimentoLGPD, login-as/
-│   ├── hooks/               # 14 hooks de dados (1 por página)
-│   ├── services/            # 12 services client-side + dtos/
+│   ├── hooks/               # 15 hooks de dados (1 por página; exceção Admin)
+│   ├── services/            # 13 services client-side + dtos/
 │   ├── lib/                 # supabase.ts (anon), errors.ts (AppError), logger.ts
 │   └── context/             # AuthContext
-├── src/shared/              # background-jobs.ts + security tests (test-helpers)
-├── api/                     # keepalive.ts (função Vercel)
+├── src/shared/
+│   ├── background-jobs.ts   # persistência de jobs (keepalive e afins)
+│   ├── powerbi/             # extração/validação da origem (FEAT-0017 M2/M3)
+│   ├── referencias-sync/    # motor puro: canonical/compare/engine (FEAT-0017 M3)
+│   └── security/            # testes de segurança (integração real) + test-helpers
+├── api/                     # keepalive.ts + referencias-sync.ts (funções Vercel)
 ├── supabase/
-│   ├── migrations/          # migrations versionadas (baseline 20260103015052)
+│   ├── migrations/          # migrations versionadas (baseline 20260103015052 → 20260907)
 │   └── functions/           # edge functions: delegar-acesso, delete-account
 ├── scripts/
 │   ├── cli/                 # CLI de gestão do banco (5 comandos)
-│   └── apply-supabase-migrations.sh
+│   ├── apply-supabase-migrations.sh
+│   └── provisionar-ator-sistema.js  # ator Sistema (FEAT-0017)
 ├── public/                  # manifest.json (PWA), ícones
-└── vercel.json              # cron + rewrite SPA
+└── vercel.json              # crons + rewrite SPA
 ```
 
 (Fonte: `frontend/overview.md`, `backend/overview.md`; verificado em: filesystem)
@@ -109,7 +114,7 @@ O projeto segue o fluxo **spec-driven** (governança em `.ai/specs/CONVENTIONS.m
 
 1. **Proposta:** o pedido vira uma Proposed Spec em `.ai/specs/proposed/` (templates em `.ai/specs/templates/`), com Issue canônica no GitHub e item no Project. Status inicial `PROPOSED`. (Fonte: `proposed/index.md`; ADR-0012)
 2. **Aprovação humana:** decisão registrada na proposta (`Decision:` + `Approved by/on:`) → `ACCEPTED`.
-3. **Implementação:** em work branch `<tipo>/<id>-<slug>` (ex.: `feature/FEAT-0016-...`) criada de `development`; Feature Spec em `.ai/specs/current/features/` viaja no mesmo commit da implementação.
+3. **Implementação:** em work branch `<tipo>/<id>-<slug>` (ex.: `feature/FEAT-0017-sincronizacao-referencias-anvisa`) criada de `development`; Feature Spec em `.ai/specs/current/features/` viaja no mesmo commit da implementação.
 4. **Testes:** comportamento novo exige testes (consulte `current/testing/testing-strategy.md` e os testes existentes antes de criar).
 5. **Validação e housekeeping:** PR com `Part of #N` (nunca `Closes`) → aprovação humana → merge em `development` → ACs marcados `IMPLEMENTED` → proposta arquivada em `archive/implemented/<categoria>/` → Issue fechada → System Map atualizado.
 
@@ -121,23 +126,25 @@ O projeto segue o fluxo **spec-driven** (governança em `.ai/specs/CONVENTIONS.m
 - **Cálculo de fenilalanina no cliente:** `fenil_mg = (fenil_mg_por_100g × peso_g) / 100` — a UI calcula; o banco armazena o valor informado (Fonte: FEAT-0003 - Registro Diário de Consumo; verificado em: `src/react-app/components/AdicionarRegistro.tsx:94-95`).
 - **Timezone:** datas formatadas no timezone do usuário (`usuarios.timezone`, default `America/Sao_Paulo`) via `formatInTimeZone` (Fonte: FEAT-0005 - Dashboard diário; `database/usuarios.md`).
 - **Autorização é do banco:** a UI apenas esconde/mostra elementos; o enforcement é RLS/RPCs. (Fonte: `security/security-model.md` seção 2)
+- **Identidade de referências (ENH-0004):** modelo canônico com `nome` + `marca` separados (`marca` opcional, `''` = sem marca declarada); identidade imutável de globais `(nome, marca, fenil_mg_por_100g)` — mudar uma global = arquivar a atual + criar a nova (BR-034/BR-037). (Fonte: FEAT-0008; `database/referencias.md`)
+- **Backend serverless:** rotas Vercel com camada pura testável separada da camada de infra: keepalive usa `src/shared/background-jobs.ts`; a sincronização (FEAT-0017) usa o motor puro em `src/shared/referencias-sync/` (canonical/compare/engine, sem I/O) + extração em `src/shared/powerbi/`, com o handler `api/referencias-sync.ts` apenas orquestrando. (Fonte: FEAT-0017; `backend/api-referencias-sync.md`)
 - **Padrões visuais:** Tailwind com configuração padrão; gradiente indigo→purple em CTAs, cards `bg-white/80 backdrop-blur-sm rounded-2xl`, modais bottom-sheet mobile × central desktop, gráficos Recharts com gradiente `#6366f1 → #9333ea`. Não há design system formal — siga os padrões observados (Fonte: `frontend/overview.md` — seção "Padrões visuais observados").
 - **Convenções de commit:** commits lógicos e pequenos; mensagens com prefixo de tipo (`feat:`, `fix:`, `chore:`, `docs:`). Push nunca é automático — aguarde autorização explícita (Fonte: `CLAUDE.md` seção 12).
 
 ## Testes
 
-**Stack:** Vitest + Testing Library (jsdom), testes colocalizados (`X.test.ts(x)` ao lado do código); 34 arquivos / 197 testes na última verificação; cobertura ~82% statements (sem threshold configurado). (Fonte: `testing/testing-strategy.md`)
+**Stack:** Vitest + Testing Library (jsdom), testes colocalizados (`X.test.ts(x)` ao lado do código); **61 arquivos / 618 testes** na última verificação (2026-09-07); cobertura ~82% statements (medição 2026-08-15; sem threshold configurado); execução serial (`fileParallelism: false`) por causa dos testes de segurança compartilharem o banco development. (Fonte: `testing/testing-strategy.md`)
 
 **Níveis existentes:**
 
 | Nível | Onde | Exemplo |
 |---|---|---|
-| Unit (shared) | `src/shared/` | `background-jobs.test.ts` |
+| Unit (shared) | `src/shared/` | `background-jobs.test.ts`; motor de sync: `canonical/compare/engine/validate.test.ts` |
 | Service | `services/*.service.test.ts` | mocks do supabase + assertions de `AppError` |
 | Hook | `hooks/use*.test.ts(x)` | `renderHook` + mocks |
 | Página/Componente | `pages/*.test.tsx`, `components/*.test.tsx` | Admin, Perfil, Referencias, Dashboard, AdicionarRegistro, ConsentimentoLGPD |
-| API/Serverless | `api/keepalive.test.ts` | handler com mocks (4 cenários) |
-| Segurança (integração real) | `src/shared/security/` | JWTs reais contra o banco **development** (AV.1–7, T1.x, T2.x, T3.x) |
+| API/Serverless | `api/keepalive.test.ts`, `api/referencias-sync.test.ts` | handler com mocks |
+| Segurança (integração real) | `src/shared/security/` | JWTs reais contra o banco **development** (AV.1–7, T1.x, T2.x, T3.x) + suítes de RPC de referências/sync (ativar, remover, `referencias-sync`, rollback, seed) |
 
 (Fonte: `testing/testing-strategy.md` seções 2–4)
 
@@ -155,37 +162,43 @@ Os testes de segurança exigem `SUPABASE_SERVICE_ROLE_KEY` no ambiente (carregad
 
 ## Banco de dados
 
-PostgreSQL (Supabase) com **7 tabelas**, RLS habilitado em todas, **31 políticas**, **10 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`). (Fonte: `database/overview.md`)
+PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS habilitado em todas, **36 políticas**, **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`), **5 enums**. **Prod segue no schema pré-ENH-0004** (sem coluna `marca`, sem as 5 tabelas de sync) até a release v1.11.0. (Fonte: `database/overview.md`)
 
 ### Migrations
 
-- **Local atual:** `supabase/migrations/` (Supabase CLI). Baseline: `20260103015052_remote_schema.sql`; migrations subsequentes `20260807...` a `20260815...` (jobs, monitoramento, segurança RLS/RPC, baseline de objetos não versionados, default de limite diário). (Fonte: `database/overview.md` — tabela de migrations)
-- **Legado:** `migrations/` na raiz (`usuarios.sql`, `referencias.sql`, `registros.sql`, `exames_pku.sql`, `dados.sql` — seed ANVISA com 2.958 INSERTs). Snapshot antigo; não contém o estado atual de políticas. (Fonte: `database/overview.md`)
+- **Local atual:** `supabase/migrations/` (Supabase CLI). Baseline `20260103015052_remote_schema.sql`; sequências de 2026-08 (jobs, monitoramento, fix de segurança, baseline de objetos, default do limite diário), **ENH-0004** (`20260904000000` a `20260904040000` — marca + identidade imutável) e **FEAT-0017** (`20260905000000`/`010000`/`020000` — M1: tabelas de sync, auditoria, admin-only; `20260906000000` — M4: aplicação/curadoria; `20260906010000` — M5: rollback/restauração; `20260907000000` — M6: seed `pre_sync_inativa`). Todas as migrations 2026-09 aplicadas **somente em dev**; prod aguarda a release. (Fonte: `database/overview.md` — tabela de migrations; verificado em: `supabase/migrations/`)
+- **Legado:** `migrations/` na raiz (`usuarios.sql`, `referencias.sql`, `registros.sql`, `exames_pku.sql`, `dados.sql` — seed ANVISA com 2.959 INSERTs). Snapshot antigo; não contém o estado atual de políticas. (Fonte: `database/overview.md`)
 - **Aplicação:** `scripts/apply-supabase-migrations.sh --env development|production` (fluxo: `supabase link` → `migration repair` do baseline → `db push`). Nunca aplique nos dois ambientes na mesma execução. (Fonte: `backend/cli.md`)
 
 ### RLS
 
 - RLS é a **fronteira de autorização**: grants amplos para todas as roles; o enforcement vive nas policies (Fonte: `security/security-model.md` seção 8; ADR-0004).
-- **Padrões transversais:** ownership (`auth.uid() = coluna_dono`), delegação (`EXISTS delegacoes_acesso ativa`), admin (`is_admin_user`), visibilidade de referências (`is_global = true OR criado_por = auth.uid()`), invariantes de negócio no RLS (INSERT de registro exige referência ativa; DELETE de referência bloqueado com registros vinculados). (Fonte: `security/security-model.md` seção 8)
+- **Padrões transversais:** ownership (`auth.uid() = coluna_dono`), delegação (`EXISTS delegacoes_acesso ativa`), admin (`is_admin_user` ou claim JWT), visibilidade de referências (`is_global = true OR criado_por = auth.uid()`), invariantes de negócio no RLS (INSERT de registro exige referência ativa; DELETE de referência bloqueado com registros vinculados). (Fonte: `security/security-model.md` seção 8)
+- **FEAT-0017:** as 5 tabelas de sync têm somente policies `admin_select_*` (leitura por admin; escritas exclusivamente via RPCs service_role/admin). (Fonte: `database/overview.md`; `security/security-model.md` §11)
 - Matriz completa por recurso/operação: `security/security-model.md` seção 3. (Fonte: `security/security-model.md`)
 
 ### RPCs
 
-10 funções em `public`; as de negócio usam `SECURITY DEFINER` + `SET search_path TO 'public'` com verificação interna de dono/delegado/admin (ADR-0010):
+15 funções em `public` em dev; as de negócio usam `SECURITY DEFINER` + `SET search_path TO 'public'` com verificação interna de dono/delegado/admin (ADR-0010):
 
 | RPC | Papel |
 |---|---|
-| `ativar_referencia(uuid)` | reativa referência (dono/delegado/admin) |
-| `remover_ou_desativar_referencia(uuid)` | remove ou desativa (soft delete se houver registros vinculados) |
+| `ativar_referencia(uuid)` | reativa referência — global exige admin desde a ENH-0004/FEAT-0017 M1; usuário comum reativa só pessoais |
+| `remover_ou_desativar_referencia(uuid)` | remove (sem registros) ou arquiva/desativa (com registros); globais sempre arquivam (BR-037) |
 | `get_estatisticas_admin()` | agregados do painel admin |
 | `is_admin_user(uuid)` | apoio de autorização (policies + RPCs) |
 | `dashboard_hoje` / `dashboard_ultimos_dias` | RPCs órfãs — sem chamadores no código (agregação é client-side) |
+| `aplicar_sync_referencias(...)` | FEAT-0017 M4 — aplica sync em transação única; EXECUTE somente `service_role` |
+| `decidir_pendencia_referencia(...)` | FEAT-0017 M4 — curadoria de pendência (admin) |
+| `pode_operar_recuperacao(...)` | FEAT-0017 M5 — helper: admin E `usuarios.pode_recuperacao` |
+| `reverter_sync_referencias(...)` | FEAT-0017 M5 — rollback seletivo da última sync aplicada (admin E `pode_recuperacao`) |
+| `restaurar_referencias_de_backup(...)` | FEAT-0017 M5 — restauração excepcional de backup (admin E `pode_recuperacao`) |
 
-(Fonte: `database/rpc.md`; `backend/overview.md`)
+(As funções de trigger `handle_new_user`, `fn_trim_background_job_executions`, `fn_auditar_is_ativa_manual` e `fn_trim_referencia_backups` completam o inventário de 15 — Fonte: `database/rpc.md`; `backend/overview.md`)
 
 ### Triggers
 
-`trg_normalizar_nome_referencia` (lower/trim do nome), `trg_remover_favoritos_referencia_inativa` (limpa favoritos ao desativar), `trg_trim_background_job_executions` (retenção de 365 dias) e `on_auth_user_created` (cria perfil no sign-up). (Fonte: `database/triggers.md`)
+Em dev (4): `fn_trim_background_job_executions` (retenção de 365 dias de execuções de job), `trg_auditar_is_ativa_manual` (auditoria de mudança manual de `is_ativa`, FEAT-0017 M1), `trg_trim_referencia_backups` (retenção de 12 meses de backups de sync, FEAT-0017 M1) e `on_auth_user_created` (cria perfil no sign-up). Os triggers `trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` foram **eliminados na ENH-0004** (dev); prod ainda os possui até a release. (Fonte: `database/triggers.md`)
 
 ### CLI Interna
 
@@ -212,12 +225,13 @@ Apenas `delete-account` está declarada no `supabase/config.toml`; a configuraç
 
 ## Deploy
 
-- **Ambientes:** 2 bancos Supabase (development/production) com estrutura lógica idêntica; a aplicação roda na **Vercel** (SPA + cron). (Fonte: `database/overview.md` — seção "Ambientes dev × prod"; `security/secrets-and-environments.md`)
+- **Ambientes:** 2 bancos Supabase (development/production) — dev recebe as migrations primeiro; prod recebe no trem de release (estrutura diverge entre 2026-09-04 e a release; ver `database/overview.md` §Ambientes). A aplicação roda na **Vercel** (SPA + crons). (Fonte: `database/overview.md`; `security/secrets-and-environments.md`)
 - **SPA:** build `npm run build` → deploy Vercel (rewrite SPA em `vercel.json`).
-- **Cron keepalive:** `0 12 * * *` UTC aciona `/api/keepalive`, que faz ping no banco do ambiente atual (`VERCEL_ENV`) com service role e persiste a execução em `background_job_executions`. (Fonte: `backend/api-keepalive.md`; verificado em: `api/keepalive.ts`)
+- **Cron keepalive (`api/keepalive.ts`):** `0 12 * * *` UTC → pinga **dois alvos por execução**: prod (`KEEPALIVE_SUPABASE_URL`/`KEEPALIVE_SUPABASE_SERVICE_ROLE_KEY`, com fallback em `VITE_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_URL`) e dev (`KEEPALIVE_DEV_SUPABASE_URL`/`KEEPALIVE_DEV_SUPABASE_SERVICE_ROLE_KEY` — obrigatórias, sem fallback; DEBT-0006); persiste uma linha por alvo em `background_job_executions` (mesmo `run_id`). Responde `200` só se os dois alvos responderem. (Fonte: `backend/api-keepalive.md`; verificado em: `api/keepalive.ts`)
+- **Cron de sincronização (`api/referencias-sync.ts`):** `0 12 * * 1` UTC (semanal) — sincroniza o conjunto global de referências (FEAT-0017); a execução **manual** (POST, admin) também está disponível, em **dev e prod** (revisão R4-1, 2026-09-08 — antes: somente prod). A rota grava no banco do deployment em que roda — `environment` derivado de `VERCEL_ENV` via `ambienteAlvo()` (`production` → `prod`; `preview`/`vercel dev` → `dev`); o cron (GET) só dispara no deployment de produção → sempre `prod`. Envs dedicadas: `REFERENCIAS_SYNC_SUPABASE_URL`, `REFERENCIAS_SYNC_SUPABASE_SERVICE_ROLE_KEY` (credenciais service role do banco do deployment — dedicadas, obrigatórias, sem fallback), `CRON_SECRET` (Bearer do cron; a Vercel envia o header automaticamente quando a env existe) e `POWERBI_RESOURCE_KEY` (resource key pública do relatório Power BI — nunca hardcoded). (Fonte: `backend/api-referencias-sync.md`; `security/secrets-and-environments.md`)
 - **Migrations em produção:** via `scripts/apply-supabase-migrations.sh --env production` (exige digitar `PRODUCTION`). Migration/deploy em produção nunca é automático. (Fonte: `backend/cli.md`; `CLAUDE.md` seção 8)
+- **Release:** pré-requisito operacional (gate W7, ADR-0013/REF-0004): release de FEAT/ENH exige diff real de documentação — a pasta `wiki/` é atualizada pelo agente wiki-documenter (FEAT-0016) e a wiki pública é sincronizada pelo workflow `sync-wiki.yml` em push para `master` alterando `wiki/**`. (Fonte: `.ai/specs/CONVENTIONS.md` §18.9; verificado em: `.github/workflows/sync-wiki.yml`)
 - **Branch model:** work branches de `development`; releases `development → release/vX.Y.Z → master` (PR). (Fonte: `CLAUDE.md` seção 12)
-- **Wiki pública:** a pasta `wiki/` é sincronizada automaticamente para a wiki do GitHub (workflow `sync-wiki.yml` em push para `master` alterando `wiki/**`). (Verificado em: `.github/workflows/sync-wiki.yml`)
 
 ## Como contribuir
 

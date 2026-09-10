@@ -1,6 +1,6 @@
 # Testing Strategy — Estado Atual
 
-**Última verificação:** 2026-08-15 (commit 0eb2e9b) — suíte executada nesta data (3 execuções: 1 completa verde, 1 cobertura verde, 1 cobertura com falha transitória das suítes de segurança — ver seção 5).
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` com suíte real `rpc-referencias-sync-seed.test.ts`, guard `isFeat0017M6Applied`, UI de sincronização no Admin com `referencias-sync.service.test.ts` (25), `useReferenciasSyncAdmin.test.tsx` (9) e `Admin.test.tsx` (15); seção 5 reexecutada — entrada 2026-09-07 abaixo)
 
 Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM hoje. A análise de gaps e as recomendações estão no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`) — NÃO aqui.
 
@@ -25,8 +25,8 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - **Localização:** testes colocalizados ao lado do código (`X.test.ts`/`X.test.tsx` junto de `X.ts`/`X.tsx`) — sem diretório `__tests__` `[CONFIRMED: filesystem]`.
 - **Naming:** `describe("<módulo>")` + `it("descrição em pt-BR")` ("deve ...", "define erro quando ..."); cenários de segurança numerados (`AV.x`, `T1.x`, `T2.x`, `T3.x`) `[CONFIRMED: test]`.
 - **Fixtures:** dados inline nos testes; nenhuma pasta de fixtures `[CONFIRMED: ausência]`.
-- **Mocks:** `vi.mock` de módulos (services mockam o cliente supabase e fazem assertions sobre chamadas — `toHaveBeenCalledWith`); `Admin.test.tsx` mocka 5 módulos (Layout, skeletons, AuthContext, useAdmin, useBackgroundJobsAdmin); os testes de páginas criados pelo TEST-0001 seguem o mesmo padrão de mocks de hooks (e.g. `Perfil.test.tsx` mocka Layout, skeletons, AuthContext, usePerfil, supabase, react-router-dom; `Referencias.test.tsx` e `Dashboard.test.tsx` mockam os hooks e, no Dashboard, os componentes filhos e o recharts); `api/keepalive.test.ts` mocka `createClient` e `recordBackgroundJobExecution` `[CONFIRMED: test]`.
-- **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied` `[CONFIRMED: test]`.
+- **Mocks:** `vi.mock` de módulos (services mockam o cliente supabase e fazem assertions sobre chamadas — `toHaveBeenCalledWith`); `Admin.test.tsx` mocka 6 módulos (Layout, skeletons, AuthContext, useAdmin, useBackgroundJobsAdmin, useReferenciasSyncAdmin — FEAT-0017 M6); os testes de páginas criados pelo TEST-0001 seguem o mesmo padrão de mocks de hooks (e.g. `Perfil.test.tsx` mocka Layout, skeletons, AuthContext, usePerfil, supabase, react-router-dom; `Referencias.test.tsx` e `Dashboard.test.tsx` mockam os hooks e, no Dashboard, os componentes filhos e o recharts); `api/keepalive.test.ts` mocka `createClient` e `recordBackgroundJobExecution` `[CONFIRMED: test]`.
+- **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied`, `isEnh0004MigrationApplied` (condiciona T3.7 do rpc-remover às migrations ENH-0004 aplicadas no banco dev — 2026-09-04), `isFeat0017M1Applied`/`isFeat0017M4Applied`/`isFeat0017M5Applied`/`isFeat0017M6Applied` (guards das suítes de sync FEAT-0017 — as do M4/M5 sondam via `.rpc(...)` com uuid zero contra o banco dev: função presente ⇒ permissão negada; ausente ⇒ PGRST202; a do M6 sonda o CATÁLOGO `pg_proc` com conexão direta `pg` (`prosrc LIKE '%pre_sync_inativa%'` na `aplicar_sync_referencias`) — sem `SUPABASE_DATABASE_URL`/`DATABASE_URL` → false, safe default) e `isSistemaProvisionado` (sonda o ator Sistema — pré-condição das RPCs M4/M5) `[CONFIRMED: test]`.
 - **Snapshots:** nenhum identificado `[CONFIRMED: ausência]`.
 
 ## 3. Níveis de teste existentes
@@ -34,11 +34,12 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 | Nível | Arquivos | Característica |
 |---|---|---|
 | Unit (shared) | `src/shared/background-jobs.test.ts` | helper puro com client mockado |
-| Service (client-side) | 10 arquivos em `services/*.service.test.ts` | mocks do supabase; assertions de chamadas e AppError |
-| Hook | 12 arquivos em `hooks/use*.test.ts(x)` | `renderHook` (Testing Library) + mocks de services/supabase |
-| Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 72 testes (3+17+25+12+13+2) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
-| API/Serverless | `api/keepalive.test.ts` | handler Node-style com mocks; 4 cenários |
-| Security (integração real) | `src/shared/security/` — 4 suítes | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll |
+| Unit (lib frontend) | `src/react-app/lib/referencias.test.ts` (ENH-0004 + canônico revisto 2026-09-04) | helpers puros do modelo canônico de referências — `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca` (20 testes) |
+| Service (client-side) | 11 arquivos em `services/*.service.test.ts` (inclui `referencias-sync.service.test.ts`, FEAT-0017 M6 — 25 testes) | mocks do supabase; assertions de chamadas e AppError |
+| Hook | 13 arquivos em `hooks/use*.test.ts(x)` (inclui `useReferenciasSyncAdmin.test.tsx`, FEAT-0017 M6 — 9 testes) | `renderHook` (Testing Library) + mocks de services/supabase |
+| Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 84 testes (15+17+25+12+13+2 — Admin com a seção de sincronização FEAT-0017 M6) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
+| API/Serverless | `api/keepalive.test.ts`, `api/referencias-sync.test.ts` (FEAT-0017 M4) | handler Node-style com mocks (`createClient` + módulo de extração; motor M3 e validação reais na rota de sync); 4 + 13 cenários |
+| Security (integração real) | `src/shared/security/` — 8 suítes: `auth-real-validation`, `rls-usuarios`, `rpc-ativar-referencia`, `rpc-remover-referencia`, `rls-referencia-sync` (FEAT-0017 M1), `rpc-referencias-sync` (FEAT-0017 M4), `rpc-referencias-sync-rollback` (FEAT-0017 M5), `rpc-referencias-sync-seed` (FEAT-0017 M6 — seed `pre_sync_inativa`, 6 testes) | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll; **execução serial global** (`fileParallelism: false` — banco dev compartilhado; ver seção 5, entrada 2026-09-06) |
 | E2E | **NÃO identificado** `[CONFIRMED: ausência]` | — |
 | Smoke | **NÃO identificado** `[CONFIRMED: ausência]` | — |
 
@@ -47,11 +48,28 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - `auth-real-validation.test.ts` (AV.1–AV.7): criação de usuário de teste, autenticação email/senha, cliente anon bloqueado por RLS, visibilidade da própria role, admin vê todos, usuário comum não vê terceiros.
 - `rls-usuarios.test.ts` (T1.0–T1.4): políticas de `usuarios` — incluindo T1.0 (detecção legada de `debug_allow_all`, "sempre passa").
 - `rpc-ativar-referencia.test.ts` (T2.0–T2.5): autorização de `ativar_referencia` (dono, delegado, admin, não autorizado, inexistente; T2.0 legado).
-- `rpc-remover-referencia.test.ts` (T3.0–T3.8): autorização de `remover_ou_desativar_referencia` (dono, delegado, admin, global, vínculo soft-delete, inexistente; T3.0 legado).
-- **Skip condicional:** as 4 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente) `[CONFIRMED: test]`.
+- `rpc-remover-referencia.test.ts` (T3.0–T3.8): autorização de `remover_ou_desativar_referencia` (dono, delegado, admin, global, vínculo soft-delete, inexistente; T3.0 legado). **T3.7 (ENH-0004):** remoção de referência GLOBAL por admin sempre arquiva (`'deactivated'`, linha permanece com `is_ativa = false`) — condicionado a `isEnh0004MigrationApplied` (migrations ENH-0004 aplicadas em dev) `[CONFIRMED: test]`.
+- `rls-referencia-sync.test.ts` (FEAT-0017 M1, guard `isFeat0017M1Applied`): RLS das tabelas de sync — anon/authenticated sem INSERT/UPDATE/DELETE; SELECT admin-only.
+- `rpc-referencias-sync.test.ts` (FEAT-0017 M4, guards `isFeat0017M4Applied`/`isSistemaProvisionado`): aplicar exclusivo service_role (authenticated → permissão negada; rollback total em 23505/estado mudado; `criado_por` = Sistema); decidir exclusivo admin com sessão (service_role → permissão negada; aprovar os 3 tipos com GUC D-7; rejeitar com/sem motivo; terminais; sync running).
+- `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5, 17 testes, guards `isFeat0017M5Applied`/`isSistemaProvisionado`): reverter (11) — permissões (admin sem flag, não-admin, service_role), guarda de execução por environment, status restritos, no-op, preservação de alterações posteriores (skip), colisão 23505 → skip por op, pendências → `cancelled`, status → `reverted`; restaurar (6) — permissões, backup inexistente, integridade sha256 (conteúdo corrompido), conflito de identidade aborta a transação, happy path DENTRO de transação PG real (forge de `request.jwt.claims` + ROLLBACK — zero persistência; timeout de 120s no teste) `[CONFIRMED: test]`.
+- `rpc-referencias-sync-seed.test.ts` (FEAT-0017 M6, 6 testes, guard `isFeat0017M6Applied`): bootstrap com global inativa legada → 1 evento `pre_sync_inativa` por inativa (actor NULL, sync da 1ª sync); inativa QUE JÁ TEM evento → sem seed (histórico honesto preservado); NÃO-bootstrap (`pos_bootstrap`) → sem seed; plano sem `modo` (contrato antigo) → sem seed (default seguro); idempotência — 2ª aplicação bootstrap não duplica eventos; seed é INSERT de evento e não dispara o trigger `is_ativa_manual` `[CONFIRMED: test]`.
+- **Skip condicional:** as 8 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente); as suítes de sync exigem ainda os guards de migration correspondentes (M1/M4/M5/M6 + ator Sistema) `[CONFIRMED: test]`.
 - Pré-condição: `isSecurityMigrationApplied()` (exige `admin_can_select_all_usuarios` em pg_policies) `[CONFIRMED: test]`.
 
 ## 5. Resultados observados
+
+**2026-09-07 (FEAT-0017 M6):**
+- Suítes de segurança agora são **8** (M6 adicionou `rpc-referencias-sync-seed`); guard novo `isFeat0017M6Applied` em `test-helpers.ts` — sonda o catálogo `pg_proc` por conexão direta (`prosrc` da `aplicar_sync_referencias` contém `pre_sync_inativa`), sem `SUPABASE_DATABASE_URL` → false (seção 4).
+- `rpc-referencias-sync-seed.test.ts`: **6/6 verdes** contra o banco dev com a migration `20260907000000` aplicada (seed dentro do happy path de bootstrap com ROLLBACK/limpeza).
+- UI do Admin (M6): `referencias-sync.service.test.ts` **25/25**, `useReferenciasSyncAdmin.test.tsx` **9/9**, `Admin.test.tsx` **15/15** (seção de sincronização: matching, ausência do botão manual em dev, aba de recuperação só com permissão, histórico + detalhes, ponte divergências→pendências, rejeição com motivo obrigatório, aprovação sem motivo, confirmação forte REVERTER/RESTAURAR) — `vi.spyOn(window, "confirm"/"prompt")` para os diálogos nativos (jsdom não os implementa).
+- Suite completa pós-M6 (`npm run test:run`, serial, 2026-09-07): **61 arquivos / 618 testes — todos verdes** em 248.0s (+3 arquivos/+49 testes sobre o pós-M5); `npm run build` (`tsc -b` + `vite build`) e eslint dos 7 arquivos tocados também verdes.
+
+**2026-09-06 (FEAT-0017 M4/M5):**
+- Suítes de segurança agora são **7** (M1/M4/M5 adicionaram `rls-referencia-sync`, `rpc-referencias-sync`, `rpc-referencias-sync-rollback`); os guards de migration correspondentes vivem em `test-helpers.ts` (seção 4).
+- `rpc-referencias-sync-rollback.test.ts` (M5): **17/17 verdes** — suíte isolada em ~51.8s (o happy path da restauração reescreve o catálogo global real dentro de transação PG + ROLLBACK; ver guarda serial abaixo).
+- **Execução serial global** (`fileParallelism: false` em `vitest.config.ts`): as suítes reais compartilham o banco dev e a restauração toca o catálogo global de `referencias` — paralelismo entre arquivos reintroduziria a classe de não-determinismo registrada em 2026-08-15 (execução 3) e 2026-08-13 (Fase 6); serial elimina o mecanismo na raiz.
+- Suite completa pós-M5 (`npm run test:run`, serial, 2026-09-06): **58 arquivos / 569 testes — todos verdes** em 239.5s (a suíte M5 levou 57.2s dentro da rodada completa; `tsc -b && vite build` e eslint também verdes).
+- Descoberta de ambiente: dentro de SECURITY DEFINER com `search_path = public`, `digest` da pgcrypto NÃO resolve (pgcrypto vive no schema `extensions`) — a migration M5 usa `extensions.digest(...)`; documentado nas specs ([../database/rpc.md](../database/rpc.md)).
 
 **2026-08-15 (pós-TEST-0001):**
 - **34 arquivos de teste, 197 testes.**
@@ -97,7 +115,7 @@ Notas factuais sobre a medição:
 - Edge functions (`delegar-acesso`, `delete-account`) sem testes.
 - CLI e script de migrations sem testes.
 - Políticas RLS de `registros`, `exames_pku`, `referencias_favoritas` e `delegacoes_acesso` sem suítes de segurança próprias (as 4 suítes cobrem `usuarios` + 2 RPCs).
-- Triggers do banco (normalização de nome, retenção 365d, limpeza de favoritos) sem teste direto.
+- Trigger restante do banco (retenção 365d de `background_job_executions`) sem teste direto — os triggers de normalização de nome e de limpeza de favoritos foram ELIMINADOS na ENH-0004 (2026-09-04, dev); ver [../database/triggers.md](../database/triggers.md).
 - Testes de segurança dependem do banco development real (dados de teste criados/limpos; estado compartilhado com desenvolvimento).
 
 ## 8. Relação Spec × Test (mecanismo existente)

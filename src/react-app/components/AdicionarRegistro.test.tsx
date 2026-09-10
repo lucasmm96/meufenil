@@ -260,7 +260,8 @@ describe("AdicionarRegistro component", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith("Pera", 20);
+      // ENH-0004: create(nome, marca, fenil) — marca vazia = canônica.
+      expect(create).toHaveBeenCalledWith("Pera", "", 20);
       expect(screen.queryByText("Nova Referência")).toBeNull();
     });
     expect(search).toHaveBeenCalledWith("");

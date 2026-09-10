@@ -281,7 +281,6 @@ export async function createTestReference(
       criado_por: ownerId,
       is_global: overrides.is_global ?? false,
       is_ativa: overrides.is_ativa ?? true,
-      nome_normalizado: nome.toLowerCase(),
     })
     .select()
     .single();
@@ -444,6 +443,164 @@ export async function isSecurityMigrationApplied(): Promise<boolean> {
         await admin.auth.admin.deleteUser(tempUserId);
       } catch { /* ok */ }
     }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se a migration ENH-0004 (20260904000000 — coluna `marca` + modelo
+ * canônico) está aplicada no banco de desenvolvimento. Sem efeitos colaterais:
+ * um SELECT pela coluna `marca` falha (PGRST204) no schema antigo e sucede no
+ * novo. Requer service role (getAdminClient) — sem credenciais, false.
+ */
+export async function isEnh0004MigrationApplied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin
+      .from("referencias")
+      .select("id, marca")
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se o M1 da FEAT-0017 (migrations 20260905xxxxxx — tabelas de
+ * sincronização, auditoria de `is_ativa` e endurecimento de
+ * `ativar_referencia`) está aplicado no banco de desenvolvimento. Sem efeitos
+ * colaterais: um SELECT na tabela `referencia_syncs` falha (PGRST204) no
+ * schema antigo e sucede no novo. Requer service role (getAdminClient) — sem
+ * credenciais, false.
+ */
+export async function isFeat0017M1Applied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin
+      .from("referencia_syncs")
+      .select("id")
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se o M4 da FEAT-0017 (migration 20260906000000 — RPCs
+ * `aplicar_sync_referencias`/`decidir_pendencia_referencia`) está aplicado no
+ * banco de desenvolvimento. Detecção comportamental: a RPC existe quando a
+ * chamada service_role com sync inexistente devolve erro de negócio ("Sync
+ * não encontrada"); no schema antigo o PostgREST devolve PGRST202 ("Could not
+ * find the function..."). Requer service role — sem credenciais, false.
+ */
+export async function isFeat0017M4Applied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin.rpc("aplicar_sync_referencias", {
+      p_sync_id: "00000000-0000-0000-0000-000000000000",
+      p_plano: { versao: "1" },
+    });
+
+    if (!error) return true; // função existe (resumo de sync inexistente não chega)
+    return !/Could not find the function/i.test(error.message);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se a migration M5 da FEAT-0017 (20260906010000 — coluna
+ * `usuarios.pode_recuperacao`, helper `pode_operar_recuperacao` e RPCs
+ * `reverter_sync_referencias`/`restaurar_referencias_de_backup`) está aplicada
+ * no banco de desenvolvimento. Mesmo probe do isFeat0017M4Applied: chamada
+ * service_role de RPC inexistente devolve PGRST202 ("Could not find the
+ * function..."); as RPCs do M5 concedem EXECUTE apenas a authenticated
+ * (decisão de grants) → service_role recebe "permission denied" quando a
+ * função existe. Requer service role — sem credenciais, false.
+ */
+export async function isFeat0017M5Applied(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { error } = await admin.rpc("reverter_sync_referencias", {
+      p_sync_id: "00000000-0000-0000-0000-000000000000",
+    });
+
+    // Com a função presente o erro é de permissão ("permission denied for
+    // function..."), não PGRST202 — a existência está confirmada.
+    return !error || !/Could not find the function/i.test(error.message);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se o M6 da FEAT-0017 (migration 20260907000000 — seed
+ * `pre_sync_inativa` dentro de `aplicar_sync_referencias`, passo 7
+ * condicionado a p_plano.modo = 'bootstrap') está aplicado no banco de
+ * desenvolvimento. Detecção determinística via catálogo: o corpo da função
+ * contém o passo de seed (INSERT de eventos `pre_sync_inativa`) somente na
+ * versão do M6. Requer conexão direta (SUPABASE_DATABASE_URL/DATABASE_URL,
+ * carregada do .env.development) — sem ela, false (safe default, como os
+ * demais guards).
+ */
+export async function isFeat0017M6Applied(): Promise<boolean> {
+  const databaseUrl =
+    process.env.SUPABASE_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.SUPABASE_DB_URL;
+
+  if (!databaseUrl) {
+    return false;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pgModule: any = await import("pg");
+    const client = new pgModule.Client({
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    try {
+      await client.connect();
+      const { rows } = await client.query(`
+        SELECT prosrc LIKE '%pre_sync_inativa%' AS seeded
+        FROM pg_proc
+        WHERE proname = 'aplicar_sync_referencias'
+          AND pronamespace = 'public'::regnamespace
+        LIMIT 1
+      `);
+      const result = (rows[0] as Record<string, unknown> | undefined)?.seeded === true;
+      await client.end();
+      return result;
+    } catch {
+      try { await client.end(); } catch { /* ok */ }
+      return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta se o ator Sistema (FEAT-0017 B5/§12 — email fixo
+ * `sistema@meufenil.local` em `usuarios`, conta banida sem sessão) está
+ * provisionado no banco de desenvolvimento — pré-requisito das RPCs do M4
+ * quando o plano cria linhas (fail-high). Requer service role — sem
+ * credenciais, false.
+ */
+export async function isSistemaProvisionado(): Promise<boolean> {
+  try {
+    const admin = getAdminClient();
+    const { data, error } = await admin
+      .from("usuarios")
+      .select("id")
+      .eq("email", "sistema@meufenil.local")
+      .maybeSingle();
+    return !error && !!data;
   } catch {
     return false;
   }

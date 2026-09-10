@@ -124,11 +124,12 @@ describe("useReferencias", () => {
 
     let response;
     await act(async () => {
-      response = await result.current.create("Batata", 30);
+      response = await result.current.create("Batata", undefined, 30);
     });
 
     expect(mockedCreateReferencia).toHaveBeenCalledWith({
       nome: "Batata",
+      marca: undefined,
       fenil_mg_por_100g: 30,
       usuarioId,
     });
@@ -153,7 +154,7 @@ describe("useReferencias", () => {
 
     await act(async () => {
       try {
-        await result.current.create("Erro", 999);
+        await result.current.create("Erro", undefined, 999);
       } catch (err) {
         thrownError = err;
       }
