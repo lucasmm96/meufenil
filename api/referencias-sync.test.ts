@@ -48,6 +48,14 @@ const EXTRACAO_INVALIDA = [
   { "Nome do Produto": null, "Marca do Produto": "Marca A", NU_MAX_AMINOACIDO: 8 },
 ];
 
+/** Artefato da API Power BI (linha 1 real: nome=null, marca=null, fenil presente)
+ *  precedendo dados válidos — o filtro da rota deve removê-la antes da validação.
+ */
+const EXTRACAO_COM_ARTEFATO = [
+  { "Nome do Produto": null, "Marca do Produto": null, NU_MAX_AMINOACIDO: 239 },
+  ...EXTRACAO_VALIDA,
+];
+
 /**
  * Resumo que a RPC devolveria para o plano bootstrap da `EXTRACAO_VALIDA`
  * sobre catálogo vazio: nada criado/arquivado, 2 pendências new_item.
@@ -398,6 +406,43 @@ describe("referencias-sync handler", () => {
     expect(mock.chamadas.filter((c) => c.tabela === "rpc:aplicar_sync_referencias")).toHaveLength(1);
   });
 
+  it("artefato API (linha 1 nome=null) filtrado antes da validação → sync procede como se 2 linhas válidas", async () => {
+    setAmbiente();
+    // Extraction devolve artefato (nome=null) + 2 linhas válidas (total bruto: 3).
+    extractMock.mockResolvedValue({
+      rows: EXTRACAO_COM_ARTEFATO,
+      patchAplicado: true,
+      contagem: EXTRACAO_COM_ARTEFATO.length,
+    });
+
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    // Artefato filtrado → validação passa → sync NÃO aborta com origin_invalid.
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "pending_review" });
+
+    const chamadasSyncs = mock.chamadas.filter((c) => c.tabela === "referencia_syncs");
+    const final = chamadasSyncs.find((c) => c.operacao === "update" && c !== chamadasSyncs[0]);
+
+    // total_origem reflete as linhas APÓS o filtro (2), não o bruto da API (3).
+    expect(final?.argumentos[0]).toMatchObject({ total_origem: 2 });
+
+    // Snapshot foi criado com as linhas filtradas (2 linhas = EXTRACAO_VALIDA).
+    const shaEsperado = createHash("sha256")
+      .update(JSON.stringify(EXTRACAO_VALIDA))
+      .digest("hex");
+    const snapshot = mock.chamadas.find(
+      (c) => c.tabela === "referencia_snapshots" && c.operacao === "insert"
+    );
+    expect(snapshot?.argumentos[0]).toMatchObject({ payload_sha256: shaEsperado, contagem: 2 });
+  });
+
   it("pos_bootstrap (histórico com success) → aplicação automática → success", async () => {
     setAmbiente();
     extractMock.mockResolvedValue({
@@ -720,7 +765,9 @@ describe("referencias-sync handler", () => {
     expect(updatesSync[1].argumentos[0]).toMatchObject({
       status: "origin_invalid",
       total_origem: null,
-      message: expect.stringContaining("nome nulo"),
+      // A linha null-nome é filtrada antes da validação → o check que dispara é
+      // "0 linhas", não "nome nulo".
+      message: expect.stringContaining("sem linhas"),
     });
 
     expect(
@@ -738,7 +785,7 @@ describe("referencias-sync handler", () => {
     ]);
     expect(eventos[2].argumentos[0]).toMatchObject({
       tipo: "validation",
-      detalhes: { valida: false, motivo: expect.stringContaining("nome nulo") },
+      detalhes: { valida: false, motivo: expect.stringContaining("sem linhas") },
     });
   });
 

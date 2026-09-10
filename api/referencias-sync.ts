@@ -535,6 +535,11 @@ async function executarSync(
       detalhesEstagios
     );
 
+    // Pré-processamento: remove artefatos de API com nome nulo (linha 1 da
+    // amostra real — nome=null + fenil presente; §6.3 documenta o padrão).
+    // O validator permanece estrito para as demais linhas.
+    rows = rows.filter((row) => row["Nome do Produto"] != null);
+
     // Estágio 3 — validação (§6.3): abort imediato na 1ª anomalia; origem
     // inválida termina a sync SEM snapshot/backup (B9).
     let validacao: ValidacaoExtracao | null = null;
