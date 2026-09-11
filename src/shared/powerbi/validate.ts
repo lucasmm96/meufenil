@@ -74,12 +74,16 @@ function chaveMarca(marca: string): string {
 }
 
 function fenilNumerico(valor: unknown): number | null {
-  if (typeof valor === "number" && Number.isInteger(valor)) {
-    return valor;
+  if (typeof valor === "number") {
+    return Number.isFinite(valor) ? valor : null;
   }
 
-  if (typeof valor === "string" && /^\d+$/.test(valor.trim())) {
-    return Number.parseInt(valor, 10);
+  if (typeof valor === "string") {
+    const trimmed = valor.trim();
+    // Aceita ponto ou vírgula como separador decimal (ex: "5.4" ou "5,4").
+    if (/^-?\d+([.,]\d+)?$/.test(trimmed)) {
+      return Number(trimmed.replace(",", "."));
+    }
   }
 
   return null;
@@ -192,7 +196,7 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
       rejeitadas.push({
         linha: numeroLinha,
         nome: nome.trim(),
-        motivo: `NU_MAX_AMINOACIDO não é inteiro (${String(fenil)})`,
+        motivo: `NU_MAX_AMINOACIDO não é numérico (${String(fenil)})`,
       });
       continue;
     }

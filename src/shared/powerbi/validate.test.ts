@@ -123,22 +123,20 @@ describe("validarExtracao", () => {
     expect(validacao.rowsValidas).toEqual([linha("Arroz", "", 8)]);
   });
 
-  it("fenil string numérica é aceita; string não numérica → rejeitada", () => {
-    const comString = validarExtracao([linha("Arroz", "Marca A", "239")]);
-    expect(comString.valida).toBe(true);
-    expect(comString.quantidade.total).toBe(1);
-
-    const naoNumerica = validarExtracao([linha("Arroz", "Marca A", "abc")]);
-    expect(naoNumerica.valida).toBe(false);
-    expect(naoNumerica.motivo).toMatch(/Origem sem linhas válidas/);
-    expect(naoNumerica.rejeitadas[0].motivo).toMatch(/não é inteiro/);
+  it("fenil decimal é aceito (5.4, 1.5, 0.1); string numérica com ponto ou vírgula também", () => {
+    expect(validarExtracao([linha("Arroz", "Marca A", 5.4)]).valida).toBe(true);
+    expect(validarExtracao([linha("Arroz", "Marca A", 1.5)]).valida).toBe(true);
+    expect(validarExtracao([linha("Arroz", "Marca A", "5.4")]).valida).toBe(true);
+    expect(validarExtracao([linha("Arroz", "Marca A", "5,4")]).valida).toBe(true);
+    expect(validarExtracao([linha("Arroz", "Marca A", "239")]).valida).toBe(true);
   });
 
-  it("fenil decimal → rejeitada (não é inteiro)", () => {
-    const validacao = validarExtracao([linha("Arroz", "Marca A", 1.5)]);
+  it("fenil string não numérica → rejeitada", () => {
+    const naoNumerica = validarExtracao([linha("Arroz", "Marca A", "abc")]);
 
-    expect(validacao.valida).toBe(false);
-    expect(validacao.rejeitadas[0].motivo).toMatch(/não é inteiro/);
+    expect(naoNumerica.valida).toBe(false);
+    expect(naoNumerica.motivo).toMatch(/Origem sem linhas válidas/);
+    expect(naoNumerica.rejeitadas[0].motivo).toMatch(/não é numérico/);
   });
 
   it("fenil nulo → rejeitada", () => {
@@ -152,21 +150,24 @@ describe("validarExtracao", () => {
     });
   });
 
-  it("limites da faixa: 0 e 2040 válidos; −1 e 2041 rejeitados", () => {
+  it("limites da faixa: 0, 0.5 e 2039.9 válidos; −0.1 e 2040.1 rejeitados; motivo inclui valor e faixa", () => {
     expect(validarExtracao([linha("A", null, 0)]).valida).toBe(true);
+    expect(validarExtracao([linha("A", null, 0.5)]).valida).toBe(true);
     expect(validarExtracao([linha("A", null, 2040)]).valida).toBe(true);
+    expect(validarExtracao([linha("A", null, 2039.9)]).valida).toBe(true);
 
-    const abaixo = validarExtracao([linha("A", null, -1)]);
+    const abaixo = validarExtracao([linha("A", null, -0.1)]);
     expect(abaixo.valida).toBe(false);
     expect(abaixo.rejeitadas[0].motivo).toMatch(/fora da faixa 0–2040/);
+    expect(abaixo.rejeitadas[0].nome).toBe("A");
 
-    const acima = validarExtracao([linha("A", null, 2041)]);
+    const acima = validarExtracao([linha("A", null, 2040.1)]);
     expect(acima.valida).toBe(false);
     expect(acima.rejeitadas[0].motivo).toMatch(/fora da faixa 0–2040/);
   });
 
   it("todas as linhas rejeitadas → inválida, com a contagem bruta no motivo", () => {
-    const validacao = validarExtracao([linha(null, "Marca A", 8), linha("Arroz", "Marca A", 9.5)]);
+    const validacao = validarExtracao([linha(null, "Marca A", 8), linha("Arroz", "Marca A", 9999)]);
 
     expect(validacao.valida).toBe(false);
     expect(validacao.motivo).toMatch(/\(2 brutas, 2 rejeitadas\)/);
