@@ -64,6 +64,9 @@ type SyncEventoTipo =
 
 type DetalhesEvento = Record<string, unknown>;
 
+/** Teto de rejeições individuais gravadas no evento (o total vai em `contagem`). */
+const MAX_REJEITADAS_REPORTADAS = 100;
+
 // Linhas do estado consultado no estágio 6 (service_role; shape do PostgREST —
 // a rota não usa os tipos gerados do Supabase, tipa o contrato que consome).
 type LinhaGlobalAtiva = {
@@ -535,13 +538,10 @@ async function executarSync(
       detalhesEstagios
     );
 
-    // Pré-processamento: remove artefatos de API com nome nulo (linha 1 da
-    // amostra real — nome=null + fenil presente; §6.3 documenta o padrão).
-    // O validator permanece estrito para as demais linhas.
-    rows = rows.filter((row) => row["Nome do Produto"] != null);
-
-    // Estágio 3 — validação (§6.3): abort imediato na 1ª anomalia; origem
-    // inválida termina a sync SEM snapshot/backup (B9).
+    // Estágio 3 — validação: estrutura e duplicidade conflitante abortam a
+    // sync; anomalias de campo/tipo rejeitam a linha individualmente
+    // (reportadas no evento) e só abortam se não restar nenhuma válida.
+    // Origem inválida termina a sync SEM snapshot/backup (B9).
     let validacao: ValidacaoExtracao | null = null;
 
     await executarEstagio(
@@ -558,6 +558,8 @@ async function executarSync(
           colunas: validacao.colunas,
           quantidade: validacao.quantidade,
           contagem: validacao.contagem,
+          rejeitadas: validacao.rejeitadas.slice(0, MAX_REJEITADAS_REPORTADAS),
+          rejeitadas_truncadas: validacao.rejeitadas.length > MAX_REJEITADAS_REPORTADAS,
         };
       },
       detalhesEstagios
@@ -580,6 +582,10 @@ async function executarSync(
       responder(res, 200, { sync_id: syncId, status: "origin_invalid" });
       return;
     }
+
+    // Pipeline segue só com as linhas válidas e normalizadas (marca nula já
+    // virou string vazia) — rejeições individuais não abortam a sync.
+    rows = validacao.rowsValidas;
 
     // Estágio 4 — snapshot do payload decodificado exato da origem (B3).
     const payloadSnapshot = JSON.stringify(rows);
@@ -724,7 +730,13 @@ async function executarSync(
     const statusFinal: StatusFinalSync =
       divergencias > 0 ? "pending_review" : "success";
 
-    const mensagemFinal =
+    const rejeitadasOrigem = validacao.rejeitadas.length;
+    const sufixoRejeicoes =
+      rejeitadasOrigem > 0
+        ? ` ${rejeitadasOrigem} linha(s) da origem rejeitada(s) por dado inválido.`
+        : "";
+
+    const mensagemBase =
       statusFinal === "success"
         ? `Sincronização concluída: ${resumoAplicacao?.equivalentes ?? 0} equivalentes, ` +
           `${resumoAplicacao?.criadas ?? 0} criadas, ${resumoAplicacao?.arquivadas ?? 0} arquivadas, ` +
@@ -732,6 +744,8 @@ async function executarSync(
         : `Sincronização concluída com ${divergencias} divergência(s) pendente(s) de curadoria: ` +
           `${resumoAplicacao?.equivalentes ?? 0} equivalentes, ` +
           `${resumoAplicacao?.criadas ?? 0} criadas, ${resumoAplicacao?.arquivadas ?? 0} arquivadas.`;
+
+    const mensagemFinal = mensagemBase + sufixoRejeicoes;
 
     await concluirSync(
       supabase,
@@ -745,8 +759,8 @@ async function executarSync(
 
     console.info(
       `[referencias-sync] ${triggerSource} sync ${syncId} ok em ` +
-        `${Date.now() - inicioRun}ms (${contagemOrigem} linhas, modo ${modo}, ` +
-        `status ${statusFinal}, ${divergencias} divergências)`
+        `${Date.now() - inicioRun}ms (${contagemOrigem} linhas, ${rejeitadasOrigem} rejeitadas, ` +
+        `modo ${modo}, status ${statusFinal}, ${divergencias} divergências)`
     );
 
     responder(res, 200, { sync_id: syncId, status: statusFinal });

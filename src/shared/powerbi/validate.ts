@@ -1,22 +1,24 @@
 /**
- * Validação da extração (FEAT-0017 B9; design §6.3) — abort imediato na 1ª
- * anomalia, sem retry. Ordem dos checks:
+ * Validação da extração (FEAT-0017 B9).
  *
- * 1. Estrutura: matriz decodificada com EXATAMENTE as 3 colunas do relatório
- *    (coluna extra/faltante = estrutura inesperada); decode já garante
- *    ≤ 32 colunas e alinhamento máscara↔cursor (decode.ts).
- * 2. Quantidade: 0 linhas aborta SEMPRE; variação vs. linha de base fica
- *    INFORMATIVA até a 1ª extração real calibrar as margens (R5) — registra,
- *    não aborta.
- * 3. Campos/tipos: nome não vazio (nulo aborta); marca string (nulo é
- *    tolerado → equivalente a ''); NU_MAX_AMINOACIDO inteiro 0–2040 (nulo
- *    ou fora da faixa aborta — dado suspeito não arrisca catálogo).
- *    Registro: se a 1ª linha de dados vier com nomes nulos + valor, o flag
- *    `linha1Anomala` entra no resultado (design §4.2/§6.3 — o abort ocorre
- *    pelo nome nulo).
- * 4. Duplicidades: exata (nome+marca+fenil) → contada, dedupe é da
- *    comparação (M3); CONFLITANTE (mesmo nome+marca com fenil diferente) →
- *    invalida a sync (D-10), nada é aplicado.
+ * Revisão de 2026-09-11: o design original previa abort na 1ª anomalia. A
+ * origem real traz artefatos e linhas com campos inválidos que não justificam
+ * perder o sync inteiro — anomalias de campo/tipo passam a ser rejeição
+ * individual, reportada ao usuário. Comportamento vigente em
+ * `.ai/specs/current/backend/api-referencias-sync.md` (estágio 3) e
+ * `current/domain/business-rules.md` (BR-039, BR-044).
+ *
+ * Checks em ordem:
+ * 1. Estrutura: conjunto exato de colunas (abort).
+ * 2. Quantidade bruta: 0 linhas aborta sempre (abort).
+ * 3. Campo/tipo por linha: rejeição INDIVIDUAL — o sync continua com as
+ *    linhas restantes; só aborta se não restar nenhuma linha válida.
+ *    - Nome nulo/vazio → rejeita (reporta ao usuário).
+ *    - NU_MAX_AMINOACIDO nulo, não-inteiro ou fora de 0–2040 → rejeita.
+ *    - Marca nula → normaliza para "" (produto sem marca declarada).
+ *    - Marca não-string → rejeita.
+ * 4. Duplicidades sobre linhas válidas: exatas contadas; conflitantes
+ *    invalidam o sync inteiro (D-10).
  *
  * Normalização de chave aqui é espelho local da identidade canônica do banco
  * (lower/trim — ENH-0004); o módulo canônico completo vive no motor (M3).
@@ -32,9 +34,17 @@ export type ResultadoQuantidade = {
   status: "informativa";
 };
 
+export type RowRejeitada = {
+  /** 1-based. */
+  linha: number;
+  /** Nome do produto se disponível na linha bruta; null quando o próprio nome é inválido. */
+  nome: string | null;
+  motivo: string;
+};
+
 export type ValidacaoExtracao = {
   valida: boolean;
-  /** Primeira anomalia (ordem §6.3); null quando valida. */
+  /** Motivo de abort total (estrutura, 0 linhas válidas, conflito); null quando valida. */
   motivo: string | null;
   colunas: { esperadas: string[]; encontradas: string[] };
   quantidade: ResultadoQuantidade;
@@ -43,7 +53,16 @@ export type ValidacaoExtracao = {
     conflitantes: number;
     marcaNulas: number;
     linha1Anomala: boolean;
+    /** Linhas rejeitadas individualmente no check 3. */
+    rejeitadas: number;
   };
+  /** Linhas rejeitadas individualmente (reportadas ao usuário). */
+  rejeitadas: RowRejeitada[];
+  /**
+   * Linhas válidas e normalizadas (null marca → ""), prontas para snapshot e
+   * inserção. Vazio quando `valida` é false.
+   */
+  rowsValidas: LinhaOrigem[];
 };
 
 function chaveNome(nome: string): string {
@@ -81,7 +100,10 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
       conflitantes: 0,
       marcaNulas: 0,
       linha1Anomala: false,
+      rejeitadas: 0,
     },
+    rejeitadas: [],
+    rowsValidas: [],
   };
 
   // Check 1 — estrutura: conjunto exato de colunas (B9).
@@ -98,7 +120,7 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
     };
   }
 
-  // Check 2 — quantidade: 0 linhas aborta sempre; margem informativa (R5).
+  // Check 2 — quantidade bruta: 0 linhas aborta sempre.
   if (rows.length === 0) {
     return {
       ...base,
@@ -107,14 +129,20 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
     };
   }
 
-  // Linha 1 anômala da amostra: nomes nulos + valor presente. Se reaparecer,
-  // o abort ocorre pelo check 3 (nome nulo); o flag documenta a forma.
+  // Linha 1 anômala da amostra real: nome=null + fenil presente (artefato API).
   const primeira = rows[0];
   const primeiraAnomala =
     primeira["Nome do Produto"] == null &&
     fenilNumerico(primeira["NU_MAX_AMINOACIDO"]) !== null;
 
-  // Check 3 — campos/tipos por linha de dados (1-based).
+  // Check 3 — campos/tipos: rejeição INDIVIDUAL (não aborta o sync).
+  // Linhas inválidas entram em `rejeitadas`; o sync continua com `rowsValidas`.
+  const rowsValidas: LinhaOrigem[] = [];
+  // Linha original (1-based) de cada entrada de rowsValidas — as rejeições
+  // deslocam os índices, então a posição no array não serve como número de linha.
+  const linhasValidas: number[] = [];
+  const rejeitadas: RowRejeitada[] = [];
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const numeroLinha = i + 1;
@@ -123,68 +151,90 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
     const fenil = row["NU_MAX_AMINOACIDO"];
 
     if (nome == null || (typeof nome === "string" && nome.trim() === "")) {
-      return {
-        ...base,
-        valida: false,
-        motivo: `Linha de dados ${numeroLinha}: nome nulo ou vazio.`,
-        contagem: { ...base.contagem, linha1Anomala: i === 0 && primeiraAnomala },
-      };
+      if (i === 0 && primeiraAnomala) base.contagem.linha1Anomala = true;
+      rejeitadas.push({ linha: numeroLinha, nome: null, motivo: "nome nulo ou vazio" });
+      continue;
     }
 
     if (typeof nome !== "string") {
-      return {
-        ...base,
-        valida: false,
-        motivo: `Linha de dados ${numeroLinha}: nome não é texto (${typeof nome}).`,
-      };
+      rejeitadas.push({
+        linha: numeroLinha,
+        nome: null,
+        motivo: `nome não é texto (${typeof nome})`,
+      });
+      continue;
     }
 
+    // Marca nula: produto sem marca declarada — normaliza para "" (ponto 2 B9).
     if (marca == null) {
       base.contagem.marcaNulas++;
     } else if (typeof marca !== "string") {
-      return {
-        ...base,
-        valida: false,
-        motivo: `Linha de dados ${numeroLinha}: marca não é texto nem nula (${typeof marca}).`,
-      };
+      rejeitadas.push({
+        linha: numeroLinha,
+        nome: nome.trim(),
+        motivo: `marca não é texto nem nula (${typeof marca})`,
+      });
+      continue;
+    }
+
+    if (fenil == null) {
+      rejeitadas.push({
+        linha: numeroLinha,
+        nome: nome.trim(),
+        motivo: "NU_MAX_AMINOACIDO nulo",
+      });
+      continue;
     }
 
     const fenilNumero = fenilNumerico(fenil);
 
-    if (fenil == null) {
-      return {
-        ...base,
-        valida: false,
-        contagem: { ...base.contagem, linha1Anomala: i === 0 && primeiraAnomala },
-        motivo: `Linha de dados ${numeroLinha}: NU_MAX_AMINOACIDO nulo.`,
-      };
-    }
-
     if (fenilNumero === null) {
-      return {
-        ...base,
-        valida: false,
-        motivo: `Linha de dados ${numeroLinha}: NU_MAX_AMINOACIDO não é inteiro (${String(fenil)}).`,
-      };
+      rejeitadas.push({
+        linha: numeroLinha,
+        nome: nome.trim(),
+        motivo: `NU_MAX_AMINOACIDO não é inteiro (${String(fenil)})`,
+      });
+      continue;
     }
 
     if (fenilNumero < FENIL_MIN || fenilNumero > FENIL_MAX) {
-      return {
-        ...base,
-        valida: false,
+      rejeitadas.push({
+        linha: numeroLinha,
+        nome: nome.trim(),
         motivo:
-          `Linha de dados ${numeroLinha}: NU_MAX_AMINOACIDO ${fenilNumero} fora da faixa ` +
-          `${FENIL_MIN}–${FENIL_MAX}.`,
-      };
+          `NU_MAX_AMINOACIDO ${fenilNumero} fora da faixa ` +
+          `${FENIL_MIN}–${FENIL_MAX}`,
+      });
+      continue;
     }
+
+    // Linha válida: normaliza null marca → "" e inclui nas válidas.
+    rowsValidas.push({
+      ...row,
+      "Marca do Produto": marca == null ? "" : marca,
+    });
+    linhasValidas.push(numeroLinha);
   }
 
-  // Check 4 — duplicidades: exatas contadas; conflitantes invalidam (D-10).
+  base.contagem.rejeitadas = rejeitadas.length;
+  base.rejeitadas = rejeitadas;
+
+  if (rowsValidas.length === 0) {
+    return {
+      ...base,
+      valida: false,
+      motivo:
+        `Origem sem linhas válidas ` +
+        `(${rows.length} brutas, ${rejeitadas.length} rejeitadas).`,
+    };
+  }
+
+  // Check 4 — duplicidades sobre linhas válidas (D-10).
   const fenilPorNomeMarca = new Map<string, { fenil: number; linha: number }>();
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const numeroLinha = i + 1;
+  for (let i = 0; i < rowsValidas.length; i++) {
+    const row = rowsValidas[i];
+    const numeroLinha = linhasValidas[i];
     const nome = row["Nome do Produto"] as string;
     const marcaRaw = row["Marca do Produto"];
     const marca = marcaRaw == null ? "" : (marcaRaw as string);
@@ -210,5 +260,6 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
     }
   }
 
+  base.rowsValidas = rowsValidas;
   return base;
 }

@@ -360,9 +360,9 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** lifecycle (segurança do bootstrap)
 - **Given:** execução de sync
 - **When:** o modo do ambiente ainda é `bootstrap` (nenhuma sync anterior `success`/`pending_review` no histórico) OU a extração/validação falhou (origem inválida/não confiável)
-- **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9, abort imediato na 1ª anomalia); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
-- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts:8-19,101,182; migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
-- **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), REAL M4 `[CONFIRMED: test]`
+- **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9: estrutura inesperada, nenhuma linha válida restante ou duplicidade conflitante); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
+- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts (checks 1/2/4 abortam; check 3 rejeita linha a linha); migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
+- **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), `validate.test.ts` (22), `referencias-sync.test.ts`, REAL M4 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-040 — Mudança substantiva na origem = arquivar + criar, somente por curadoria
@@ -405,8 +405,8 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** validação
 - **Given:** extração com duas linhas de mesma identidade e valores substantivos divergentes (mesmo nome+marca, fenil diferente)
 - **When:** validação da extração (estágio 3)
-- **Then:** a sync é invalidada (D-10) — abort imediato, nada é aplicado, nenhum artifact de aplicação; duplicidades exatas (idênticas) são apenas contadas e deduplicadas na comparação
-- **Evidence:** `[CONFIRMED: code — src/shared/powerbi/validate.ts:182-204 (conflitantes invalidam); src/shared/referencias-sync/engine.ts:9 ("sem conflitantes D-10")]`
+- **Then:** a sync é invalidada (D-10) — abort, nada é aplicado, nenhum artifact de aplicação; duplicidades exatas (idênticas) são apenas contadas e deduplicadas na comparação. A checagem roda sobre as linhas VÁLIDAS (linhas rejeitadas individualmente não participam)
+- **Evidence:** `[CONFIRMED: code — src/shared/powerbi/validate.ts (check 4 — conflitantes invalidam, sobre rowsValidas); src/shared/referencias-sync/engine.ts:9 ("sem conflitantes D-10")]`
 - **Tests:** `validate.test.ts` (duplicidade conflitante aborta) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
