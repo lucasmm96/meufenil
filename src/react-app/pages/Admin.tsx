@@ -925,11 +925,11 @@ function nomeComMarcaSync(nome: string, marca?: string | null) {
 
 function identidadeResumoSync(ident: IdentidadeSync | null | undefined) {
   if (!ident) return "—";
-  return `${nomeComMarcaSync(ident.nome, ident.marca)} · ${ident.fenil_mg_por_100g.toFixed(1)} mg/100g`;
+  return `${nomeComMarcaSync(ident.nome, ident.marca)} · ${ident.fenil_mg_por_100g.toFixed(2)} mg/100g`;
 }
 
 function valorDiffSync(campo: DiffCampoSyncDTO["campo"], valor: string | number) {
-  return campo === "fenil_mg_por_100g" ? `${Number(valor).toFixed(1)} mg/100g` : String(valor);
+  return campo === "fenil_mg_por_100g" ? `${Number(valor).toFixed(2)} mg/100g` : String(valor);
 }
 
 function tempoExecucaoSync(startedAt: string, finishedAt: string | null) {
@@ -1607,7 +1607,7 @@ function PendenciaCardSync({
           {referencia ? (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
               <p className="font-medium text-gray-900">{nomeComMarcaSync(referencia.nome, referencia.marca)}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{referencia.fenil_mg_por_100g.toFixed(1)} mg/100g</p>
+              <p className="text-xs text-gray-500 mt-0.5">{referencia.fenil_mg_por_100g.toFixed(2)} mg/100g</p>
             </div>
           ) : (
             <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-3">
@@ -1623,7 +1623,7 @@ function PendenciaCardSync({
           {proposta ? (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
               <p className="font-medium text-gray-900">{nomeComMarcaSync(proposta.nome, proposta.marca)}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{proposta.fenil_mg_por_100g.toFixed(1)} mg/100g</p>
+              <p className="text-xs text-gray-500 mt-0.5">{proposta.fenil_mg_por_100g.toFixed(2)} mg/100g</p>
             </div>
           ) : (
             <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-3">—</p>

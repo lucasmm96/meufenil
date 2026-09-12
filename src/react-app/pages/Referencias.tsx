@@ -429,7 +429,7 @@ export default function ReferenciasPage() {
                       <div className="flex items-center justify-between">
 
                         <div className="text-lg font-semibold text-indigo-600">
-                          {r.fenil_mg_por_100g.toFixed(1)} mg
+                          {r.fenil_mg_por_100g.toFixed(2)} mg
                         </div>
 
                         <div className="flex items-center gap-4">
@@ -563,7 +563,7 @@ export default function ReferenciasPage() {
 
                           <td className="px-6 py-4">
                             <p className="text-sm font-semibold text-indigo-600">
-                              {r.fenil_mg_por_100g.toFixed(1)}
+                              {r.fenil_mg_por_100g.toFixed(2)}
                             </p>
                           </td>
 
