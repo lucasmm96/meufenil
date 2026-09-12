@@ -4,7 +4,8 @@ import { chaveFenil, chaveMarca, chaveNome, chaveNomeMarca, chaveRef } from "./c
 /**
  * Chave canônica (§7.1/§7.2) — espelho do UNIQUE parcial do banco
  * `lower(trim(both from nome)), lower(trim(both from marca)), fenil
- * numeric(10,1)` (ENH-0004): "igual no motor" ≡ "igual no índice".
+ * numeric(10,2)` (ENH-0004, escala ampliada pela FEAT-0017): "igual no motor"
+ * ≡ "igual no índice".
  */
 
 function item(nome: string, marca = "", fenil = 100) {
@@ -52,14 +53,17 @@ describe("chaveMarca", () => {
 });
 
 describe("chaveFenil", () => {
-  it("inteiros e escala 1 são idênticos no índice (numeric(10,1))", () => {
+  it("inteiros e escala ≤2 são idênticos no índice (numeric(10,2))", () => {
     expect(chaveFenil(184)).toBe(184);
     expect(chaveFenil(184.0)).toBe(184);
+    expect(chaveFenil(5.4)).toBe(5.4);
+    expect(chaveFenil(5.42)).toBe(5.42);
+    expect(chaveFenil(0.55)).toBe(0.55);
   });
 
-  it("ruído além da escala 1 arredonda como numeric(10,1)", () => {
-    expect(chaveFenil(184.04)).toBe(184);
-    expect(chaveFenil(184.05)).toBe(184.1);
+  it("ruído além da escala 2 arredonda como numeric(10,2)", () => {
+    expect(chaveFenil(184.049)).toBe(184.05);
+    expect(chaveFenil(184.04)).toBe(184.04);
     expect(chaveFenil(0)).toBe(0);
     expect(chaveFenil(2040)).toBe(2040);
   });
