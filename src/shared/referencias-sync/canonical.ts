@@ -7,7 +7,7 @@
  *   `btree (lower(trim(both from nome)), lower(trim(both from marca)),
  *          fenil_mg_por_100g) where is_ativa`
  *
- * com `fenil_mg_por_100g numeric(10,1)`. A chave é aplicada AOS DOIS LADOS
+ * com `fenil_mg_por_100g numeric(10,2)`. A chave é aplicada AOS DOIS LADOS
  * (origem e banco) para que "igual no motor" ≡ "igual no índice" — sem
  * falsos-positivos de criação nem matching que o banco não aceitaria.
  *
@@ -52,15 +52,15 @@ export function chaveMarca(marca: string): string {
 }
 
 /**
- * Fenil canônico: `round(numeric(10,1))` — o banco armazena escala 1
- * (numeric(10,1) arredonda na escrita; origem é inteiro 0–2040 validado) e
- * 184 ≡ 184.0 no índice. O arredondamento é no-op para os valores possíveis;
- * existe para normalizar ruído numérico sem mudar a comparação do banco.
- * Meio (x.5) arredonda para +∞ em valores positivos — igual ao numeric do
- * Postgres (faixa 0–2040; negativos não ocorrem na origem validada).
+ * Fenil canônico: `round(numeric(10,2))` — o banco armazena escala 2
+ * (numeric(10,2) arredonda na escrita; origem é 0–2040 com até 2 casas,
+ * validado) e 184 ≡ 184.00 no índice. O arredondamento é no-op para os valores
+ * possíveis; existe para normalizar ruído numérico sem mudar a comparação do
+ * banco. Meio (x.5) arredonda para +∞ em valores positivos — igual ao numeric
+ * do Postgres (faixa 0–2040; negativos não ocorrem na origem validada).
  */
 export function chaveFenil(fenil: number): number {
-  return Math.round(fenil * 10) / 10;
+  return Math.round(fenil * 100) / 100;
 }
 
 /** Par nome+marca canônico — agrupamento da substituição (§7.3). */

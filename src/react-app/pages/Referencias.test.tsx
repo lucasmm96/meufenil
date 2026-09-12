@@ -324,6 +324,46 @@ describe("Referencias page", () => {
     });
   });
 
+  it("aceita fenil com 2 casas decimais (limite de numeric(10,2))", async () => {
+    const { create } = setupReferencias();
+    render(<Referencias />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Nova Referência" }));
+    fireEvent.change(screen.getByPlaceholderText("Ex: Maçã Fuji"), {
+      target: { value: "Maçã" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Ex: 25.50"), {
+      target: { value: "5.42" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledWith("Maçã", "", 5.42);
+    });
+  });
+
+  it("bloqueia fenil com mais de 2 casas decimais sem chamar o serviço", async () => {
+    const { create } = setupReferencias();
+    render(<Referencias />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Nova Referência" }));
+    fireEvent.change(screen.getByPlaceholderText("Ex: Maçã Fuji"), {
+      target: { value: "Maçã" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Ex: 25.50"), {
+      target: { value: "5.123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Fenilalanina aceita no máximo 2 casas decimais."),
+      ).toBeTruthy();
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(screen.getByText("Nova Referência")).toBeTruthy();
+  });
+
   it("mantém a modal aberta e alerta quando a referência é duplicada", async () => {
     setupReferencias({
       create: vi.fn().mockRejectedValue({ code: "REFERENCIA_DUPLICADA" }),

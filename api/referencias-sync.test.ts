@@ -44,16 +44,25 @@ const EXTRACAO_VALIDA = [
   { "Nome do Produto": "Feijão", "Marca do Produto": "Marca B", NU_MAX_AMINOACIDO: 12 },
 ];
 
+/** Extração em que TODAS as linhas são rejeitadas individualmente — sem linha
+ *  válida restante, a sync aborta como origem inválida (B9). */
 const EXTRACAO_INVALIDA = [
   { "Nome do Produto": null, "Marca do Produto": "Marca A", NU_MAX_AMINOACIDO: 8 },
 ];
 
 /** Artefato da API Power BI (linha 1 real: nome=null, marca=null, fenil presente)
- *  precedendo dados válidos — o filtro da rota deve removê-la antes da validação.
+ *  precedendo dados válidos — o validator rejeita só essa linha e as demais
+ *  seguem para o pipeline (B9).
  */
 const EXTRACAO_COM_ARTEFATO = [
   { "Nome do Produto": null, "Marca do Produto": null, NU_MAX_AMINOACIDO: 239 },
   ...EXTRACAO_VALIDA,
+];
+
+/** Produto sem marca declarada (marca nula) — entra no banco como string vazia. */
+const EXTRACAO_MARCA_NULA = [
+  { "Nome do Produto": "Arroz", "Marca do Produto": null, NU_MAX_AMINOACIDO: 8 },
+  { "Nome do Produto": "Feijão", "Marca do Produto": "Marca B", NU_MAX_AMINOACIDO: 12 },
 ];
 
 /**
@@ -406,7 +415,7 @@ describe("referencias-sync handler", () => {
     expect(mock.chamadas.filter((c) => c.tabela === "rpc:aplicar_sync_referencias")).toHaveLength(1);
   });
 
-  it("artefato API (linha 1 nome=null) filtrado antes da validação → sync procede como se 2 linhas válidas", async () => {
+  it("artefato API (linha 1 nome=null) rejeitado individualmente → sync procede com as 2 linhas válidas e reporta a rejeição", async () => {
     setAmbiente();
     // Extraction devolve artefato (nome=null) + 2 linhas válidas (total bruto: 3).
     extractMock.mockResolvedValue({
@@ -423,20 +432,72 @@ describe("referencias-sync handler", () => {
       res
     );
 
-    // Artefato filtrado → validação passa → sync NÃO aborta com origin_invalid.
+    // Artefato rejeitado → validação passa → sync NÃO aborta com origin_invalid.
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "pending_review" });
 
     const chamadasSyncs = mock.chamadas.filter((c) => c.tabela === "referencia_syncs");
     const final = chamadasSyncs.find((c) => c.operacao === "update" && c !== chamadasSyncs[0]);
 
-    // total_origem reflete as linhas APÓS o filtro (2), não o bruto da API (3).
-    expect(final?.argumentos[0]).toMatchObject({ total_origem: 2 });
+    // total_origem reflete as linhas APÓS a rejeição (2), não o bruto da API (3).
+    expect(final?.argumentos[0]).toMatchObject({
+      total_origem: 2,
+      message: expect.stringContaining("1 linha(s) da origem rejeitada(s) por dado inválido."),
+    });
 
-    // Snapshot foi criado com as linhas filtradas (2 linhas = EXTRACAO_VALIDA).
+    // A rejeição é reportada no evento de validação (linha + motivo).
+    const validacaoEvento = mock.chamadas.find(
+      (c) =>
+        c.tabela === "referencia_eventos" &&
+        c.operacao === "insert" &&
+        (c.argumentos[0] as { tipo: string }).tipo === "validation"
+    );
+    expect(validacaoEvento?.argumentos[0]).toMatchObject({
+      detalhes: {
+        valida: true,
+        contagem: { rejeitadas: 1, linha1Anomala: true },
+        rejeitadas: [{ linha: 1, nome: null, motivo: "nome nulo ou vazio" }],
+        rejeitadas_truncadas: false,
+      },
+    });
+
+    // Snapshot foi criado com as linhas válidas (2 linhas = EXTRACAO_VALIDA).
     const shaEsperado = createHash("sha256")
       .update(JSON.stringify(EXTRACAO_VALIDA))
       .digest("hex");
+    const snapshot = mock.chamadas.find(
+      (c) => c.tabela === "referencia_snapshots" && c.operacao === "insert"
+    );
+    expect(snapshot?.argumentos[0]).toMatchObject({ payload_sha256: shaEsperado, contagem: 2 });
+  });
+
+  it("produto sem marca declarada (marca nula) → entra como string vazia no snapshot", async () => {
+    setAmbiente();
+    extractMock.mockResolvedValue({
+      rows: EXTRACAO_MARCA_NULA,
+      patchAplicado: true,
+      contagem: 2,
+    });
+
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(mock.chamadas.some((c) => c.tabela === "referencia_backups")).toBe(true);
+
+    const comMarcaVazia = [
+      { "Nome do Produto": "Arroz", "Marca do Produto": "", NU_MAX_AMINOACIDO: 8 },
+      { "Nome do Produto": "Feijão", "Marca do Produto": "Marca B", NU_MAX_AMINOACIDO: 12 },
+    ];
+    const shaEsperado = createHash("sha256")
+      .update(JSON.stringify(comMarcaVazia))
+      .digest("hex");
+
     const snapshot = mock.chamadas.find(
       (c) => c.tabela === "referencia_snapshots" && c.operacao === "insert"
     );
@@ -765,9 +826,9 @@ describe("referencias-sync handler", () => {
     expect(updatesSync[1].argumentos[0]).toMatchObject({
       status: "origin_invalid",
       total_origem: null,
-      // A linha null-nome é filtrada antes da validação → o check que dispara é
-      // "0 linhas", não "nome nulo".
-      message: expect.stringContaining("sem linhas"),
+      // A única linha é rejeitada individualmente → sem linha válida restante
+      // o abort dispara; a rejeição vai no detalhe do evento.
+      message: expect.stringContaining("sem linhas válidas"),
     });
 
     expect(
@@ -785,7 +846,12 @@ describe("referencias-sync handler", () => {
     ]);
     expect(eventos[2].argumentos[0]).toMatchObject({
       tipo: "validation",
-      detalhes: { valida: false, motivo: expect.stringContaining("sem linhas") },
+      detalhes: {
+        valida: false,
+        motivo: expect.stringContaining("sem linhas válidas"),
+        contagem: { rejeitadas: 1 },
+        rejeitadas: [{ linha: 1, nome: null, motivo: "nome nulo ou vazio" }],
+      },
     });
   });
 
