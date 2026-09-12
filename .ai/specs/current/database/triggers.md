@@ -1,8 +1,8 @@
 # Triggers — Inventário
 
-**Última verificação:** 2026-09-06 (FEAT-0017 M1/M4 — migrations 20260905*/20260906000000 aplicadas em dev)
+**Última verificação:** 2026-09-11 (FEAT-0017 M1/M4 — migrations 20260905*/20260906000000 aplicadas em dev e prod — release v1.11.0, 2026-09-10)
 
-Inventário dos triggers confirmados no catálogo: em 2026-08-13 havia 4 (3 no schema `public` + 1 em `auth.users`) `[CONFIRMED: database — information_schema.triggers]`. Após a ENH-0004, **dev tem 2 triggers** (1 em `public` + 1 em `auth.users`) — os dois triggers de `referencias` foram eliminados (normalização — A4(b); remoção de favoritos — OQ3) `[CONFIRMED: migration 20260904000000 — DROPs; execução dev 2026-09-04]`. Com o FEAT-0017 M1, **dev tem 4 triggers** (3 em `public` + 1 em `auth.users`) — M1 criou 2 (auditoria de `is_ativa` em `referencias`; retenção de backups de sync). Prod mantém os 4 originais até a release (migrations não aplicadas em prod) `[INFERRED: migrations novas em branch de trabalho; promoção segue gate de release]`.
+Inventário dos triggers confirmados no catálogo: em 2026-08-13 havia 4 (3 no schema `public` + 1 em `auth.users`) `[CONFIRMED: database — information_schema.triggers]`. Após a ENH-0004, **dev tem 2 triggers** (1 em `public` + 1 em `auth.users`) — os dois triggers de `referencias` foram eliminados (normalização — A4(b); remoção de favoritos — OQ3) `[CONFIRMED: migration 20260904000000 — DROPs; execução dev 2026-09-04]`. Com o FEAT-0017 M1, **dev tem 4 triggers** (3 em `public` + 1 em `auth.users`) — M1 criou 2 (auditoria de `is_ativa` em `referencias`; retenção de backups de sync). Prod tem os **mesmos 4 triggers** do dev desde a release v1.11.0 (2026-09-10) `[CONFIRMED: database — catálogo prod 2026-09-11]`.
 
 | Trigger | Tabela | Evento | Timing | Função | Versionado? |
 |---|---|---|---|---|---|

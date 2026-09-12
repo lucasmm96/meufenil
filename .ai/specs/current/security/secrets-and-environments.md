@@ -117,7 +117,7 @@ A rota de sincronização grava em `referencia_syncs` (com `environment` = `ambi
 
 1. Extensão `pg_graphql` presente em dev, ausente em prod.
 2. Prod possui coluna dropped (artefato) na posição física 8 de `referencias`; dev não.
-3. Estrutura lógica (tabelas/policies/funções/triggers) idêntica até 2026-08-14; DIVERGE desde 2026-09-04: dev recebeu a ENH-0004 e o FEAT-0017 M1–M6 (12 tabelas / 36 policies / 15 funções / 4 triggers — 3 em `public` + 1 em `auth.users`), prod permanece pré-ENH-0004/pré-FEAT-0017 (7 tabelas / 31 policies / 10 funções / 3 triggers em `public` + 1 em `auth.users`) até a release.
+3. Estrutura lógica (tabelas/policies/funções/triggers) idêntica até 2026-08-14; divergiu de 2026-09-04 a 2026-09-10 (dev recebeu a ENH-0004 e o FEAT-0017 M1–M6; prod acompanhou na release v1.11.0) — hoje os dois ambientes têm a mesma estrutura: 12 tabelas / 36 policies / 15 funções / 4 triggers (3 em `public` + 1 em `auth.users`) `[CONFIRMED: database — catálogo dev/prod 2026-09-11]`. Restam as diferenças de escala do fenil (dev `numeric(10,2)` desde 2026-09-11 × prod `numeric(10,1)` até a aplicação da migration 20260911000000) e da extensão `pg_graphql` (dev-only).
 4. Conteúdo de dados distinto (contagens na Fase 2).
 5. Configurações dos painéis Vercel/Supabase (vars de keepalive explícitas, configuração de deploy das edge functions): não verificáveis pelo repositório — `UNKNOWN`.
 

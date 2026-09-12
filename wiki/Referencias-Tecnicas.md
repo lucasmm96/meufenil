@@ -13,13 +13,13 @@ Detalhamento técnico do MeuFenil para desenvolvedores e operadores: banco de da
 
 ## Banco de Dados
 
-PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS habilitado em todas, **36 políticas** (31 legadas + 5 `admin_select_*`), **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`), **5 enums** (1 pré-existente + 4 de sync). **Prod segue no schema pré-ENH-0004** (7 tabelas / 31 políticas / 10 funções — sem `marca`, sem as 5 tabelas de sync, com os 2 triggers de `referencias` ainda presentes) até a release. (Fonte: `database/overview.md`)
+PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS habilitado em todas, **36 políticas** (31 legadas + 5 `admin_select_*`), **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`), **5 enums** (1 pré-existente + 4 de sync). **Prod (pós-release v1.11.0, 2026-09-10):** mesma estrutura do dev; `fenil_mg_por_100g` ainda `numeric(10,1)` até a aplicação da migration 20260911000000 em prod. (Fonte: `database/overview.md`)
 
 ### Tabelas e colunas principais
 
 **`usuarios`** — perfil do usuário; `id` (PK, FK → `auth.users(id)` ON DELETE CASCADE), `nome`, `email` (UNIQUE), `role` (default `'user'`; `'admin'` = privilégios), `limite_diario_mg` (default **500**), `timezone` (default `America/Sao_Paulo`), `consentimento_lgpd_em`, `pode_recuperacao` (boolean default `false` — FEAT-0017 M5, dev; concedida manualmente pelo dono do projeto; admin E flag habilitam recuperação de sync). (Fonte: `database/usuarios.md`)
 
-**`referencias`** — alimentos com fenilalanina por 100g; `id`, `nome`, `marca` (text default `''` — desde a ENH-0004; `''` = marca NÃO declarada; `'Produto In Natura'` é marca declarada pela fonte, 97 em dev), `fenil_mg_por_100g` (numeric(10,1)), `criado_por` (FK → `usuarios` CASCADE), `is_global` (default false), `is_ativa` (default true — soft delete). Modelo canônico (ENH-0004): identidade substantiva `(nome, marca, fenil_mg_por_100g)` **imutável por UPDATE para globais** (mudar = arquivar a atual + criar a nova); índice único parcial `referencias_identidade_ativa_unique` (`lower(trim(nome))`, `lower(trim(marca))`, `fenil_mg_por_100g`) **WHERE `is_ativa`**; coluna `nome_normalizado` **eliminada**; globais nunca são excluídas fisicamente (arquivamento sempre — BR-037). Ordem física em dev: `marca` imediatamente após `nome`. (Fonte: `database/referencias.md`)
+**`referencias`** — alimentos com fenilalanina por 100g; `id`, `nome`, `marca` (text default `''` — desde a ENH-0004; `''` = marca NÃO declarada; `'Produto In Natura'` é marca declarada pela fonte, 97 em dev), `fenil_mg_por_100g` (numeric(10,2) — dev desde 2026-09-11; prod: numeric(10,1) até a aplicação da migration 20260911000000), `criado_por` (FK → `usuarios` CASCADE), `is_global` (default false), `is_ativa` (default true — soft delete). Modelo canônico (ENH-0004): identidade substantiva `(nome, marca, fenil_mg_por_100g)` **imutável por UPDATE para globais** (mudar = arquivar a atual + criar a nova); índice único parcial `referencias_identidade_ativa_unique` (`lower(trim(nome))`, `lower(trim(marca))`, `fenil_mg_por_100g`) **WHERE `is_ativa`**; coluna `nome_normalizado` **eliminada**; globais nunca são excluídas fisicamente (arquivamento sempre — BR-037). Ordem física em dev: `marca` imediatamente após `nome`. (Fonte: `database/referencias.md`)
 
 **`registros`** — consumo diário; `id`, `data`, `usuario_id` (FK → `usuarios`, **sem** CASCADE), `referencia_id` (FK → `referencias`, sem CASCADE), `peso_g`, `fenil_mg` (calculado na UI). Sem política de UPDATE: registros não são editáveis, apenas criados/excluídos. (Fonte: `database/registros.md`)
 
@@ -31,7 +31,7 @@ PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS hab
 
 **`background_job_executions`** — execuções de jobs; `id`, `run_id`, `job_key`, `environment` (`prod`/`dev`), `status` (enum), `started_at`/`finished_at` (CHECK `finished_at >= started_at`), `duration_ms` (CHECK ≥ 0), `message`, `details` (jsonb), `created_at`; 3 índices; sem FK. (Fonte: `database/background_job_executions.md`)
 
-**Tabelas de sincronização (FEAT-0017 M1 — migration `20260905000000`, somente dev)** (Fonte: `database/overview.md`, specs dedicadas de cada tabela):
+**Tabelas de sincronização (FEAT-0017 M1 — migration `20260905000000`, dev e prod desde a release v1.11.0)** (Fonte: `database/overview.md`, specs dedicadas de cada tabela):
 
 **`referencia_syncs`** — 1 linha por execução da sincronização. Colunas-chave: `environment` (base do single-flight: índice parcial `WHERE status = 'running'`), `trigger_source`, `requested_by` (FK `usuarios` SET NULL), `bootstrap` (1ª sync confiável — modo `bootstrap` do plano), `status` (enum `sync_status`: `running`/`success`/`pending_review`/`failure`/`origin_invalid`/`reverted`), `started_at`/`finished_at`, contadores (`total_origem`, `equivalentes`, `criadas`, `arquivadas`, `divergencias`), `message`, `details` (jsonb), `alteracoes` (jsonb — log estruturado por operação, base do rollback seletivo). (Fonte: `database/referencia_syncs.md`)
 
@@ -95,7 +95,7 @@ Chamadores no código: `ativar_referencia` e `remover_ou_desativar_referencia` �
 | `trg_trim_referencia_backups` | `referencia_backups` | AFTER INSERT | `fn_trim_referencia_backups` | retenção de 12 meses (FEAT-0017 M1) |
 | `on_auth_user_created` | `auth.users` | AFTER INSERT | `handle_new_user` | cria perfil no sign-up |
 
-Os triggers `trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` foram **eliminados na ENH-0004** (dev — migration 20260904000000); prod ainda os possui até a release. (Fonte: `database/triggers.md`)
+Os triggers `trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` foram **eliminados na ENH-0004** (dev — migration 20260904000000; prod — release v1.11.0). (Fonte: `database/triggers.md`)
 
 ## Edge Functions
 

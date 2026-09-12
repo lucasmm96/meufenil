@@ -162,7 +162,7 @@ Os testes de segurança exigem `SUPABASE_SERVICE_ROLE_KEY` no ambiente (carregad
 
 ## Banco de dados
 
-PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS habilitado em todas, **36 políticas**, **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`), **5 enums**. **Prod segue no schema pré-ENH-0004** (sem coluna `marca`, sem as 5 tabelas de sync) até a release v1.11.0. (Fonte: `database/overview.md`)
+PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS habilitado em todas, **36 políticas**, **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`), **5 enums**. **Prod tem a mesma estrutura desde a release v1.11.0** (2026-09-10). (Fonte: `database/overview.md`)
 
 ### Migrations
 
@@ -198,7 +198,7 @@ PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS hab
 
 ### Triggers
 
-Em dev (4): `fn_trim_background_job_executions` (retenção de 365 dias de execuções de job), `trg_auditar_is_ativa_manual` (auditoria de mudança manual de `is_ativa`, FEAT-0017 M1), `trg_trim_referencia_backups` (retenção de 12 meses de backups de sync, FEAT-0017 M1) e `on_auth_user_created` (cria perfil no sign-up). Os triggers `trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` foram **eliminados na ENH-0004** (dev); prod ainda os possui até a release. (Fonte: `database/triggers.md`)
+Em dev e prod (4): `fn_trim_background_job_executions` (retenção de 365 dias de execuções de job), `trg_auditar_is_ativa_manual` (auditoria de mudança manual de `is_ativa`, FEAT-0017 M1), `trg_trim_referencia_backups` (retenção de 12 meses de backups de sync, FEAT-0017 M1) e `on_auth_user_created` (cria perfil no sign-up). Os triggers `trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` foram **eliminados na ENH-0004** (dev e prod — prod na release v1.11.0). (Fonte: `database/triggers.md`)
 
 ### CLI Interna
 

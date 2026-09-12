@@ -5,7 +5,7 @@
 
 ## Propósito
 
-A sync como unidade (FEAT-0017 — sincronização do conjunto global de referências com a origem ANVISA/Power BI): uma linha por execução, com environment, origem do gatilho, status, contadores e o log estruturado `alteracoes`. Contada no inventário como tabela de sincronização do FEAT-0017 M1 (dev; prod aguarda release).
+A sync como unidade (FEAT-0017 — sincronização do conjunto global de referências com a origem ANVISA/Power BI): uma linha por execução, com environment, origem do gatilho, status, contadores e o log estruturado `alteracoes`. Contada no inventário como tabela de sincronização do FEAT-0017 M1 (dev e prod desde a release v1.11.0, 2026-09-10).
 
 ## Colunas
 
