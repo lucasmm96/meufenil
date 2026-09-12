@@ -455,8 +455,8 @@ describe("Admin page", () => {
 
     fireEvent.click(screen.getByText("Pendências de curadoria"));
     expect(screen.getByText("Substituição")).toBeTruthy();
-    // 55.0 aparece na referência atual e na linha removida do diff
-    expect(screen.getAllByText(/55\.0 mg\/100g/).length).toBeGreaterThan(0);
+    // 55.00 aparece na referência atual e na linha removida do diff
+    expect(screen.getAllByText(/55\.00 mg\/100g/).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByText("Rejeitar"));
 

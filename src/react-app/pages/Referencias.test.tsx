@@ -168,11 +168,11 @@ describe("Referencias page", () => {
     // nome aparece no card mobile e na tabela desktop
     expect(screen.getAllByText("Arroz").length).toBe(2);
     expect(screen.getAllByText("Feijão").length).toBe(2);
-    // desktop mostra "25.5"; mobile mostra "25.5 mg" (textos diferentes)
-    expect(screen.getAllByText("25.5").length).toBe(1);
-    expect(screen.getAllByText("25.5 mg").length).toBe(1);
-    expect(screen.getAllByText("30.0").length).toBe(1);
-    expect(screen.getAllByText("30.0 mg").length).toBe(1);
+    // desktop mostra "25.50"; mobile mostra "25.50 mg" (textos diferentes)
+    expect(screen.getAllByText("25.50").length).toBe(1);
+    expect(screen.getAllByText("25.50 mg").length).toBe(1);
+    expect(screen.getAllByText("30.00").length).toBe(1);
+    expect(screen.getAllByText("30.00 mg").length).toBe(1);
     expect(screen.getAllByText("Global").length).toBe(1);
     expect(screen.getAllByText("Customizada").length).toBe(1);
     expect(screen.getByText("Total: 2 registros")).toBeTruthy();
