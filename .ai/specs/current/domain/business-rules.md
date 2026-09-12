@@ -362,7 +362,7 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **When:** o modo do ambiente ainda é `bootstrap` (nenhuma sync anterior `success`/`pending_review` no histórico) OU a extração/validação falhou (origem inválida/não confiável)
 - **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9: estrutura inesperada, nenhuma linha válida restante ou duplicidade conflitante); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
 - **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts (checks 1/2/4 abortam; check 3 rejeita linha a linha); migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
-- **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), `validate.test.ts` (22), `referencias-sync.test.ts`, REAL M4 `[CONFIRMED: test]`
+- **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), `validate.test.ts` (24), `referencias-sync.test.ts`, REAL M4 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-040 — Mudança substantiva na origem = arquivar + criar, somente por curadoria

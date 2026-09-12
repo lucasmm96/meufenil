@@ -3,7 +3,7 @@
 **ID:** FEAT-0017
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-07 (promoção M7 — BR-038–047 em `domain/business-rules.md`; páginas das 5 tabelas em `database/`; marcos M1–M6 merged via PRs #57–#62)
+**Última verificação:** 2026-09-11 (precisão decimal do fenil — até 2 casas em toda a cadeia: validação da origem, `chaveFenil`, coluna `numeric(10,2)` e input do modal)
 
 ## Purpose
 
@@ -80,6 +80,7 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - [rpc](../database/rpc.md) — `aplicar_sync_referencias`, `decidir_pendencia_referencia`, `pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`, `fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`
 - [triggers](../database/triggers.md) — `trg_auditar_is_ativa_manual`, `trg_trim_referencia_backups`; [referencias](../database/referencias.md), [usuarios](../database/usuarios.md) (`pode_recuperacao`)
 - Migrations M1–M6: 20260905000000 (schema/enums/RLS/single-flight/trim), 20260905010000 (auditoria manual), 20260905020000 (R4-3 — ativar global só admin), 20260906000000 (aplicar/decidir), 20260906010000 (rollback/restauração + `pode_recuperacao`), 20260907000000 (seed `pre_sync_inativa` no bootstrap)
+- Migração de precisão decimal (2026-09-11): 20260911000000 — `fenil_mg_por_100g` → `numeric(10,2)` + `CREATE OR REPLACE` das 4 RPCs com cast `numeric(10,1)`; versionada em branch de trabalho, **não aplicada em dev**
 
 ## Security
 

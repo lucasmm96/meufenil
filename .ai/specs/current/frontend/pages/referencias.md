@@ -64,7 +64,7 @@ Labels visíveis, `title` em ícones, `disabled` com feedback; SEM `aria-*`, sem
 
 ## Testes
 
-`useReferencias.test.ts`, `referencias.service.test.ts`. Página: `Referencias.test.tsx` (25 testes — loading/empty/error, filtros, busca, ordenação, paginação, criar/editar, remover/desativar/reativar, permissões) `[CONFIRMED: test]`.
+`useReferencias.test.ts`, `referencias.service.test.ts`. Página: `Referencias.test.tsx` (28 testes — loading/empty/error, filtros, busca, ordenação, paginação, criar/editar, remover/desativar/reativar, permissões; inclui os 2 de 2026-09-11 sobre o limite de 2 casas decimais no fenil) `[CONFIRMED: test]`.
 
 ## Evidências
 
