@@ -80,7 +80,7 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - [rpc](../database/rpc.md) — `aplicar_sync_referencias`, `decidir_pendencia_referencia`, `pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`, `fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`
 - [triggers](../database/triggers.md) — `trg_auditar_is_ativa_manual`, `trg_trim_referencia_backups`; [referencias](../database/referencias.md), [usuarios](../database/usuarios.md) (`pode_recuperacao`)
 - Migrations M1–M6: 20260905000000 (schema/enums/RLS/single-flight/trim), 20260905010000 (auditoria manual), 20260905020000 (R4-3 — ativar global só admin), 20260906000000 (aplicar/decidir), 20260906010000 (rollback/restauração + `pode_recuperacao`), 20260907000000 (seed `pre_sync_inativa` no bootstrap)
-- Migração de precisão decimal (2026-09-11): 20260911000000 — `fenil_mg_por_100g` → `numeric(10,2)` + `CREATE OR REPLACE` das 4 RPCs com cast `numeric(10,1)`; versionada em branch de trabalho, **não aplicada em dev**
+- Migração de precisão decimal (2026-09-11): 20260911000000 — `fenil_mg_por_100g` → `numeric(10,2)` + `CREATE OR REPLACE` das 4 RPCs com cast `numeric(10,1)`; **aplicada em dev em 2026-09-11; pendente em prod** (aplicação via `scripts/apply-supabase-migrations.sh`, com autorização — HIGH RISK)
 
 ## Security
 
@@ -109,7 +109,7 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - E2 — `vercel.json` (cron `0 12 * * 1`) + `api/referencias-sync.ts` `[CONFIRMED: configuration, code]`
 - E3 — Motor puro: `src/shared/referencias-sync/*.ts`; extração: `src/shared/powerbi/*.ts` `[CONFIRMED: code]`
 - E4 — Merges em development: M1 `5b1ed18` (PR #57), M2 `7ec0bf5` (PR #58), M3 `dd631d6` (PR #59), M4 `6e7d3e5` (PR #60), M5 `cb5d776` (PR #61), M6 `cb1123d` (PR #62) `[CONFIRMED: git]`
-- E5 — Suítes REAL M1–M6 executadas contra dev; PROD segue no schema pré-ENH-0004 até a release (gate W7) `[CONFIRMED: database — overview.md]`
+- E5 — Suítes REAL M1–M6 executadas contra dev; M1–M6 em prod desde a release v1.11.0 (2026-09-10) `[CONFIRMED: database — catálogo prod 2026-09-11]`
 
 ## Unknowns
 

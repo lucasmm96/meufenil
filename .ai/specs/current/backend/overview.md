@@ -1,6 +1,6 @@
 # Backend — Visão Geral
 
-**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` no estágio 7 (CREATE OR REPLACE da `aplicar_sync_referencias`) e UI do Admin M6 chamando curadoria/recuperação; prod segue pré-ENH-0004 até a release)
+**Última verificação:** 2026-09-11 (FEAT-0017 M6 — seed `pre_sync_inativa` no estágio 7 (CREATE OR REPLACE da `aplicar_sync_referencias`) e UI do Admin M6 chamando curadoria/recuperação; dev e prod pós-release v1.11.0, 2026-09-10)
 
 ## Propósito
 
@@ -21,8 +21,8 @@ Documenta a arquitetura REAL do backend do MeuFenil: componentes server-side, on
 | `src/shared/referencias-sync/` (4 módulos — `canonical.ts`, `compare.ts`, `engine.ts`, `types.ts`) | Vercel (helpers importados pela rota — motor puro, sem banco) | `api/referencias-sync.ts` | nenhum (motor puro) | [api-referencias-sync.md](api-referencias-sync.md) |
 | `scripts/cli/` (5 comandos) | máquina local (Node ESM) | desenvolvedor | anon/JWT do `.cli-token` ou service role (`--service-role --i-understand-rls`) ou conexão pg direta (`run-sql`) | [cli.md](cli.md) |
 | `scripts/apply-supabase-migrations.sh` | máquina local (bash + Supabase CLI) | desenvolvedor | `supabase link`/`db push` com senha extraída de `SUPABASE_DATABASE_URL` | [cli.md](cli.md) |
-| Funções do banco em `public` (dev pós-FEAT-0017 M1–M6: 15 — 8 pós-ENH-0004 + 2 de trigger do M1 + 2 RPCs do M4 + 3 do M5: helper `pode_operar_recuperacao` + RPCs `reverter_sync_referencias`/`restaurar_referencias_de_backup`; M6 não adiciona funções — seed é CREATE OR REPLACE da `aplicar_sync_referencias`; prod: 10 pré-ENH-0004 até a release) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`, `referencias-sync.service` — UI do Admin M6: `decidir_pendencia_referencia`/`reverter_sync_referencias`/`restaurar_referencias_de_backup`), rota de sync (`aplicar_sync_referencias` — service role) e policies | SECURITY DEFINER (15/15 em dev) | [../database/rpc.md](../database/rpc.md) |
-| Triggers do banco (dev pós-FEAT-0017 M1: 4 — 3 em `public` + 1 em `auth.users`; prod: 4 até a release — pré-ENH-0004: 3 em `public` + 1 em `auth.users`) | PostgreSQL | eventos de INSERT/UPDATE | conforme a função (definer/invoker) | [../database/triggers.md](../database/triggers.md) |
+| Funções do banco em `public` (dev pós-FEAT-0017 M1–M6: 15 — 8 pós-ENH-0004 + 2 de trigger do M1 + 2 RPCs do M4 + 3 do M5: helper `pode_operar_recuperacao` + RPCs `reverter_sync_referencias`/`restaurar_referencias_de_backup`; M6 não adiciona funções — seed é CREATE OR REPLACE da `aplicar_sync_referencias`; prod: as mesmas 15 desde a release v1.11.0, 2026-09-10) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`, `referencias-sync.service` — UI do Admin M6: `decidir_pendencia_referencia`/`reverter_sync_referencias`/`restaurar_referencias_de_backup`), rota de sync (`aplicar_sync_referencias` — service role) e policies | SECURITY DEFINER (15/15 em dev) | [../database/rpc.md](../database/rpc.md) |
+| Triggers do banco (dev e prod: 4 — 3 em `public` + 1 em `auth.users`; prod desde a release v1.11.0, 2026-09-10) | PostgreSQL | eventos de INSERT/UPDATE | conforme a função (definer/invoker) | [../database/triggers.md](../database/triggers.md) |
 | PostgREST + Supabase Auth | Supabase (BaaS) | frontend (via `supabase-js`) | anon key + JWT do usuário | [../security/security-model.md](../security/security-model.md) |
 
 **Serviços em `src/react-app/services/` NÃO são backend:** executam no browser com o cliente anon e serão documentados na Fase 5 (frontend). A exceção é `delegacoesAcesso.service.ts`, que é um **chamador client-side** da edge function — documentado na spec da edge function, não aqui `[CONFIRMED: code]`.
@@ -73,7 +73,7 @@ As RPCs concentram a lógica de negócio que o frontend não deve executar (auto
 | `get_estatisticas_admin` | agregados globais para o painel admin | `admin.service.ts:75` `[CONFIRMED: code]` |
 | `is_admin_user` | apoio de autorização (policies + RPCs) | banco `[CONFIRMED: database]` |
 | `dashboard_hoje` / `dashboard_ultimos_dias` | agregações de dashboard — **sem chamadores no código atual** (o dashboard/estatísticas agregam no CLIENTE via `dashboard.service`/`estatisticas.service`) `[CONFIRMED: code — ausência de chamadores]` |
-| funções de trigger | lógica automática no banco — restantes: perfil no sign-up (`handle_new_user`) e retenção de jobs (`fn_trim_background_job_executions`); as de normalização de nome e limpeza de favoritos foram ELIMINADAS na ENH-0004 (dev; prod até a release) | triggers `[CONFIRMED: database, migration]` |
+| funções de trigger | lógica automática no banco — restantes: perfil no sign-up (`handle_new_user`) e retenção de jobs (`fn_trim_background_job_executions`); as de normalização de nome e limpeza de favoritos foram ELIMINADAS na ENH-0004 (dev e prod — prod desde a release v1.11.0) | triggers `[CONFIRMED: database, migration]` |
 
 Detalhes (assinaturas, definers, efeitos): [../database/rpc.md](../database/rpc.md) — não duplicados aqui.
 

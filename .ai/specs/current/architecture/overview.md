@@ -1,6 +1,6 @@
 # Architecture Overview — MeuFenil
 
-**Última verificação:** 2026-09-07 (FEAT-0017 M1–M6 — migrations 20260905*/20260906*/20260907000000 aplicadas em DEV; prod segue no schema pré-ENH-0004 até a release)
+**Última verificação:** 2026-09-11 (FEAT-0017 M1–M6 — migrations 20260905*/20260906*/20260907000000 aplicadas em DEV e PROD — release v1.11.0, 2026-09-10)
 
 Índice ARQUITETURAL de alto nível (o índice FUNCIONAL é o [system-map](../system-map.md)). Este documento aponta para as specs especializadas — não duplica conteúdo. Decisões arquiteturais: [decisions](../../decisions/).
 
@@ -50,7 +50,7 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 ## Database
 
-- PostgreSQL Supabase (dev, 2026-09-06): **12 tabelas** (7 legadas + 5 de sincronização do FEAT-0017 M1: `referencia_syncs`, `referencia_sync_pendencias`, `referencia_eventos`, `referencia_snapshots`, `referencia_backups`), RLS em TODAS, **36 políticas** (31 legadas + 5 `admin_select_*` das tabelas de sync), **15 funções** em `public` — todas SECURITY DEFINER: 8 pós-ENH-0004 + 2 de trigger do M1 (`fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`) + 2 RPCs do M4 (`aplicar_sync_referencias`, `decidir_pendencia_referencia`) + 3 do M5 (`pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`) — e **4 triggers** (3 em `public` + 1 em `auth.users`). PROD permanece no schema **pré-ENH-0004/pré-FEAT-0017** até a release: 7 tabelas, 31 políticas, 10 funções (com as 2 eliminadas em dev) e 3 triggers em `public` (+1 em `auth.users`). Todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
+- PostgreSQL Supabase (dev, 2026-09-06): **12 tabelas** (7 legadas + 5 de sincronização do FEAT-0017 M1: `referencia_syncs`, `referencia_sync_pendencias`, `referencia_eventos`, `referencia_snapshots`, `referencia_backups`), RLS em TODAS, **36 políticas** (31 legadas + 5 `admin_select_*` das tabelas de sync), **15 funções** em `public` — todas SECURITY DEFINER: 8 pós-ENH-0004 + 2 de trigger do M1 (`fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`) + 2 RPCs do M4 (`aplicar_sync_referencias`, `decidir_pendencia_referencia`) + 3 do M5 (`pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`) — e **4 triggers** (3 em `public` + 1 em `auth.users`). PROD tem a **mesma estrutura** do dev desde a release v1.11.0 (2026-09-10): 12 tabelas, 36 políticas, 15 funções e 4 triggers (3 em `public` + 1 em `auth.users`) `[CONFIRMED: database — catálogo prod 2026-09-11]`. Todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](../database/overview.md).
 
 ## Authentication / Authorization
 
@@ -62,7 +62,7 @@ Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dado
 
 ## Deployment / Environments
 
-- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; desde 2026-09-04 DIVERGEM: dev recebeu a ENH-0004 (2026-09-04 — marca/identidade de referencias) e o FEAT-0017 M1–M6 (2026-09-05/06/07 — tabelas de sincronização, auditoria de `is_ativa`, RPCs de aplicação/curadoria/recuperação e seed de bootstrap) e prod aguarda a release (pré-ENH-0004); diferenças físicas registradas (pg_graphql dev-only; coluna dropped prod) — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
+- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; de 2026-09-04 a 2026-09-10 divergiram (dev recebeu a ENH-0004 em 2026-09-04 e o FEAT-0017 M1–M6 em 2026-09-05/06/07; prod acompanhou na release v1.11.0, 2026-09-10) — os ambientes voltaram a ter estrutura idêntica. Restam: escala do fenil (dev `numeric(10,2)` desde 2026-09-11 × prod `numeric(10,1)` até a aplicação da 20260911000000), pg_graphql (dev-only) e diferenças de dados — [database/overview](../database/overview.md), [security/secrets-and-environments](../security/secrets-and-environments.md).
 
 ## Testing
 
