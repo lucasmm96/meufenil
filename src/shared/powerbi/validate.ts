@@ -14,7 +14,8 @@
  * 3. Campo/tipo por linha: rejeição INDIVIDUAL — o sync continua com as
  *    linhas restantes; só aborta se não restar nenhuma linha válida.
  *    - Nome nulo/vazio → rejeita (reporta ao usuário).
- *    - NU_MAX_AMINOACIDO nulo, não-inteiro ou fora de 0–2040 → rejeita.
+ *    - NU_MAX_AMINOACIDO nulo, não-numérico, com mais de 2 casas decimais
+ *      ou fora de 0–2040 → rejeita.
  *    - Marca nula → normaliza para "" (produto sem marca declarada).
  *    - Marca não-string → rejeita.
  * 4. Duplicidades sobre linhas válidas: exatas contadas; conflitantes
@@ -87,6 +88,18 @@ function fenilNumerico(valor: unknown): number | null {
   }
 
   return null;
+}
+
+/**
+ * Casas decimais do valor (máx. 2 — limite de `numeric(10,2)`).
+ * `String(v)` cobre expoentes (`1e-7` → 7 casas), que o `indexOf(".")` ingênuo
+ * contaria como 0 e deixaria passar.
+ */
+function casasDecimais(valor: number): number {
+  const [mantissa = "", expoente] = String(valor).split(/[eE]/);
+  const casas = (mantissa.split(".")[1] ?? "").length;
+
+  return expoente === undefined ? casas : Math.max(0, casas - Number(expoente));
 }
 
 export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
@@ -197,6 +210,15 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
         linha: numeroLinha,
         nome: nome.trim(),
         motivo: `NU_MAX_AMINOACIDO não é numérico (${String(fenil)})`,
+      });
+      continue;
+    }
+
+    if (casasDecimais(fenilNumero) > 2) {
+      rejeitadas.push({
+        linha: numeroLinha,
+        nome: nome.trim(),
+        motivo: `NU_MAX_AMINOACIDO com mais de 2 casas decimais (${fenilNumero})`,
       });
       continue;
     }

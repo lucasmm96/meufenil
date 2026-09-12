@@ -131,6 +131,36 @@ describe("validarExtracao", () => {
     expect(validarExtracao([linha("Arroz", "Marca A", "239")]).valida).toBe(true);
   });
 
+  it("fenil com 2 casas decimais é aceito (limite de numeric(10,2))", () => {
+    expect(validarExtracao([linha("Arroz", "Marca A", 0.55)]).valida).toBe(true);
+    expect(validarExtracao([linha("Arroz", "Marca A", 2039.99)]).valida).toBe(true);
+    expect(validarExtracao([linha("Arroz", "Marca A", "5,42")]).valida).toBe(true);
+    // 5.10 e "5.10" valem 5.1 em ponto flutuante — 1 casa, dentro do limite.
+    expect(validarExtracao([linha("Arroz", "Marca A", 5.1)]).valida).toBe(true);
+    expect(validarExtracao([linha("Arroz", "Marca A", "5.10")]).valida).toBe(true);
+  });
+
+  it("fenil com mais de 2 casas decimais → rejeitada, com motivo próprio (≠ não-numérico)", () => {
+    const validacao = validarExtracao([
+      linha("Arroz", "Marca A", 5.123),
+      linha("Feijão", "Marca B", "1,234"),
+      linha("Trigo", "Marca C", 8),
+    ]);
+
+    expect(validacao.valida).toBe(true);
+    expect(validacao.contagem.rejeitadas).toBe(2);
+    expect(validacao.rejeitadas[0]).toEqual({
+      linha: 1,
+      nome: "Arroz",
+      motivo: "NU_MAX_AMINOACIDO com mais de 2 casas decimais (5.123)",
+    });
+    expect(validacao.rejeitadas[1].motivo).toBe(
+      "NU_MAX_AMINOACIDO com mais de 2 casas decimais (1.234)",
+    );
+    expect(validacao.rejeitadas[0].motivo).not.toMatch(/não é numérico/);
+    expect(validacao.rowsValidas).toEqual([linha("Trigo", "Marca C", 8)]);
+  });
+
   it("fenil string não numérica → rejeitada", () => {
     const naoNumerica = validarExtracao([linha("Arroz", "Marca A", "abc")]);
 
