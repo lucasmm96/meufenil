@@ -526,7 +526,6 @@ describe("Admin page", () => {
     syncMock.reverterSync.mockResolvedValue({
       sync_id: "sync-1",
       status: "reverted",
-      revertida: true,
       revertidas: 2,
       preservadas: 1,
       pendencias_canceladas: 0,
@@ -539,6 +538,37 @@ describe("Admin page", () => {
     });
     await waitFor(() => {
       expect(screen.getByText(/Sincronização revertida: 2 operações desfeitas/)).toBeTruthy();
+    });
+  });
+
+  it("reverter sync sem alterações (bootstrap): sucesso com mensagem de nenhuma operação desfeita", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(window, "prompt").mockReturnValue("REVERTER");
+    const syncMock = renderAdminComoAdmin({
+      podeRecuperar: true,
+      syncsRevertiveis: { items: [syncFixture], loading: false, error: null },
+      backups: { items: [], loading: false, error: null },
+    });
+    // Revisão 2026-09-14 da RPC: sync sem alterações com pendências open →
+    // status reverted, 0 revertidas, N pendências canceladas (sem campo
+    // `revertida` — a UI decide sucesso por `status === "reverted"`).
+    syncMock.reverterSync.mockResolvedValue({
+      sync_id: "sync-1",
+      status: "reverted",
+      revertidas: 0,
+      preservadas: 0,
+      pendencias_canceladas: 2496,
+    });
+
+    render(<Admin />);
+
+    fireEvent.click(screen.getByText("Recuperação"));
+    fireEvent.click(screen.getByText("Reverter sync"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Sincronização revertida: nenhuma operação desfeita \(a sync não aplicou alterações\), 2496 pendências canceladas\./)
+      ).toBeTruthy();
     });
   });
 
