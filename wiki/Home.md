@@ -11,6 +11,7 @@ O **MeuFenil** é uma aplicação open source de controle pessoal da ingestão d
 - [Arquitetura](Arquitetura) — visão geral das camadas e dos fluxos de dados do sistema.
 - [Funcionalidades](Funcionalidades) — lista de todas as funcionalidades implementadas e planos futuros.
 - [Referências Técnicas](Referencias-Tecnicas) — detalhes de banco de dados, edge functions, jobs e ferramentas.
+- [Sincronização ANVISA](Sincronizacao-Referencias-ANVISA) — guia do sistema de sincronização com o catálogo oficial de fenilalanina da ANVISA.
 
 ## Sobre o projeto
 

@@ -156,6 +156,35 @@ describe("decodeDsr", () => {
     });
   });
 
+  it("descriptor em result.data.descriptor (caminho primário da API real) é lido corretamente", () => {
+    const respostaPathPrimario: RespostaPowerBi = {
+      results: [
+        {
+          result: {
+            data: {
+              dsr: {
+                DS: [
+                  {
+                    ValueDicts: {},
+                    PH: [{ DM0: [{ S: COLUNAS_PADRAO }, { C: ["Alfa", "Marca A", 10], R: 0, "Ø": 0 }] }],
+                  },
+                ],
+              },
+              descriptor: { Select: DESCRIPTOR_PADRAO },
+            },
+            // sem result.descriptor — só data.descriptor existe
+          },
+        },
+      ],
+    };
+
+    const rows = decodeDsr(respostaPathPrimario, PAYLOAD_PADRAO);
+
+    expect(rows).toEqual([
+      { "Nome do Produto": "Alfa", "Marca do Produto": "Marca A", NU_MAX_AMINOACIDO: 10 },
+    ]);
+  });
+
   it("sem nome resolvido (payload nem descriptor) → erro estrutural, sem fallback ao N", () => {
     const semNome = [
       { N: "G0", DN: null },

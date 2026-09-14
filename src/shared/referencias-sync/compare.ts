@@ -39,7 +39,7 @@
  * pós-aplicação → tudo matched, zero operações).
  */
 
-import { chaveFenil, chaveNomeMarca, chaveRef } from "./canonical";
+import { chaveFenil, chaveNomeMarca, chaveRef } from "./canonical.js";
 import type {
   ArquivadaGlobal,
   DecisaoPendencia,
@@ -52,7 +52,7 @@ import type {
   PendenciaAberta,
   PendenciaPlano,
   StatusDecisao,
-} from "./types";
+} from "./types.js";
 
 /**
  * Eventos de auditoria decisivos da derivação B8(b) (§6.4) — valores do enum

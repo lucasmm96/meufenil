@@ -3,7 +3,7 @@
 **ID:** FEAT-0017
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-07 (promoção M7 — BR-038–047 em `domain/business-rules.md`; páginas das 5 tabelas em `database/`; marcos M1–M6 merged via PRs #57–#62)
+**Última verificação:** 2026-09-14 (BR-044 revisada por decisão do usuário — duplicidade conflitante na origem rejeita o par inteiro, não invalida a sync; precisão decimal do fenil — até 2 casas em toda a cadeia: validação da origem, `chaveFenil`, coluna `numeric(10,2)` e input do modal)
 
 ## Purpose
 
@@ -24,8 +24,8 @@ Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is
 
 1. Gatilho: cron semanal (`vercel.json` — `/api/referencias-sync`, `0 12 * * 1`) ou execução manual sob demanda; rota registra a sync como linha `running` em `referencia_syncs` (single-flight: segunda simultânea viola índice parcial e responde 409) + evento `sync_started` `[CONFIRMED: configuration — vercel.json; migration 20260905000000:90-92]`.
 2. Extração (estágio 2): decode/extract da origem em `src/shared/powerbi/` (módulos portados do `powerbi-export` — B1) `[CONFIRMED: code]`.
-3. Validação (estágio 3): checks estruturais/tipos/duplicidades (conflitante invalida — BR-044); anomalia → abort imediato, status `origin_invalid`, nada aplicado `[CONFIRMED: code — validate.ts; migration — rota]`.
-4. Snapshot (estágio 4): payload decodificado validado gravado em `referencia_snapshots` com sha256 e contagem + evento `snapshot_created` `[CONFIRMED: code]`.
+3. Validação (estágio 3): checks estruturais/tipos/duplicidades. Estrutura inesperada ou nenhuma linha válida restante → abort, status `origin_invalid`, nada aplicado. Anomalias de campo/tipo são rejeições **individuais**: a linha sai do payload (reportada com linha/nome/motivo no evento `validation`) e o sync segue com as válidas; marca nula = produto sem marca declarada → entra como `''`. Duplicidade conflitante (mesmo nome+marca, fenil divergente — BR-044 revisada 2026-09-14) rejeita **todas as linhas do grupo** (par inteiro — nenhum valor arbitrário vence; o produto fica fora até a origem estabilizar); não invalida a sync `[CONFIRMED: code — validate.ts; migration — rota]`.
+4. Snapshot (estágio 4): payload decodificado **das linhas válidas** gravado em `referencia_snapshots` com sha256 e contagem + evento `snapshot_created` `[CONFIRMED: code]`.
 5. Backup (estágio 5): estado pré-aplicação de `referencias` (globais) em `referencia_backups` com sha256 e contagem + evento `backup_created` `[CONFIRMED: code]`.
 6. Comparação e aplicação (estágios 6–7, motor M3 + RPC M4): `canonical.ts`/`compare.ts` (matching determinístico; `derivarModoSync` decide `bootstrap` × `pos_bootstrap`) geram o plano (versão 1) e `aplicar_sync_referencias` (RPC, service_role) aplica: criações/arquivamentos automáticos (só pós-bootstrap confiável), pendências de curadoria 1:1, seed `pre_sync_inativa` quando `modo = 'bootstrap'` — tudo na mesma transação, com guardas de estado (mudou entre comparação e aplicação → exceção 23505 → rollback total) `[CONFIRMED: migrations 20260906000000/20260907000000; code — compare.ts:117-122]`.
 7. Curadoria: admin decide pendências via RPC `decidir_pendencia_referencia` — aprovar executa a mudança por tipo (substitution = arquivar + criar; absence = arquivar; new_item = criar), rejeitar exige motivo; a decisão da última pendência `open` marca a sync `success` `[CONFIRMED: migration 20260906000000:226-450]`.
@@ -56,7 +56,7 @@ Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is
 - [BR-041](../domain/business-rules.md) — matching determinístico decide identidade
 - [BR-042](../domain/business-rules.md) — arquivada não reativa; reaparição = nova; bloqueio manual preservado
 - [BR-043](../domain/business-rules.md) — curadoria por sync; rejeição exige motivo
-- [BR-044](../domain/business-rules.md) — duplicidade conflitante invalida a sync
+- [BR-044](../domain/business-rules.md) — duplicidade conflitante rejeita o par inteiro
 - [BR-045](../domain/business-rules.md) — sync é unidade com ID único; single-flight; canceladas sem nova decisão
 - [BR-046](../domain/business-rules.md) — backup pré-aplicação, retenção 12m; rollback preserva posteriores; restore com sha256
 - [BR-047](../domain/business-rules.md) — auditoria de sync/curadoria e de `is_ativa` manual; ator Sistema; fronteira OQ4
@@ -80,6 +80,8 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - [rpc](../database/rpc.md) — `aplicar_sync_referencias`, `decidir_pendencia_referencia`, `pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`, `fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`
 - [triggers](../database/triggers.md) — `trg_auditar_is_ativa_manual`, `trg_trim_referencia_backups`; [referencias](../database/referencias.md), [usuarios](../database/usuarios.md) (`pode_recuperacao`)
 - Migrations M1–M6: 20260905000000 (schema/enums/RLS/single-flight/trim), 20260905010000 (auditoria manual), 20260905020000 (R4-3 — ativar global só admin), 20260906000000 (aplicar/decidir), 20260906010000 (rollback/restauração + `pode_recuperacao`), 20260907000000 (seed `pre_sync_inativa` no bootstrap)
+- Migração de precisão decimal (2026-09-11): 20260911000000 — `fenil_mg_por_100g` → `numeric(10,2)` + `CREATE OR REPLACE` das 4 RPCs com cast `numeric(10,1)`; **aplicada em dev em 2026-09-11; pendente em prod** (aplicação via `scripts/apply-supabase-migrations.sh`, com autorização — HIGH RISK)
+- Migração de revisão do reverter (2026-09-14): 20260914000000 — `reverter_sync_referencias` com no-op revisado: sync sem alterações COM pendências `open` cancela as pendências e marca `reverted` (decisão do usuário — bootstrap por definição não aplica operações); aplicada em dev em 2026-09-14; pendente em prod
 
 ## Security
 
@@ -108,7 +110,7 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - E2 — `vercel.json` (cron `0 12 * * 1`) + `api/referencias-sync.ts` `[CONFIRMED: configuration, code]`
 - E3 — Motor puro: `src/shared/referencias-sync/*.ts`; extração: `src/shared/powerbi/*.ts` `[CONFIRMED: code]`
 - E4 — Merges em development: M1 `5b1ed18` (PR #57), M2 `7ec0bf5` (PR #58), M3 `dd631d6` (PR #59), M4 `6e7d3e5` (PR #60), M5 `cb5d776` (PR #61), M6 `cb1123d` (PR #62) `[CONFIRMED: git]`
-- E5 — Suítes REAL M1–M6 executadas contra dev; PROD segue no schema pré-ENH-0004 até a release (gate W7) `[CONFIRMED: database — overview.md]`
+- E5 — Suítes REAL M1–M6 executadas contra dev; M1–M6 em prod desde a release v1.11.0 (2026-09-10) `[CONFIRMED: database — catálogo prod 2026-09-11]`
 
 ## Unknowns
 

@@ -6,7 +6,8 @@
  * banco ou rede; entradas imutáveis, saída nova.
  *
  * Contrato da origem (rota/M4): linhas JÁ validadas por `validarExtracao`
- * (estrutura, tipos, faixa fenil 0–2040, sem conflitantes D-10). A dedupe de
+ * (estrutura, tipos, faixa fenil 0–2040, sem pares conflitantes — BR-044
+ * revisada 2026-09-14: par inteiro rejeitado na validação). A dedupe de
  * exatas é feita aqui (mantém a 1ª ocorrência de cada identidade canônica);
  * `resumo.totalOrigem` conta as linhas recebidas ANTES da dedupe (espelha o
  * contador do banco).
@@ -19,9 +20,9 @@
  * as únicas operações emitidas são `create` (novo id) e `archive`.
  */
 
-import { chaveRef } from "./canonical";
-import { comparar } from "./compare";
-import type { LinhaOrigem } from "../powerbi/types";
+import { chaveRef } from "./canonical.js";
+import { comparar } from "./compare.js";
+import type { LinhaOrigem } from "../powerbi/types.js";
 import {
   PLANO_VERSAO,
   type ArquivadaGlobal,
@@ -35,7 +36,7 @@ import {
   type PlanoSync,
   type ResumoPlano,
   type TipoPendencia,
-} from "./types";
+} from "./types.js";
 
 export type EntradaPlanoSync = {
   /** Linhas da origem extraídas e validadas (contrato §6.3). */

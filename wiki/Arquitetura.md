@@ -20,7 +20,7 @@ Visão arquitetural do **MeuFenil**: uma SPA sem servidor de aplicação própri
 - **Supabase como BaaS:** autenticação (Google OAuth), PostgREST (consultas com RLS), RPCs de negócio e 2 Edge Functions (Deno). (Fonte: `architecture/overview.md`, `backend/overview.md`)
 - **Vercel:** hospedagem da SPA + funções `api/keepalive` (cron diário, `0 12 * * *` UTC) e `api/referencias-sync` (cron semanal, `0 12 * * 1` UTC — sincronização de referências com a origem ANVISA/Power BI, FEAT-0017). (Fonte: `backend/api-keepalive.md`, `backend/api-referencias-sync.md`)
 - **Ferramentas locais:** CLI de gestão (`scripts/cli/`), script de migrations (`scripts/apply-supabase-migrations.sh`) e provisionamento do ator Sistema (`scripts/provisionar-ator-sistema.js`). (Fonte: `backend/cli.md`, `backend/api-referencias-sync.md`)
-- **Banco (dev pós-FEAT-0017 M1–M6):** PostgreSQL com **12 tabelas** (7 legadas + 5 de sincronização), RLS em todas, **36 políticas** (31 + 5 `admin_select_*`), **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`). Prod segue no schema pré-ENH-0004 (7 tabelas / 31 políticas / 10 funções) até a release. (Fonte: `database/overview.md`)
+- **Banco (dev pós-FEAT-0017 M1–M6):** PostgreSQL com **12 tabelas** (7 legadas + 5 de sincronização), RLS em todas, **36 políticas** (31 + 5 `admin_select_*`), **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`). Prod tem a mesma estrutura desde a release v1.11.0 (2026-09-10). (Fonte: `database/overview.md`)
 
 ## Diagrama de camadas
 

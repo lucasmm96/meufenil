@@ -59,6 +59,7 @@ import {
   cleanupAllTestUsers,
   createTestReference,
   isFeat0017M5Applied,
+  isFeat0017ReverterSemOpsRevisado,
   isSistemaProvisionado,
   TestUser,
 } from "./test-helpers";
@@ -263,6 +264,7 @@ describeOrSkip("RPCs FEAT-0017 M5: reverter_sync_referencias + restaurar_referen
   let adminSemFlagClient: SupabaseClient;
   let sistemaId: string | null = null;
   let m5Aplicada = false;
+  let reversaoSemOpsRevisada = false;
 
   // Rastreamento da limpeza (ordem das FKs RESTRICT): eventos → pendências →
   // backups → syncs → usuários de teste (as referências fixtures são dos
@@ -273,6 +275,7 @@ describeOrSkip("RPCs FEAT-0017 M5: reverter_sync_referencias + restaurar_referen
 
   beforeAll(async () => {
     m5Aplicada = await isFeat0017M5Applied();
+    reversaoSemOpsRevisada = await isFeat0017ReverterSemOpsRevisado();
     if (!m5Aplicada) return;
 
     if (await isSistemaProvisionado()) {
@@ -425,14 +428,10 @@ describeOrSkip("RPCs FEAT-0017 M5: reverter_sync_referencias + restaurar_referen
       expect(await eventosManualDe(refC.id)).toHaveLength(0);
     });
 
-    it("no-op: sync sem alterações permanece como está (status e pendências intactos)", async () => {
+    it("no-op: sync sem alterações E sem pendências permanece como está", async () => {
       if (!m5Aplicada) return;
 
       const syncId = await criarSync("success");
-      const pendenciaId = await criarPendencia(syncId, {
-        tipo: "new_item",
-        proposta: { nome: nomeUnico("noop"), marca: "", fenil_mg_por_100g: 2 },
-      });
 
       const retorno = await adminAutorizadoClient.rpc("reverter_sync_referencias", {
         p_sync_id: syncId,
@@ -446,15 +445,51 @@ describeOrSkip("RPCs FEAT-0017 M5: reverter_sync_referencias + restaurar_referen
         .eq("id", syncId)
         .single();
       expect(sync?.status).toBe("success");
+      expect(await eventosPorSync(syncId)).toHaveLength(0);
+    });
 
-      // Pendência aberta permanece decidível (a divergência continua válida)
+    it("sync sem alterações COM pendências open: cancela as pendências e marca reverted (revisão 2026-09-14)", async () => {
+      if (!m5Aplicada || !reversaoSemOpsRevisada) return;
+
+      const syncId = await criarSync("pending_review");
+      const pendenciaId = await criarPendencia(syncId, {
+        tipo: "new_item",
+        proposta: { nome: nomeUnico("semops"), marca: "", fenil_mg_por_100g: 2 },
+      });
+
+      const retorno = await adminAutorizadoClient.rpc("reverter_sync_referencias", {
+        p_sync_id: syncId,
+      });
+      expect(retorno.error).toBeFalsy();
+      expect(retorno.data).toMatchObject({
+        status: "reverted",
+        revertidas: 0,
+        preservadas: 0,
+        pendencias_canceladas: 1,
+      });
+
+      const { data: sync } = await admin
+        .from("referencia_syncs")
+        .select("status, message")
+        .eq("id", syncId)
+        .single();
+      expect(sync?.status).toBe("reverted");
+      expect(sync?.message).toContain("0 operação(ões) revertida(s)");
+      expect(sync?.message).toContain("1 pendência(s) cancelada(s)");
+
+      // Pendência open cancelada — sem nova decisão possível
       const { data: pendencia } = await admin
         .from("referencia_sync_pendencias")
         .select("status")
         .eq("id", pendenciaId)
         .single();
-      expect(pendencia?.status).toBe("open");
-      expect(await eventosPorSync(syncId)).toHaveLength(0);
+      expect(pendencia?.status).toBe("cancelled");
+
+      // Evento pendencia_cancelada por pendência (motivo 'rollback da sync')
+      const eventos = await eventosPorSync(syncId);
+      expect(eventos).toHaveLength(1);
+      expect(eventos[0].tipo).toBe("pendencia_cancelada");
+      expect(String(eventos[0].detalhes?.motivo)).toContain("rollback");
     });
 
     it("skip de create cuja referência já foi arquivada por fluxo posterior", async () => {

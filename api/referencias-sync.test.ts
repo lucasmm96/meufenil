@@ -44,8 +44,25 @@ const EXTRACAO_VALIDA = [
   { "Nome do Produto": "Feijão", "Marca do Produto": "Marca B", NU_MAX_AMINOACIDO: 12 },
 ];
 
+/** Extração em que TODAS as linhas são rejeitadas individualmente — sem linha
+ *  válida restante, a sync aborta como origem inválida (B9). */
 const EXTRACAO_INVALIDA = [
   { "Nome do Produto": null, "Marca do Produto": "Marca A", NU_MAX_AMINOACIDO: 8 },
+];
+
+/** Artefato da API Power BI (linha 1 real: nome=null, marca=null, fenil presente)
+ *  precedendo dados válidos — o validator rejeita só essa linha e as demais
+ *  seguem para o pipeline (B9).
+ */
+const EXTRACAO_COM_ARTEFATO = [
+  { "Nome do Produto": null, "Marca do Produto": null, NU_MAX_AMINOACIDO: 239 },
+  ...EXTRACAO_VALIDA,
+];
+
+/** Produto sem marca declarada (marca nula) — entra no banco como string vazia. */
+const EXTRACAO_MARCA_NULA = [
+  { "Nome do Produto": "Arroz", "Marca do Produto": null, NU_MAX_AMINOACIDO: 8 },
+  { "Nome do Produto": "Feijão", "Marca do Produto": "Marca B", NU_MAX_AMINOACIDO: 12 },
 ];
 
 /**
@@ -131,6 +148,10 @@ function criarSupabaseMock(
       },
       order(coluna: unknown, opcoes: unknown) {
         chamadas.push({ tabela, operacao: "order", argumentos: [coluna, opcoes] });
+        return builder;
+      },
+      range(from: unknown, to: unknown) {
+        chamadas.push({ tabela, operacao: "range", argumentos: [from, to] });
         return builder;
       },
       lt(coluna: unknown, valor: unknown) {
@@ -271,6 +292,97 @@ describe("referencias-sync handler", () => {
     );
   }
 
+  it("consulta o catálogo completo com paginação (catálogo > 1000 linhas)", async () => {
+    setAmbiente();
+
+    const TOTAL_ATIVAS = 2500;
+    const TOTAL_ARQUIVADAS = 50;
+    const TOTAL_REFERENCIAS = TOTAL_ATIVAS + TOTAL_ARQUIVADAS;
+
+    const linhaAtiva = (i: number) => ({
+      id: `ref-${i}`,
+      nome: `Produto ${i}`,
+      marca: "",
+      fenil_mg_por_100g: 8,
+    });
+    const ativas = Array.from({ length: TOTAL_ATIVAS }, (_, i) => linhaAtiva(i));
+    const arquivadas = Array.from({ length: TOTAL_ARQUIVADAS }, (_, i) => ({
+      ...linhaAtiva(TOTAL_ATIVAS + i),
+      referencia_eventos: [],
+    }));
+    const todas = [...ativas, ...arquivadas];
+
+    // O PostgREST trunca em 1000 linhas por request — o mock devolve páginas
+    // de 1000 como o serviço real, e a rota deve iterar até a última página.
+    const paginas = (linhas: unknown[]) =>
+      Array.from({ length: Math.ceil(linhas.length / 1000) }, (_, p) =>
+        linhas.slice(p * 1000, (p + 1) * 1000)
+      );
+
+    const filas = filasBootstrap();
+    // Ordem de consumo da fila `referencias`: backup completo (estágio 5,
+    // sequencial), depois as consultas do estágio 6 em Promise.all — a 1ª
+    // página de ativas e arquivadas intercalam antes das páginas seguintes
+    // de ativas (o await só avança após cada página resolvida).
+    filas.referencias = [
+      ...paginas(todas).map((pagina) => ({ data: pagina, error: null })), // backup (estágio 5)
+      { data: ativas.slice(0, 1000), error: null }, // estágio 6 — ativas P1
+      { data: arquivadas, error: null }, // estágio 6 — arquivadas
+      { data: ativas.slice(1000, 2000), error: null }, // estágio 6 — ativas P2
+      { data: ativas.slice(2000), error: null }, // estágio 6 — ativas P3
+    ];
+
+    const origem = ativas.map((a) => ({
+      "Nome do Produto": a.nome,
+      "Marca do Produto": a.marca,
+      NU_MAX_AMINOACIDO: a.fenil_mg_por_100g,
+    }));
+    extractMock.mockResolvedValue({
+      rows: origem,
+      patchAplicado: true,
+      contagem: TOTAL_ATIVAS,
+    });
+
+    const mock = prepararHandler(
+      filas,
+      filasRpcAplicar({
+        equivalentes: TOTAL_ATIVAS,
+        criadas: 0,
+        arquivadas: 0,
+        divergencias: 0,
+      })
+    );
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "success" });
+
+    // Regressão do teto de 1000 linhas: sem paginação, 1500 ativas ficariam
+    // invisíveis para a comparação e virariam falsas pendências new_item.
+    const plano = chamadaRpc(mock)?.p_plano as {
+      pendencias: unknown[];
+      resumo: { equivalentes: number };
+    };
+    expect(plano.pendencias).toHaveLength(0);
+    expect(plano.resumo.equivalentes).toBe(TOTAL_ATIVAS);
+
+    // Estágios gravados com o retrato completo (backup + comparação).
+    const updateFinal = updatesSync(mock).at(-1)?.argumentos[0] as {
+      details: {
+        estagios: Array<{ estagio: string; contagem?: number; ativas?: number }>;
+      };
+    };
+    const backup = updateFinal.details.estagios.find((e) => e.estagio === "backup");
+    const comparacao = updateFinal.details.estagios.find((e) => e.estagio === "comparison");
+    expect(backup?.contagem).toBe(TOTAL_REFERENCIAS);
+    expect(comparacao?.ativas).toBe(TOTAL_ATIVAS);
+  });
+
   it("cron feliz: bootstrap (sem histórico) → plano só com pendências → pending_review", async () => {
     setAmbiente();
     extractMock.mockResolvedValue({
@@ -396,6 +508,95 @@ describe("referencias-sync handler", () => {
       ],
     });
     expect(mock.chamadas.filter((c) => c.tabela === "rpc:aplicar_sync_referencias")).toHaveLength(1);
+  });
+
+  it("artefato API (linha 1 nome=null) rejeitado individualmente → sync procede com as 2 linhas válidas e reporta a rejeição", async () => {
+    setAmbiente();
+    // Extraction devolve artefato (nome=null) + 2 linhas válidas (total bruto: 3).
+    extractMock.mockResolvedValue({
+      rows: EXTRACAO_COM_ARTEFATO,
+      patchAplicado: true,
+      contagem: EXTRACAO_COM_ARTEFATO.length,
+    });
+
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    // Artefato rejeitado → validação passa → sync NÃO aborta com origin_invalid.
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "pending_review" });
+
+    const chamadasSyncs = mock.chamadas.filter((c) => c.tabela === "referencia_syncs");
+    const final = chamadasSyncs.find((c) => c.operacao === "update" && c !== chamadasSyncs[0]);
+
+    // total_origem reflete as linhas APÓS a rejeição (2), não o bruto da API (3).
+    expect(final?.argumentos[0]).toMatchObject({
+      total_origem: 2,
+      message: expect.stringContaining("1 linha(s) da origem rejeitada(s) por dado inválido."),
+    });
+
+    // A rejeição é reportada no evento de validação (linha + motivo).
+    const validacaoEvento = mock.chamadas.find(
+      (c) =>
+        c.tabela === "referencia_eventos" &&
+        c.operacao === "insert" &&
+        (c.argumentos[0] as { tipo: string }).tipo === "validation"
+    );
+    expect(validacaoEvento?.argumentos[0]).toMatchObject({
+      detalhes: {
+        valida: true,
+        contagem: { rejeitadas: 1, linha1Anomala: true },
+        rejeitadas: [{ linha: 1, nome: null, motivo: "nome nulo ou vazio" }],
+        rejeitadas_truncadas: false,
+      },
+    });
+
+    // Snapshot foi criado com as linhas válidas (2 linhas = EXTRACAO_VALIDA).
+    const shaEsperado = createHash("sha256")
+      .update(JSON.stringify(EXTRACAO_VALIDA))
+      .digest("hex");
+    const snapshot = mock.chamadas.find(
+      (c) => c.tabela === "referencia_snapshots" && c.operacao === "insert"
+    );
+    expect(snapshot?.argumentos[0]).toMatchObject({ payload_sha256: shaEsperado, contagem: 2 });
+  });
+
+  it("produto sem marca declarada (marca nula) → entra como string vazia no snapshot", async () => {
+    setAmbiente();
+    extractMock.mockResolvedValue({
+      rows: EXTRACAO_MARCA_NULA,
+      patchAplicado: true,
+      contagem: 2,
+    });
+
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(mock.chamadas.some((c) => c.tabela === "referencia_backups")).toBe(true);
+
+    const comMarcaVazia = [
+      { "Nome do Produto": "Arroz", "Marca do Produto": "", NU_MAX_AMINOACIDO: 8 },
+      { "Nome do Produto": "Feijão", "Marca do Produto": "Marca B", NU_MAX_AMINOACIDO: 12 },
+    ];
+    const shaEsperado = createHash("sha256")
+      .update(JSON.stringify(comMarcaVazia))
+      .digest("hex");
+
+    const snapshot = mock.chamadas.find(
+      (c) => c.tabela === "referencia_snapshots" && c.operacao === "insert"
+    );
+    expect(snapshot?.argumentos[0]).toMatchObject({ payload_sha256: shaEsperado, contagem: 2 });
   });
 
   it("pos_bootstrap (histórico com success) → aplicação automática → success", async () => {
@@ -720,7 +921,9 @@ describe("referencias-sync handler", () => {
     expect(updatesSync[1].argumentos[0]).toMatchObject({
       status: "origin_invalid",
       total_origem: null,
-      message: expect.stringContaining("nome nulo"),
+      // A única linha é rejeitada individualmente → sem linha válida restante
+      // o abort dispara; a rejeição vai no detalhe do evento.
+      message: expect.stringContaining("sem linhas válidas"),
     });
 
     expect(
@@ -738,7 +941,12 @@ describe("referencias-sync handler", () => {
     ]);
     expect(eventos[2].argumentos[0]).toMatchObject({
       tipo: "validation",
-      detalhes: { valida: false, motivo: expect.stringContaining("nome nulo") },
+      detalhes: {
+        valida: false,
+        motivo: expect.stringContaining("sem linhas válidas"),
+        contagem: { rejeitadas: 1 },
+        rejeitadas: [{ linha: 1, nome: null, motivo: "nome nulo ou vazio" }],
+      },
     });
   });
 

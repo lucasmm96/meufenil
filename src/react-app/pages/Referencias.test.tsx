@@ -168,11 +168,11 @@ describe("Referencias page", () => {
     // nome aparece no card mobile e na tabela desktop
     expect(screen.getAllByText("Arroz").length).toBe(2);
     expect(screen.getAllByText("Feijão").length).toBe(2);
-    // desktop mostra "25.5"; mobile mostra "25.5 mg" (textos diferentes)
-    expect(screen.getAllByText("25.5").length).toBe(1);
-    expect(screen.getAllByText("25.5 mg").length).toBe(1);
-    expect(screen.getAllByText("30.0").length).toBe(1);
-    expect(screen.getAllByText("30.0 mg").length).toBe(1);
+    // desktop mostra "25.50"; mobile mostra "25.50 mg" (textos diferentes)
+    expect(screen.getAllByText("25.50").length).toBe(1);
+    expect(screen.getAllByText("25.50 mg").length).toBe(1);
+    expect(screen.getAllByText("30.00").length).toBe(1);
+    expect(screen.getAllByText("30.00 mg").length).toBe(1);
     expect(screen.getAllByText("Global").length).toBe(1);
     expect(screen.getAllByText("Customizada").length).toBe(1);
     expect(screen.getByText("Total: 2 registros")).toBeTruthy();
@@ -322,6 +322,46 @@ describe("Referencias page", () => {
       expect(alertSpy).toHaveBeenCalledWith("Referência criada com sucesso.");
       expect(screen.queryByText("Nova Referência")).toBeNull();
     });
+  });
+
+  it("aceita fenil com 2 casas decimais (limite de numeric(10,2))", async () => {
+    const { create } = setupReferencias();
+    render(<Referencias />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Nova Referência" }));
+    fireEvent.change(screen.getByPlaceholderText("Ex: Maçã Fuji"), {
+      target: { value: "Maçã" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Ex: 25.50"), {
+      target: { value: "5.42" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledWith("Maçã", "", 5.42);
+    });
+  });
+
+  it("bloqueia fenil com mais de 2 casas decimais sem chamar o serviço", async () => {
+    const { create } = setupReferencias();
+    render(<Referencias />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Nova Referência" }));
+    fireEvent.change(screen.getByPlaceholderText("Ex: Maçã Fuji"), {
+      target: { value: "Maçã" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Ex: 25.50"), {
+      target: { value: "5.123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Fenilalanina aceita no máximo 2 casas decimais."),
+      ).toBeTruthy();
+    });
+    expect(create).not.toHaveBeenCalled();
+    expect(screen.getByText("Nova Referência")).toBeTruthy();
   });
 
   it("mantém a modal aberta e alerta quando a referência é duplicada", async () => {

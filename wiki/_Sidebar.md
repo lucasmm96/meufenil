@@ -11,3 +11,4 @@
 - [Arquitetura](Arquitetura)
 - [Funcionalidades](Funcionalidades)
 - [Referências Técnicas](Referencias-Tecnicas)
+- [Sincronização ANVISA](Sincronizacao-Referencias-ANVISA)

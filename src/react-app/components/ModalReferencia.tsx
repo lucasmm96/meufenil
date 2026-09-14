@@ -27,6 +27,7 @@ export default function ModalReferencia({
   const [nome, setNome] = useState("");
   const [marca, setMarca] = useState("");
   const [fenil, setFenil] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fonte = referencia ?? initial ?? null;
@@ -44,7 +45,17 @@ export default function ModalReferencia({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+
     if (!nome || !fenil) return;
+
+    // O campo do banco é numeric(10,2): aceita no máximo 2 casas decimais.
+    const casasDecimais = fenil.includes(".") ? fenil.split(".")[1].length : 0;
+
+    if (casasDecimais > 2) {
+      setError("Fenilalanina aceita no máximo 2 casas decimais.");
+      return;
+    }
 
     await onSubmit({
       nome,
@@ -120,6 +131,8 @@ export default function ModalReferencia({
                 required
               />
             </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button

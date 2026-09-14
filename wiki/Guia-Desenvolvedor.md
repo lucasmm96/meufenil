@@ -158,15 +158,15 @@ npm run test:coverage # execução com cobertura
 
 Os testes de segurança exigem `SUPABASE_SERVICE_ROLE_KEY` no ambiente (carregado de `.env.development`); sem a variável, as suítes pulam via `describeOrSkip`. Pré-condição: migration de segurança aplicada (`isSecurityMigrationApplied()`). (Fonte: `testing/testing-strategy.md` seções 4–5; `security/security-model.md` seção 12)
 
-**CI:** GitHub Actions (`.github/workflows/ci.yml`) roda lint → `test:run` → build em push/PR. (Verificado em: `.github/workflows/ci.yml`)
+**CI:** GitHub Actions (`.github/workflows/ci.yml`) roda lint → `test:run` → build em push/PR; um segundo workflow atualiza automaticamente o alias Vercel do deployment de preview do branch `development` a cada push nesse branch. (Verificado em: `.github/workflows/`)
 
 ## Banco de dados
 
-PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS habilitado em todas, **36 políticas**, **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`), **5 enums**. **Prod segue no schema pré-ENH-0004** (sem coluna `marca`, sem as 5 tabelas de sync) até a release v1.11.0. (Fonte: `database/overview.md`)
+PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS habilitado em todas, **36 políticas**, **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`), **5 enums**. **Prod tem a mesma estrutura desde a release v1.11.0** (2026-09-10). (Fonte: `database/overview.md`)
 
 ### Migrations
 
-- **Local atual:** `supabase/migrations/` (Supabase CLI). Baseline `20260103015052_remote_schema.sql`; sequências de 2026-08 (jobs, monitoramento, fix de segurança, baseline de objetos, default do limite diário), **ENH-0004** (`20260904000000` a `20260904040000` — marca + identidade imutável) e **FEAT-0017** (`20260905000000`/`010000`/`020000` — M1: tabelas de sync, auditoria, admin-only; `20260906000000` — M4: aplicação/curadoria; `20260906010000` — M5: rollback/restauração; `20260907000000` — M6: seed `pre_sync_inativa`). Todas as migrations 2026-09 aplicadas **somente em dev**; prod aguarda a release. (Fonte: `database/overview.md` — tabela de migrations; verificado em: `supabase/migrations/`)
+- **Local atual:** `supabase/migrations/` (Supabase CLI). Baseline `20260103015052_remote_schema.sql`; sequências de 2026-08 (jobs, monitoramento, fix de segurança, baseline de objetos, default do limite diário), **ENH-0004** (`20260904000000` a `20260904040000` — marca + identidade imutável) e **FEAT-0017** (`20260905000000`/`010000`/`020000` — M1: tabelas de sync, auditoria, admin-only; `20260906000000` — M4: aplicação/curadoria; `20260906010000` — M5: rollback/restauração; `20260907000000` — M6: seed `pre_sync_inativa`; `20260911000000` — precisão `numeric(10,2)` em `fenil_mg_por_100g`; `20260914000000` — no-op revisado do reverter). Todas as migrations 2026-09 aplicadas **somente em dev**; duas migrations ainda **pendentes em prod**: `20260911000000` e `20260914000000` (aplicação via `scripts/apply-supabase-migrations.sh --env production` — HIGH RISK, exige autorização). (Fonte: `database/overview.md` — tabela de migrations; verificado em: `supabase/migrations/`)
 - **Legado:** `migrations/` na raiz (`usuarios.sql`, `referencias.sql`, `registros.sql`, `exames_pku.sql`, `dados.sql` — seed ANVISA com 2.959 INSERTs). Snapshot antigo; não contém o estado atual de políticas. (Fonte: `database/overview.md`)
 - **Aplicação:** `scripts/apply-supabase-migrations.sh --env development|production` (fluxo: `supabase link` → `migration repair` do baseline → `db push`). Nunca aplique nos dois ambientes na mesma execução. (Fonte: `backend/cli.md`)
 
@@ -198,7 +198,7 @@ PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS hab
 
 ### Triggers
 
-Em dev (4): `fn_trim_background_job_executions` (retenção de 365 dias de execuções de job), `trg_auditar_is_ativa_manual` (auditoria de mudança manual de `is_ativa`, FEAT-0017 M1), `trg_trim_referencia_backups` (retenção de 12 meses de backups de sync, FEAT-0017 M1) e `on_auth_user_created` (cria perfil no sign-up). Os triggers `trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` foram **eliminados na ENH-0004** (dev); prod ainda os possui até a release. (Fonte: `database/triggers.md`)
+Em dev e prod (4): `fn_trim_background_job_executions` (retenção de 365 dias de execuções de job), `trg_auditar_is_ativa_manual` (auditoria de mudança manual de `is_ativa`, FEAT-0017 M1), `trg_trim_referencia_backups` (retenção de 12 meses de backups de sync, FEAT-0017 M1) e `on_auth_user_created` (cria perfil no sign-up). Os triggers `trg_normalizar_nome_referencia` e `trg_remover_favoritos_referencia_inativa` foram **eliminados na ENH-0004** (dev e prod — prod na release v1.11.0). (Fonte: `database/triggers.md`)
 
 ### CLI Interna
 

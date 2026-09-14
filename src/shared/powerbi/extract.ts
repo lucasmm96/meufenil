@@ -13,9 +13,9 @@
  * - resposta HTTP não-ok → erro explícito (`status statusText`).
  */
 
-import { decodeDsr } from "./decode";
-import { QUERY_PAYLOAD, type PayloadConsultaPowerBi } from "./query-payload";
-import type { LinhaOrigem } from "./types";
+import { decodeDsr } from "./decode.js";
+import { QUERY_PAYLOAD, type PayloadConsultaPowerBi } from "./query-payload.js";
+import type { LinhaOrigem } from "./types.js";
 
 export const QUERY_DATA_URL =
   "https://wabi-brazil-south-api.analysis.windows.net/public/reports/querydata?synchronous=true";

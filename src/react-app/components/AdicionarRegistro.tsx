@@ -227,7 +227,7 @@ export default function AdicionarRegistro({
                         </span>
 
                         <span className="text-xs sm:text-sm text-gray-500">
-                          {ref.fenil_mg_por_100g.toFixed(1)} mg/100g
+                          {ref.fenil_mg_por_100g.toFixed(2)} mg/100g
                         </span>
                       </div>
 
@@ -246,7 +246,7 @@ export default function AdicionarRegistro({
                       {nomeComMarca(selectedReferencia.nome, selectedReferencia.marca)}
                     </span>{" "}
                     -{" "}
-                    {selectedReferencia.fenil_mg_por_100g.toFixed(1)} mg de
+                    {selectedReferencia.fenil_mg_por_100g.toFixed(2)} mg de
                     fenilalanina por 100g
                   </div>
 

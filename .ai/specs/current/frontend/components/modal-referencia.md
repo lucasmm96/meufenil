@@ -1,6 +1,6 @@
 # Componente ModalReferencia
 
-**Última verificação:** 2026-09-04 (ENH-0004 — campo Marca; prop `initial` para cópia de global)
+**Última verificação:** 2026-09-11 (FEAT-0017 — limite de 2 casas decimais no campo fenilalanina, alinhado a `numeric(10,2)`)
 **Código:** `src/react-app/components/ModalReferencia.tsx`
 
 ## Propósito e uso
@@ -13,7 +13,7 @@ Modal de criação/edição de referência alimentar (nome + marca + fenilalanin
 
 ## Estado e dados
 
-Apenas estado local `nome`, `marca` e `fenil` (strings dos inputs); sem hooks de dados (a lógica de create/update é do PAI, via `onSubmit`) `[CONFIRMED: code — ModalReferencia.tsx:28-30]`.
+Estado local `nome`, `marca`, `fenil` (strings dos inputs) e `error` (mensagem de validação exibida inline; desde 2026-09-11); sem hooks de dados (a lógica de create/update é do PAI, via `onSubmit`) `[CONFIRMED: code — ModalReferencia.tsx:27-30]`.
 
 ## UI
 
@@ -23,13 +23,14 @@ Apenas estado local `nome`, `marca` e `fenil` (strings dos inputs); sem hooks de
 
 ## Validação
 
-- Guard no submit: `if (!nome || !fenil) return` — sem exigir marca (marca omissa = EM BRANCO `''` no service/lib; BR-035 — canônico 2026-09-04) + `required` nativo apenas em nome e fenil `[CONFIRMED: code — ModalReferencia.tsx:48]`.
+- Guard no submit: `if (!nome || !fenil) return` — sem exigir marca (marca omissa = EM BRANCO `''` no service/lib; BR-035 — canônico 2026-09-04) + `required` nativo apenas em nome e fenil `[CONFIRMED: code — ModalReferencia.tsx:50]`.
+- **Limite de casas decimais (2026-09-11):** o submit conta as casas da string digitada e bloqueia (sem chamar o PAI) quando há mais de 2, com a mensagem inline "Fenilalanina aceita no máximo 2 casas decimais." — alinhado à coluna `numeric(10,2)` (FEAT-0017) `[CONFIRMED: code — ModalReferencia.tsx:52-58]`.
 - Validação numérica é responsabilidade do PAI (ex.: `Number.isNaN(fenil)` com `alert("Informe um valor numérico válido para fenilalanina.")` em Referencias.tsx:132-135; Dashboard retorna silenciosamente) `[CONFIRMED: code]`.
 
 ## Estados de UI
 
 - **Submitting:** `loading` prop → "Salvando..." + `disabled:opacity-50 disabled:cursor-not-allowed` `[CONFIRMED: code]`.
-- **Error:** exibido pelo PAI via `alert()` (o modal não renderiza erro próprio) `[CONFIRMED: code × ausência]`.
+- **Error:** o modal renderiza inline o erro de validação próprio (`{error && <p className="text-sm text-red-600">…</p>}` acima dos botões; desde 2026-09-11 — padrão de `ConcederAcessoModal`); erros do PAI continuam via `alert()` `[CONFIRMED: code — ModalReferencia.tsx:135]`.
 - **Edição × criação:** título e preenchimento condicionais a `referencia`/`initial` (`referencia` → "Editar Referência") `[CONFIRMED: code — ModalReferencia.tsx:62-63]`.
 
 ## Responsividade / Acessibilidade
@@ -38,7 +39,7 @@ Bottom-sheet mobile × central desktop; `rounded-t-2xl sm:rounded-2xl`; botões 
 
 ## Testes
 
-Sem teste próprio; exercitado indiretamente (renderização real) por `Referencias.test.tsx`, `Dashboard.test.tsx` e `AdicionarRegistro.test.tsx` (criar/editar referência) `[CONFIRMED: test]`.
+Sem teste próprio; exercitado indiretamente (renderização real) por `Referencias.test.tsx` (28 — inclui os 2 casos de 2026-09-11: aceita 2 casas e bloqueia >2 sem chamar o serviço), `Dashboard.test.tsx` e `AdicionarRegistro.test.tsx` (criar/editar referência) `[CONFIRMED: test]`.
 
 ## Evidências
 

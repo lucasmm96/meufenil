@@ -139,7 +139,7 @@ describe("AdicionarRegistro component", () => {
 
     // nome fica em span próprio; valor em texto direto do card
     expect(screen.getByText("Maçã")).toBeTruthy();
-    expect(screen.getByText(/30.0 mg de fenilalanina por 100g/)).toBeTruthy();
+    expect(screen.getByText(/30.00 mg de fenilalanina por 100g/)).toBeTruthy();
     expect(screen.getByPlaceholderText("Buscar alimento...")).toHaveValue("Maçã");
     // dropdown fecha após selecionar
     expect(screen.queryByRole("button", { name: /Banana/ })).toBeNull();
@@ -188,13 +188,13 @@ describe("AdicionarRegistro component", () => {
 
     fireEvent.focus(screen.getByPlaceholderText("Buscar alimento..."));
     fireEvent.click(screen.getByRole("button", { name: /Maçã/ }));
-    expect(screen.getByText(/30.0 mg de fenilalanina/)).toBeTruthy();
+    expect(screen.getByText(/30.00 mg de fenilalanina/)).toBeTruthy();
 
     // o X de limpar seleção fica no card da referência selecionada
-    const card = screen.getByText(/30.0 mg de fenilalanina/).parentElement!;
+    const card = screen.getByText(/30.00 mg de fenilalanina/).parentElement!;
     fireEvent.click(within(card).getByRole("button"));
 
-    expect(screen.queryByText(/30.0 mg de fenilalanina/)).toBeNull();
+    expect(screen.queryByText(/30.00 mg de fenilalanina/)).toBeNull();
   });
 
   it("limpa a busca e reabre o dropdown", () => {
@@ -266,7 +266,7 @@ describe("AdicionarRegistro component", () => {
     });
     expect(search).toHaveBeenCalledWith("");
     expect(screen.getByText("Pera")).toBeTruthy();
-    expect(screen.getByText(/20.0 mg de fenilalanina por 100g/)).toBeTruthy();
+    expect(screen.getByText(/20.00 mg de fenilalanina por 100g/)).toBeTruthy();
   });
 
   it("cria o registro com a fenilalanina calculada e chama onSuccess", async () => {

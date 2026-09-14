@@ -360,9 +360,9 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** lifecycle (segurança do bootstrap)
 - **Given:** execução de sync
 - **When:** o modo do ambiente ainda é `bootstrap` (nenhuma sync anterior `success`/`pending_review` no histórico) OU a extração/validação falhou (origem inválida/não confiável)
-- **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9, abort imediato na 1ª anomalia); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
-- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts:8-19,101,182; migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
-- **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), REAL M4 `[CONFIRMED: test]`
+- **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9: estrutura inesperada ou nenhuma linha válida restante; duplicidade conflitante rejeita o par inteiro — BR-044); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
+- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts (checks 1/2 abortam; check 3 rejeita linha a linha; check 4 rejeita grupos conflitantes inteiros); migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
+- **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), `validate.test.ts` (24), `referencias-sync.test.ts`, REAL M4 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-040 — Mudança substantiva na origem = arquivar + criar, somente por curadoria
@@ -401,13 +401,13 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tests:** suíte REAL `rpc-referencias-sync.test.ts` (aprovar por tipo/rejeitar/terminal) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-044 — Duplicidade conflitante na origem invalida a sync
+### BR-044 — Duplicidade conflitante na origem rejeita o par inteiro
 - **Tipo:** validação
-- **Given:** extração com duas linhas de mesma identidade e valores substantivos divergentes (mesmo nome+marca, fenil diferente)
+- **Given:** extração com duas ou mais linhas de mesma identidade de nome+marca e valores substantivos divergentes (fenil diferente)
 - **When:** validação da extração (estágio 3)
-- **Then:** a sync é invalidada (D-10) — abort imediato, nada é aplicado, nenhum artifact de aplicação; duplicidades exatas (idênticas) são apenas contadas e deduplicadas na comparação
-- **Evidence:** `[CONFIRMED: code — src/shared/powerbi/validate.ts:182-204 (conflitantes invalidam); src/shared/referencias-sync/engine.ts:9 ("sem conflitantes D-10")]`
-- **Tests:** `validate.test.ts` (duplicidade conflitante aborta) `[CONFIRMED: test]`
+- **Then:** TODAS as linhas do grupo conflitante são rejeitadas individualmente — **par inteiro, nenhum valor arbitrário vence**; o produto fica fora do catálogo até a origem estabilizar. **Revisão 2026-09-14 da decisão D-10** (que invalidava a sync inteira): com a origem real, pares conflitantes existem e o abort permanente tornou-se inviável (origin_invalid a cada execução); a sync agora NÃO é invalidada pelo conflito — segue com as demais linhas e só aborta se não restar nenhuma válida. Cada rejeição reporta o grupo completo (`{linha, nome, motivo}` com os valores e linhas do par). Duplicidades exatas (idênticas) são apenas contadas e deduplicadas na comparação. A checagem roda sobre as linhas VÁLIDAS (linhas rejeitadas individualmente não participam)
+- **Evidence:** `[CONFIRMED: code — src/shared/powerbi/validate.ts (check 4 — grupos com fenil divergente rejeitam todas as linhas do grupo)]`
+- **Tests:** `validate.test.ts` (par conflitante rejeitado inteiro com sync seguindo; conflito aponta linhas originais; marca nula × vazia; tripla) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-045 — Sync é unidade com ID único; single-flight; pendências canceladas/revertidas sem nova decisão
@@ -423,9 +423,9 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** retenção/recuperação
 - **Given:** sync com extração válida (backup criado no estágio 5, antes de aplicar) / incidente que exige desfazer uma sync
 - **When:** backup/reversão/restauração
-- **Then:** backup completo de `referencias` (payload + sha256, contagem) é gravado por sync com retenção FIXADA de 12 meses (trigger próprio — fora do trim 365d da BR-027, que continua valendo só para `background_job_executions`); rollback seletivo (`reverter_sync_referencias`) desfaz SOMENTE as alterações da sync escolhida em ordem reversa, com guarda por operação que PRESERVA alterações posteriores (referência já mudada/reativada/recriada → skip registrado com motivo; nunca DELETE); restauração excepcional (`restaurar_referencias_de_backup`) verifica o sha256 do payload antes de qualquer efeito (digest via `extensions.digest`), devolve o conjunto global a refletir o backup, cancela TODAS as pendências open, não cria linha de sync (evento único `restore` com ids) e nunca apaga histórico
-- **Evidence:** `[CONFIRMED: migration 20260905000000 (tabelas de backup linhas 177-190; trigger linhas 260-279); migration 20260906010000 (reverter linhas 103-317; restaurar linhas 345-608 — integridade sha256 linhas 434-437; decisões humanas de 2026-09-06 no header)]`
-- **Tests:** suíte REAL `rpc-referencias-sync-rollback.test.ts` (17 testes — reverter 11/restaurar 6) `[CONFIRMED: test]`
+- **Then:** backup completo de `referencias` (payload + sha256, contagem) é gravado por sync com retenção FIXADA de 12 meses (trigger próprio — fora do trim 365d da BR-027, que continua valendo só para `background_job_executions`); rollback seletivo (`reverter_sync_referencias`) desfaz SOMENTE as alterações da sync escolhida em ordem reversa, com guarda por operação que PRESERVA alterações posteriores (referência já mudada/reativada/recriada → skip registrado com motivo; nunca DELETE); **revisão 2026-09-14 (migration 20260914000000):** sync sem alterações COM pendências open (caso bootstrap) cancela as pendências e marca a sync `reverted` — sem alterações E sem pendências mantém o no-op informativo; restauração excepcional (`restaurar_referencias_de_backup`) verifica o sha256 do payload antes de qualquer efeito (digest via `extensions.digest`), devolve o conjunto global a refletir o backup, cancela TODAS as pendências open, não cria linha de sync (evento único `restore` com ids) e nunca apaga histórico
+- **Evidence:** `[CONFIRMED: migration 20260905000000 (tabelas de backup linhas 177-190; trigger linhas 260-279); migration 20260906010000 (reverter linhas 103-317; restaurar linhas 345-608 — integridade sha256 linhas 434-437; decisões humanas de 2026-09-06 no header); migration 20260914000000 (no-op revisado do reverter — decisão do usuário 2026-09-14)]`
+- **Tests:** suíte REAL `rpc-referencias-sync-rollback.test.ts` (18 testes — reverter 12/restaurar 6) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-047 — Auditoria de sync/curadoria e de alteração manual de is_ativa; fronteira OQ4 preservada
