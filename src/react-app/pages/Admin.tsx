@@ -1448,6 +1448,53 @@ function AbaPendenciasSync({
   const [historicoErro, setHistoricoErro] = useState<string | null>(null);
   const [historicoLoadingId, setHistoricoLoadingId] = useState<string | null>(null);
 
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [processandoBulk, setProcessandoBulk] = useState(false);
+  const [resultadoBulk, setResultadoBulk] = useState<{ sucessos: number; erros: Array<{ id: string; msg: string }> } | null>(null);
+  const [modalBulkRejeitar, setModalBulkRejeitar] = useState(false);
+
+  useEffect(() => {
+    setSelecionados(new Set());
+  }, [data.pendencias.items]);
+
+  const itensAbertos = data.pendencias.items.filter((p) => p.status === "open");
+  const todosSelecionados = itensAbertos.length > 0 && itensAbertos.every((p) => selecionados.has(p.id));
+  const alguemSelecionado = selecionados.size > 0;
+
+  function toggleItem(id: string) {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTodos() {
+    setSelecionados(todosSelecionados ? new Set() : new Set(itensAbertos.map((p) => p.id)));
+  }
+
+  async function aprovarEmLote() {
+    if (!window.confirm(`Aprovar ${selecionados.size} pendência(s) selecionada(s)?`)) return;
+    setProcessandoBulk(true);
+    try {
+      const resultado = await data.decidirPendenciasEmLote([...selecionados], true);
+      setResultadoBulk(resultado);
+    } finally {
+      setProcessandoBulk(false);
+    }
+  }
+
+  async function rejeitarEmLote(motivo: string) {
+    setProcessandoBulk(true);
+    try {
+      const resultado = await data.decidirPendenciasEmLote([...selecionados], false, motivo);
+      setResultadoBulk(resultado);
+    } finally {
+      setProcessandoBulk(false);
+    }
+  }
+
   async function carregarHistorico(pendencia: PendenciaSyncDTO) {
     if (historicoId === pendencia.id) {
       setHistoricoId(null);
@@ -1492,6 +1539,23 @@ function AbaPendenciasSync({
           />
         </div>
 
+        {resultadoBulk && (
+          <div className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-sm ${
+            resultadoBulk.erros.length === 0
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-amber-50 border-amber-200 text-amber-800"
+          }`}>
+            <span>
+              {resultadoBulk.erros.length === 0
+                ? `${resultadoBulk.sucessos} decisão(ões) registrada(s) com sucesso.`
+                : `${resultadoBulk.sucessos} de ${resultadoBulk.sucessos + resultadoBulk.erros.length} decisão(ões) registrada(s). ${resultadoBulk.erros.length} erro(s).`}
+            </span>
+            <button onClick={() => setResultadoBulk(null)} aria-label="Fechar resultado" className="text-gray-500 hover:text-gray-700">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {data.pendencias.error ? (
           <BlocoErroSecao title="Erro ao carregar as pendências" message={data.pendencias.error.message} />
         ) : data.pendencias.items.length === 0 && !data.pendencias.loading ? (
@@ -1504,6 +1568,44 @@ function AbaPendenciasSync({
           </div>
         ) : (
           <div className="space-y-4">
+            {itensAbertos.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={todosSelecionados}
+                    onChange={toggleTodos}
+                    className="w-4 h-4 rounded accent-indigo-600"
+                  />
+                  <span className="text-sm font-medium text-indigo-700">
+                    {todosSelecionados ? "Desmarcar todos" : `Selecionar todos (${itensAbertos.length})`}
+                  </span>
+                </label>
+
+                {alguemSelecionado && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-indigo-600 font-medium">{selecionados.size} selecionado(s)</span>
+                    <button
+                      onClick={aprovarEmLote}
+                      disabled={processandoBulk}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Aprovar selecionados
+                    </button>
+                    <button
+                      onClick={() => setModalBulkRejeitar(true)}
+                      disabled={processandoBulk}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Rejeitar selecionados
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {data.pendencias.items.map((pendencia) => (
               <PendenciaCardSync
                 key={pendencia.id}
@@ -1514,6 +1616,8 @@ function AbaPendenciasSync({
                 historicoErro={historicoErro}
                 historicoLoading={historicoLoadingId === pendencia.id}
                 onAlternarHistorico={() => carregarHistorico(pendencia)}
+                checked={pendencia.status === "open" ? selecionados.has(pendencia.id) : undefined}
+                onToggle={pendencia.status === "open" ? () => toggleItem(pendencia.id) : undefined}
               />
             ))}
 
@@ -1540,6 +1644,14 @@ function AbaPendenciasSync({
           onDecidir={(aprovar, motivo) => data.decidirPendencia(decisao.pendencia.id, aprovar, motivo)}
         />
       )}
+
+      {modalBulkRejeitar && (
+        <ModalDecisaoBulkRejeitar
+          count={selecionados.size}
+          onClose={() => setModalBulkRejeitar(false)}
+          onRejeitar={rejeitarEmLote}
+        />
+      )}
     </div>
   );
 }
@@ -1552,6 +1664,8 @@ function PendenciaCardSync({
   historicoErro,
   historicoLoading,
   onAlternarHistorico,
+  checked,
+  onToggle,
 }: {
   pendencia: PendenciaSyncDTO;
   onAbrirDecisao: (aprovar: boolean) => void;
@@ -1560,6 +1674,8 @@ function PendenciaCardSync({
   historicoErro: string | null;
   historicoLoading: boolean;
   onAlternarHistorico: () => void;
+  checked?: boolean;
+  onToggle?: () => void;
 }) {
   const referencia = pendencia.referencia;
   const proposta = pendencia.proposta;
@@ -1568,6 +1684,15 @@ function PendenciaCardSync({
     <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          {onToggle !== undefined && (
+            <input
+              type="checkbox"
+              checked={checked ?? false}
+              onChange={onToggle}
+              className="w-4 h-4 rounded accent-indigo-600 cursor-pointer flex-shrink-0"
+              aria-label="Selecionar pendência"
+            />
+          )}
           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${pendenciaTipoStyles(pendencia.tipo)}`}>
             {PENDENCIA_TIPO_LABELS[pendencia.tipo]}
           </span>
@@ -1800,6 +1925,85 @@ function ModalDecisaoPendencia({
               }`}
             >
               {enviando ? "Registrando..." : aprovar ? "Confirmar aprovação" : "Confirmar rejeição"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalDecisaoBulkRejeitar({
+  count,
+  onClose,
+  onRejeitar,
+}: {
+  count: number;
+  onClose: () => void;
+  onRejeitar: (motivo: string) => Promise<void>;
+}) {
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function confirmar() {
+    setErro(null);
+    setEnviando(true);
+    try {
+      await onRejeitar(motivo.trim());
+      onClose();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro inesperado ao registrar as rejeições.");
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">
+            Rejeitar {count} pendência{count !== 1 ? "s" : ""}
+          </h2>
+          <button onClick={onClose} aria-label="Fechar" className="text-gray-400 hover:text-gray-700">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3 text-sm text-gray-700">
+          <p>
+            O mesmo motivo será aplicado a {count === 1 ? "a pendência selecionada" : `todas as ${count} pendências selecionadas`}. A rejeição mantém a referência atual e registra a divergência como conhecida.
+          </p>
+
+          <label className="block">
+            <span className="block text-sm font-medium text-gray-700 mb-1">Motivo da rejeição</span>
+            <textarea
+              value={motivo}
+              onChange={(event) => setMotivo(event.target.value)}
+              rows={3}
+              required
+              placeholder="Ex.: a proposta está desatualizada; conferir com a fonte."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </label>
+
+          {erro && <p className="text-sm text-red-700 bg-red-50 rounded-xl p-3 border border-red-200">{erro}</p>}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={enviando}
+              className="px-4 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmar}
+              disabled={enviando || !motivo.trim()}
+              className="px-4 py-2 text-sm rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {enviando ? "Rejeitando..." : "Confirmar rejeição"}
             </button>
           </div>
         </div>

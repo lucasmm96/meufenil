@@ -90,6 +90,7 @@ function syncAdminMock(overrides: Record<string, unknown> = {}) {
     syncsRevertiveis: { items: [], loading: false, error: null },
     historicoPendencia: vi.fn(),
     decidirPendencia: vi.fn(),
+    decidirPendenciasEmLote: vi.fn(),
     reverterSync: vi.fn(),
     restaurarBackup: vi.fn(),
     executarSync: vi.fn(),
@@ -148,6 +149,7 @@ function renderAdminComoAdmin(overrides: Record<string, unknown> = {}) {
   useReferenciasSyncAdminMock.mockReturnValue(syncMock);
   return syncMock as {
     decidirPendencia: ReturnType<typeof vi.fn>;
+    decidirPendenciasEmLote: ReturnType<typeof vi.fn>;
     reverterSync: ReturnType<typeof vi.fn>;
     restaurarBackup: ReturnType<typeof vi.fn>;
     setPendenciasSyncId: ReturnType<typeof vi.fn>;
@@ -569,6 +571,78 @@ describe("Admin page", () => {
       expect(
         screen.getByText(/Sincronização revertida: nenhuma operação desfeita \(a sync não aplicou alterações\), 2496 pendências canceladas\./)
       ).toBeTruthy();
+    });
+  });
+
+  it("checkbox aparece em itens abertos e barra de seleção mostra o total", async () => {
+    renderAdminComoAdmin({
+      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
+    });
+
+    render(<Admin />);
+    fireEvent.click(screen.getByText("Pendências de curadoria"));
+
+    // "select all" + checkbox do item (só abertos recebem checkbox)
+    await waitFor(() => {
+      expect(screen.getAllByRole("checkbox").length).toBe(2);
+    });
+    expect(screen.getByText(/Selecionar todos/)).toBeTruthy();
+  });
+
+  it("aprovar em lote chama decidirPendenciasEmLote com os IDs selecionados", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const syncMock = renderAdminComoAdmin({
+      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
+    });
+    syncMock.decidirPendenciasEmLote.mockResolvedValue({ sucessos: 1, erros: [] });
+
+    render(<Admin />);
+    fireEvent.click(screen.getByText("Pendências de curadoria"));
+
+    // Seleciona via "Selecionar todos"
+    fireEvent.click(screen.getByText(/Selecionar todos/));
+    expect(screen.getByText("1 selecionado(s)")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Aprovar selecionados"));
+    expect(confirmSpy).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(syncMock.decidirPendenciasEmLote).toHaveBeenCalledWith(["pend-1"], true);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/1 decisão\(ões\) registrada\(s\) com sucesso/)).toBeTruthy();
+    });
+  });
+
+  it("rejeitar em lote exige motivo no modal e chama decidirPendenciasEmLote", async () => {
+    const syncMock = renderAdminComoAdmin({
+      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
+    });
+    syncMock.decidirPendenciasEmLote.mockResolvedValue({ sucessos: 1, erros: [] });
+
+    render(<Admin />);
+    fireEvent.click(screen.getByText("Pendências de curadoria"));
+
+    fireEvent.click(screen.getByText(/Selecionar todos/));
+    fireEvent.click(screen.getByText("Rejeitar selecionados"));
+
+    expect(screen.getByText(/Rejeitar 1 pendência/)).toBeTruthy();
+    const confirmarBtn = screen.getByText("Confirmar rejeição") as HTMLButtonElement;
+    expect(confirmarBtn.disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText("Motivo da rejeição"), {
+      target: { value: "Proposta de teste a rejeitar." },
+    });
+    expect(confirmarBtn.disabled).toBe(false);
+
+    fireEvent.click(confirmarBtn);
+
+    await waitFor(() => {
+      expect(syncMock.decidirPendenciasEmLote).toHaveBeenCalledWith(
+        ["pend-1"],
+        false,
+        "Proposta de teste a rejeitar.",
+      );
     });
   });
 

@@ -355,6 +355,29 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     [loadTudo],
   );
 
+  const decidirPendenciasEmLote = useCallback(
+    async (
+      ids: string[],
+      aprovar: boolean,
+      motivo?: string,
+    ): Promise<{ sucessos: number; erros: Array<{ id: string; msg: string }> }> => {
+      const erros: Array<{ id: string; msg: string }> = [];
+      let sucessos = 0;
+      for (const id of ids) {
+        try {
+          await decidirPendenciaReferencia(id, aprovar, motivo);
+          sucessos++;
+        } catch (err) {
+          const appError = toAppError(err, "Erro ao registrar decisão");
+          erros.push({ id, msg: appError.message });
+        }
+      }
+      await loadTudo();
+      return { sucessos, erros };
+    },
+    [loadTudo],
+  );
+
   const reverterSync = useCallback(
     async (syncId: string) => {
       const resultado = await reverterSyncReferencias(syncId);
@@ -450,6 +473,7 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     syncsRevertiveis: { items: syncsRevertiveis, loading: revertiveisLoading, error: revertiveisError },
     historicoPendencia,
     decidirPendencia,
+    decidirPendenciasEmLote,
     reverterSync,
     restaurarBackup,
     executarSync,
