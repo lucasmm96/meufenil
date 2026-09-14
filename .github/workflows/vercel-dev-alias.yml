@@ -1,0 +1,49 @@
+# W8 — Atualiza o alias de preview do branch development após cada push.
+# Sem IA. O Vercel cria deployments automaticamente mas não gerencia o alias
+# meufenil-git-development-... (apenas aliases por commit). Este workflow seta
+# o alias assim que o deployment para o commit atual ficar READY.
+name: vercel-dev-alias
+
+on:
+  push:
+    branches: [development]
+
+permissions:
+  contents: read
+
+jobs:
+  alias:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Aguardar deployment e atualizar alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+          ALIAS="meufenil-git-development-lucas-martins-menezes-projects.vercel.app"
+
+          for i in $(seq 1 20); do
+            DEPLOY_URL=$(npx vercel@latest ls --token="$VERCEL_TOKEN" --json 2>/dev/null | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for d in data.get('deployments', []):
+              m = d.get('meta', {})
+              if m.get('githubCommitSha') == '$COMMIT_SHA' and d.get('state') == 'READY':
+                  print(d['url'])
+                  break
+          ")
+            if [ -n "$DEPLOY_URL" ]; then
+              npx vercel@latest alias set "$DEPLOY_URL" "$ALIAS" --token="$VERCEL_TOKEN"
+              echo "OK: $DEPLOY_URL -> $ALIAS"
+              exit 0
+            fi
+            echo "Tentativa $i/20: deployment pendente, aguardando 30s..."
+            sleep 30
+          done
+
+          echo "Timeout: deployment nao ficou READY em 10min"
+          exit 1
