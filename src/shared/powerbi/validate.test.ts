@@ -4,10 +4,12 @@ import type { LinhaOrigem } from "./types";
 
 /**
  * Validação §6.3: abort na ordem estrutura → quantidade bruta → 0 linhas
- * válidas → duplicidades. Anomalias de campo/tipo são rejeições INDIVIDUAIS
- * (reportadas em `rejeitadas`), não abortam o sync. Cobertura por check, com
- * os limites exatos (colunas esperadas, faixa fenil 0–2040, dedupe exata vs.
- * conflitante D-10) e a normalização de marca nula → "".
+ * válidas. Anomalias de campo/tipo são rejeições INDIVIDUAIS (reportadas em
+ * `rejeitadas`), não abortam o sync. Duplicidade conflitante (mesmo
+ * nome+marca, fenil divergente) rejeita TODAS as linhas do grupo — par
+ * inteiro (BR-044 revisada 2026-09-14). Cobertura por check, com os limites
+ * exatos (colunas esperadas, faixa fenil 0–2040, dedupe exata) e a
+ * normalização de marca nula → "".
  */
 
 function linha(nome: string | number | null, marca: string | number | null, fenil: number | string | null): LinhaOrigem {
@@ -247,48 +249,74 @@ describe("validarExtracao", () => {
     expect(validacao.contagem.duplicadasExatas).toBe(1);
   });
 
-  it("duplicidade conflitante (mesmo nome+marca, fenil diferente) → inválida (D-10)", () => {
+  it("duplicidade conflitante (mesmo nome+marca, fenil diferente) → par inteiro rejeitado, sync segue (BR-044 revisada)", () => {
+    const validacao = validarExtracao([
+      linha("Arroz", "Marca A", 8),
+      linha("Arroz", "Marca A", 12),
+      linha("Feijão", "Marca B", 10),
+    ]);
+
+    expect(validacao.valida).toBe(true);
+    expect(validacao.contagem.conflitantes).toBe(1);
+    expect(validacao.contagem.rejeitadas).toBe(2);
+    expect(validacao.rejeitadas.map((r) => r.linha)).toEqual([1, 2]);
+    expect(validacao.rejeitadas[0].motivo).toMatch(/Duplicidade conflitante/);
+    expect(validacao.rejeitadas[0].motivo).toMatch(/8 \(linha 1\), 12 \(linha 2\)/);
+    expect(validacao.rejeitadas[1].motivo).toMatch(/8 \(linha 1\), 12 \(linha 2\)/);
+    expect(validacao.rowsValidas).toEqual([linha("Feijão", "Marca B", 10)]);
+  });
+
+  it("par conflitante rejeitado inteiro deixa o produto fora mesmo com outras válidas", () => {
     const validacao = validarExtracao([
       linha("Arroz", "Marca A", 8),
       linha("Arroz", "Marca A", 12),
     ]);
 
+    // Nenhuma linha válida resta → abort por 0 válidas (não por conflito).
     expect(validacao.valida).toBe(false);
-    expect(validacao.motivo).toMatch(/Duplicidade conflitante/);
-    expect(validacao.motivo).toMatch(/linha 1\) e 12 \(linha 2\)/);
+    expect(validacao.motivo).toMatch(/Origem sem linhas válidas/);
     expect(validacao.contagem.conflitantes).toBe(1);
-    expect(validacao.rowsValidas).toEqual([]);
+    expect(validacao.rejeitadas.map((r) => r.linha)).toEqual([1, 2]);
   });
 
-  it("conflito aponta a linha original quando há rejeição antes", () => {
+  it("conflito aponta as linhas originais quando há rejeição antes", () => {
     const validacao = validarExtracao([
       linha(null, "Marca A", 8),
       linha("Arroz", "Marca A", 8),
       linha("Arroz", "Marca A", 12),
     ]);
 
+    // Artefato (linha 1) rejeitado individualmente; par (linhas 2–3) rejeitado
+    // inteiro → nenhuma válida resta → abort por 0 válidas.
     expect(validacao.valida).toBe(false);
-    expect(validacao.motivo).toMatch(/8 \(linha 2\) e 12 \(linha 3\)/);
+    expect(validacao.motivo).toMatch(/Origem sem linhas válidas/);
+    expect(validacao.rejeitadas.map((r) => r.linha)).toEqual([1, 2, 3]);
+    expect(validacao.rejeitadas[1].motivo).toMatch(/8 \(linha 2\), 12 \(linha 3\)/);
   });
 
-  it("marca nula conflita com marca vazia de outra linha (mesma identidade)", () => {
+  it("marca nula conflita com marca vazia de outra linha (mesma identidade) → par rejeitado", () => {
     const validacao = validarExtracao([
       linha("Arroz", null, 8),
       linha("Arroz", "", 12),
     ]);
 
-    expect(validacao.valida).toBe(false);
-    expect(validacao.motivo).toMatch(/Duplicidade conflitante/);
+    // Marca nula normaliza para "" antes da checagem → mesmo grupo.
+    expect(validacao.valida).toBe(false); // 0 linhas válidas restantes
+    expect(validacao.contagem.conflitantes).toBe(1);
+    expect(validacao.rejeitadas.map((r) => r.linha)).toEqual([1, 2]);
   });
 
-  it("tripla com conflito na 3ª linha: aborta apontando a 1ª ocorrência", () => {
+  it("tripla com conflito na 3ª linha: todas as linhas do grupo rejeitadas", () => {
     const validacao = validarExtracao([
       linha("Arroz", "Marca A", 8),
       linha("Feijão", "Marca B", 12),
       linha("arroz", "marca a", 15),
     ]);
 
-    expect(validacao.valida).toBe(false);
-    expect(validacao.motivo).toMatch(/8 \(linha 1\) e 15 \(linha 3\)/);
+    expect(validacao.valida).toBe(true); // Feijão permanece válida
+    expect(validacao.contagem.conflitantes).toBe(1);
+    expect(validacao.rejeitadas.map((r) => r.linha)).toEqual([1, 3]);
+    expect(validacao.rejeitadas[0].motivo).toMatch(/8 \(linha 1\), 15 \(linha 3\)/);
+    expect(validacao.rowsValidas).toEqual([linha("Feijão", "Marca B", 12)]);
   });
 });

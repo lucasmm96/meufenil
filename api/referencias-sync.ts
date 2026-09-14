@@ -538,10 +538,11 @@ async function executarSync(
       detalhesEstagios
     );
 
-    // Estágio 3 — validação: estrutura e duplicidade conflitante abortam a
-    // sync; anomalias de campo/tipo rejeitam a linha individualmente
-    // (reportadas no evento) e só abortam se não restar nenhuma válida.
-    // Origem inválida termina a sync SEM snapshot/backup (B9).
+    // Estágio 3 — validação: estrutura inesperada e 0 linhas válidas abortam a
+    // sync; anomalias de campo/tipo rejeitam a linha individualmente e
+    // duplicidade conflitante rejeita o par inteiro (BR-044 revisada
+    // 2026-09-14) — reportadas no evento; só aborta se não restar nenhuma
+    // válida. Origem inválida termina a sync SEM snapshot/backup (B9).
     let validacao: ValidacaoExtracao | null = null;
 
     await executarEstagio(
