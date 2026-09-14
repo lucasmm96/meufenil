@@ -81,6 +81,7 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - [triggers](../database/triggers.md) — `trg_auditar_is_ativa_manual`, `trg_trim_referencia_backups`; [referencias](../database/referencias.md), [usuarios](../database/usuarios.md) (`pode_recuperacao`)
 - Migrations M1–M6: 20260905000000 (schema/enums/RLS/single-flight/trim), 20260905010000 (auditoria manual), 20260905020000 (R4-3 — ativar global só admin), 20260906000000 (aplicar/decidir), 20260906010000 (rollback/restauração + `pode_recuperacao`), 20260907000000 (seed `pre_sync_inativa` no bootstrap)
 - Migração de precisão decimal (2026-09-11): 20260911000000 — `fenil_mg_por_100g` → `numeric(10,2)` + `CREATE OR REPLACE` das 4 RPCs com cast `numeric(10,1)`; **aplicada em dev em 2026-09-11; pendente em prod** (aplicação via `scripts/apply-supabase-migrations.sh`, com autorização — HIGH RISK)
+- Migração de revisão do reverter (2026-09-14): 20260914000000 — `reverter_sync_referencias` com no-op revisado: sync sem alterações COM pendências `open` cancela as pendências e marca `reverted` (decisão do usuário — bootstrap por definição não aplica operações); aplicada em dev em 2026-09-14; pendente em prod
 
 ## Security
 

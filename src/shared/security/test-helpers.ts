@@ -586,6 +586,55 @@ export async function isFeat0017M6Applied(): Promise<boolean> {
 }
 
 /**
+ * Detecta se a revisão 2026-09-14 do `reverter_sync_referencias` (migration
+ * 20260914000000 — sync sem alterações COM pendências open cancela as
+ * pendências e marca a sync reverted) está aplicada no banco de
+ * desenvolvimento. Detecção determinística via catálogo: a condição do no-op
+ * revisado (`v_total = 0 and cardinality(v_pen_ids) = 0`) existe somente na
+ * versão revisada. Requer conexão direta (SUPABASE_DATABASE_URL/DATABASE_URL,
+ * carregada do .env.development) — sem ela, false (safe default, como os
+ * demais guards).
+ */
+export async function isFeat0017ReverterSemOpsRevisado(): Promise<boolean> {
+  const databaseUrl =
+    process.env.SUPABASE_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.SUPABASE_DB_URL;
+
+  if (!databaseUrl) {
+    return false;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pgModule: any = await import("pg");
+    const client = new pgModule.Client({
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    try {
+      await client.connect();
+      const { rows } = await client.query(`
+        SELECT prosrc LIKE '%v_total = 0 and cardinality(v_pen_ids) = 0%' AS revisado
+        FROM pg_proc
+        WHERE proname = 'reverter_sync_referencias'
+          AND pronamespace = 'public'::regnamespace
+        LIMIT 1
+      `);
+      const result = (rows[0] as Record<string, unknown> | undefined)?.revisado === true;
+      await client.end();
+      return result;
+    } catch {
+      try { await client.end(); } catch { /* ok */ }
+      return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Detecta se o ator Sistema (FEAT-0017 B5/§12 — email fixo
  * `sistema@meufenil.local` em `usuarios`, conta banida sem sessão) está
  * provisionado no banco de desenvolvimento — pré-requisito das RPCs do M4
