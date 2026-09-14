@@ -158,7 +158,7 @@ npm run test:coverage # execução com cobertura
 
 Os testes de segurança exigem `SUPABASE_SERVICE_ROLE_KEY` no ambiente (carregado de `.env.development`); sem a variável, as suítes pulam via `describeOrSkip`. Pré-condição: migration de segurança aplicada (`isSecurityMigrationApplied()`). (Fonte: `testing/testing-strategy.md` seções 4–5; `security/security-model.md` seção 12)
 
-**CI:** GitHub Actions (`.github/workflows/ci.yml`) roda lint → `test:run` → build em push/PR. (Verificado em: `.github/workflows/ci.yml`)
+**CI:** GitHub Actions (`.github/workflows/ci.yml`) roda lint → `test:run` → build em push/PR; um segundo workflow atualiza automaticamente o alias Vercel do deployment de preview do branch `development` a cada push nesse branch. (Verificado em: `.github/workflows/`)
 
 ## Banco de dados
 
@@ -166,7 +166,7 @@ PostgreSQL (Supabase). **Dev (pós-FEAT-0017 M1–M6):** **12 tabelas**, RLS hab
 
 ### Migrations
 
-- **Local atual:** `supabase/migrations/` (Supabase CLI). Baseline `20260103015052_remote_schema.sql`; sequências de 2026-08 (jobs, monitoramento, fix de segurança, baseline de objetos, default do limite diário), **ENH-0004** (`20260904000000` a `20260904040000` — marca + identidade imutável) e **FEAT-0017** (`20260905000000`/`010000`/`020000` — M1: tabelas de sync, auditoria, admin-only; `20260906000000` — M4: aplicação/curadoria; `20260906010000` — M5: rollback/restauração; `20260907000000` — M6: seed `pre_sync_inativa`). Todas as migrations 2026-09 aplicadas **somente em dev**; prod aguarda a release. (Fonte: `database/overview.md` — tabela de migrations; verificado em: `supabase/migrations/`)
+- **Local atual:** `supabase/migrations/` (Supabase CLI). Baseline `20260103015052_remote_schema.sql`; sequências de 2026-08 (jobs, monitoramento, fix de segurança, baseline de objetos, default do limite diário), **ENH-0004** (`20260904000000` a `20260904040000` — marca + identidade imutável) e **FEAT-0017** (`20260905000000`/`010000`/`020000` — M1: tabelas de sync, auditoria, admin-only; `20260906000000` — M4: aplicação/curadoria; `20260906010000` — M5: rollback/restauração; `20260907000000` — M6: seed `pre_sync_inativa`; `20260911000000` — precisão `numeric(10,2)` em `fenil_mg_por_100g`; `20260914000000` — no-op revisado do reverter). Todas as migrations 2026-09 aplicadas **somente em dev**; duas migrations ainda **pendentes em prod**: `20260911000000` e `20260914000000` (aplicação via `scripts/apply-supabase-migrations.sh --env production` — HIGH RISK, exige autorização). (Fonte: `database/overview.md` — tabela de migrations; verificado em: `supabase/migrations/`)
 - **Legado:** `migrations/` na raiz (`usuarios.sql`, `referencias.sql`, `registros.sql`, `exames_pku.sql`, `dados.sql` — seed ANVISA com 2.959 INSERTs). Snapshot antigo; não contém o estado atual de políticas. (Fonte: `database/overview.md`)
 - **Aplicação:** `scripts/apply-supabase-migrations.sh --env development|production` (fluxo: `supabase link` → `migration repair` do baseline → `db push`). Nunca aplique nos dois ambientes na mesma execução. (Fonte: `backend/cli.md`)
 
