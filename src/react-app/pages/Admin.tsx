@@ -1975,10 +1975,15 @@ function AbaRecuperacaoSync({ data }: { data: SyncAdminData }) {
     setResultado(null);
     try {
       const res = await data.reverterSync(sync.id);
+      // Sucesso = status 'reverted' (a resposta de sucesso da RPC não traz o
+      // campo `revertida` — só o no-op antigo o trazia; correção 2026-09-14).
+      const sucesso = res.status === "reverted";
       mostrarResultado(
-        Boolean(res.revertida),
-        res.revertida
-          ? `Sincronização revertida: ${res.revertidas ?? 0} operações desfeitas, ${res.preservadas ?? 0} posteriores preservadas, ${res.pendencias_canceladas ?? 0} pendências canceladas.`
+        sucesso,
+        sucesso
+          ? res.revertidas
+            ? `Sincronização revertida: ${res.revertidas} operações desfeitas, ${res.preservadas ?? 0} posteriores preservadas, ${res.pendencias_canceladas ?? 0} pendências canceladas.`
+            : `Sincronização revertida: nenhuma operação desfeita (a sync não aplicou alterações), ${res.pendencias_canceladas ?? 0} pendências canceladas.`
           : `Não foi possível reverter: ${res.motivo ?? "motivo não informado."}`,
       );
     } catch (err) {
