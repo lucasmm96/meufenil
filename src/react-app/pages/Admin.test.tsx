@@ -91,6 +91,7 @@ function syncAdminMock(overrides: Record<string, unknown> = {}) {
     historicoPendencia: vi.fn(),
     decidirPendencia: vi.fn(),
     decidirPendenciasEmLote: vi.fn(),
+    decidirTodasPendenciasAbertas: vi.fn(),
     reverterSync: vi.fn(),
     restaurarBackup: vi.fn(),
     executarSync: vi.fn(),
@@ -150,6 +151,7 @@ function renderAdminComoAdmin(overrides: Record<string, unknown> = {}) {
   return syncMock as {
     decidirPendencia: ReturnType<typeof vi.fn>;
     decidirPendenciasEmLote: ReturnType<typeof vi.fn>;
+    decidirTodasPendenciasAbertas: ReturnType<typeof vi.fn>;
     reverterSync: ReturnType<typeof vi.fn>;
     restaurarBackup: ReturnType<typeof vi.fn>;
     setPendenciasSyncId: ReturnType<typeof vi.fn>;
@@ -610,7 +612,7 @@ describe("Admin page", () => {
       expect(syncMock.decidirPendenciasEmLote).toHaveBeenCalledWith(["pend-1"], true);
     });
     await waitFor(() => {
-      expect(screen.getByText(/1 decisão\(ões\) registrada\(s\) com sucesso/)).toBeTruthy();
+      expect(screen.getByText(/1 decisão registrada com sucesso/)).toBeTruthy();
     });
   });
 
@@ -643,6 +645,29 @@ describe("Admin page", () => {
         false,
         "Proposta de teste a rejeitar.",
       );
+    });
+  });
+
+  it("aprovar tudo chama decidirTodasPendenciasAbertas com total correto", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const syncMock = renderAdminComoAdmin({
+      pendencias: dominioMock({ items: [pendenciaFixture], total: 42 }),
+      pendenciasStatus: "open",
+      pendenciasSyncId: null,
+    });
+    syncMock.decidirTodasPendenciasAbertas.mockResolvedValue({ sucessos: 42, erros: [] });
+
+    render(<Admin />);
+    fireEvent.click(screen.getByText("Pendências de curadoria"));
+
+    fireEvent.click(screen.getByText(/Aprovar tudo \(42\)/));
+    expect(confirmSpy).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(syncMock.decidirTodasPendenciasAbertas).toHaveBeenCalledWith(true, undefined, undefined);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/42 decisões registradas com sucesso/)).toBeTruthy();
     });
   });
 

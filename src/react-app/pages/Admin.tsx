@@ -1435,6 +1435,10 @@ function AbaHistoricoSync({
   );
 }
 
+function labelDecisoes(n: number) {
+  return n === 1 ? "1 decisão registrada" : `${n} decisões registradas`;
+}
+
 function AbaPendenciasSync({
   data,
   onIrParaHistorico,
@@ -1495,6 +1499,21 @@ function AbaPendenciasSync({
     }
   }
 
+  async function aprovarTodasEmLote() {
+    if (!window.confirm(`Aprovar todas as ${data.pendencias.total} pendências abertas?`)) return;
+    setProcessandoBulk(true);
+    try {
+      const resultado = await data.decidirTodasPendenciasAbertas(
+        true,
+        undefined,
+        data.pendenciasSyncId ?? undefined,
+      );
+      setResultadoBulk(resultado);
+    } finally {
+      setProcessandoBulk(false);
+    }
+  }
+
   async function carregarHistorico(pendencia: PendenciaSyncDTO) {
     if (historicoId === pendencia.id) {
       setHistoricoId(null);
@@ -1547,8 +1566,8 @@ function AbaPendenciasSync({
           }`}>
             <span>
               {resultadoBulk.erros.length === 0
-                ? `${resultadoBulk.sucessos} decisão(ões) registrada(s) com sucesso.`
-                : `${resultadoBulk.sucessos} de ${resultadoBulk.sucessos + resultadoBulk.erros.length} decisão(ões) registrada(s). ${resultadoBulk.erros.length} erro(s).`}
+                ? `${labelDecisoes(resultadoBulk.sucessos)} com sucesso.`
+                : `${labelDecisoes(resultadoBulk.sucessos)} de ${resultadoBulk.sucessos + resultadoBulk.erros.length}. ${resultadoBulk.erros.length === 1 ? "1 erro" : `${resultadoBulk.erros.length} erros`}.`}
             </span>
             <button onClick={() => setResultadoBulk(null)} aria-label="Fechar resultado" className="text-gray-500 hover:text-gray-700">
               <X className="w-4 h-4" />
@@ -1582,27 +1601,42 @@ function AbaPendenciasSync({
                   </span>
                 </label>
 
-                {alguemSelecionado && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-indigo-600 font-medium">{selecionados.size} selecionado(s)</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {alguemSelecionado && (
+                    <>
+                      <span className="text-xs text-indigo-600 font-medium">{selecionados.size} selecionado(s)</span>
+                      <button
+                        onClick={aprovarEmLote}
+                        disabled={processandoBulk}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Aprovar selecionados
+                      </button>
+                      <button
+                        onClick={() => setModalBulkRejeitar(true)}
+                        disabled={processandoBulk}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Rejeitar selecionados
+                      </button>
+                      {data.pendenciasStatus === "open" && (
+                        <div className="h-4 w-px bg-indigo-300 hidden sm:block" />
+                      )}
+                    </>
+                  )}
+                  {data.pendenciasStatus === "open" && (
                     <button
-                      onClick={aprovarEmLote}
+                      onClick={aprovarTodasEmLote}
                       disabled={processandoBulk}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-lg transition-colors disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      Aprovar selecionados
+                      Aprovar tudo ({data.pendencias.total})
                     </button>
-                    <button
-                      onClick={() => setModalBulkRejeitar(true)}
-                      disabled={processandoBulk}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Rejeitar selecionados
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 

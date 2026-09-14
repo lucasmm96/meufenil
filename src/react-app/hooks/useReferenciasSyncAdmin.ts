@@ -378,6 +378,38 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     [loadTudo],
   );
 
+  const decidirTodasPendenciasAbertas = useCallback(
+    async (
+      aprovar: boolean,
+      motivo?: string,
+      syncId?: string,
+    ): Promise<{ sucessos: number; erros: Array<{ id: string; msg: string }> }> => {
+      const erros: Array<{ id: string; msg: string }> = [];
+      let sucessos = 0;
+      let page = 1;
+      const pageSize = 500;
+
+      while (true) {
+        const dados = await getPendenciasReferencia({ status: "open", syncId, page, pageSize });
+        for (const p of dados.items) {
+          try {
+            await decidirPendenciaReferencia(p.id, aprovar, motivo);
+            sucessos++;
+          } catch (err) {
+            const appError = toAppError(err, "Erro ao registrar decisão");
+            erros.push({ id: p.id, msg: appError.message });
+          }
+        }
+        if (page * pageSize >= dados.total) break;
+        page++;
+      }
+
+      await loadTudo();
+      return { sucessos, erros };
+    },
+    [loadTudo],
+  );
+
   const reverterSync = useCallback(
     async (syncId: string) => {
       const resultado = await reverterSyncReferencias(syncId);
@@ -474,6 +506,7 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     historicoPendencia,
     decidirPendencia,
     decidirPendenciasEmLote,
+    decidirTodasPendenciasAbertas,
     reverterSync,
     restaurarBackup,
     executarSync,
