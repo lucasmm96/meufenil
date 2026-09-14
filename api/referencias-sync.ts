@@ -67,6 +67,39 @@ type DetalhesEvento = Record<string, unknown>;
 /** Teto de rejeições individuais gravadas no evento (o total vai em `contagem`). */
 const MAX_REJEITADAS_REPORTADAS = 100;
 
+/** Tamanho de página das consultas paginadas (teto do PostgREST por request). */
+const TAMANHO_PAGINA = 1000;
+
+/**
+ * Consulta paginada completa: o PostgREST trunca em 1000 linhas por request e
+ * o catálogo excede o teto — sem paginação, o backup (estágio 5) e o estado
+ * do catálogo (estágio 6) veriam um retrato PARCIAL (comparação com falsos
+ * new_item/absence; backup incapaz de restaurar o catálogo inteiro). Itera
+ * com `.range` até a última página.
+ */
+async function buscarTodasAsLinhas<T>(
+  executar: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const linhas: T[] = [];
+
+  for (let from = 0; ; from += TAMANHO_PAGINA) {
+    const { data, error } = await executar(from, from + TAMANHO_PAGINA - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    const pagina = data ?? [];
+    linhas.push(...pagina);
+
+    if (pagina.length < TAMANHO_PAGINA) {
+      break;
+    }
+  }
+
+  return linhas;
+}
+
 // Linhas do estado consultado no estágio 6 (service_role; shape do PostgREST —
 // a rota não usa os tipos gerados do Supabase, tipa o contrato que consome).
 type LinhaGlobalAtiva = {
@@ -90,6 +123,10 @@ type LinhaPendencia = {
   tipo: string;
   referencia_id: string | null;
   proposta: IdentidadeReferencia | null;
+};
+
+type LinhaDecisao = LinhaPendencia & {
+  status: string;
 };
 
 type LinhaDecisao = {
@@ -391,6 +428,8 @@ function ordenarEventos(eventos: LinhaEventoAuditoria[]): LinhaEventoAuditoria[]
  * sync (dedupe global D-6), decisões approved/rejected de absence/new_item em
  * ordem cronológica (a última vence) e o histórico de syncs do environment
  * para derivar o modo (bootstrap × pos_bootstrap, §14). Tudo via service_role.
+ * Consultas paginadas (`buscarTodasAsLinhas`) — o catálogo excede o teto de
+ * 1000 linhas do PostgREST; sem paginação a comparação vê um retrato parcial.
  */
 async function consultarEstadoCatalogo(
   supabase: SupabaseClient,
@@ -402,30 +441,42 @@ async function consultarEstadoCatalogo(
   decisoes: DecisaoPendencia[];
   modo: ModoSync;
 }> {
-  const [resultadoAtivas, resultadoArquivadas, resultadoPendencias, resultadoDecisoes, resultadoHistorico] =
+  const [ativasBrutas, arquivadasBrutas, pendenciasAbertasBrutas, decisoesBrutas, resultadoHistorico] =
     await Promise.all([
-      supabase
-        .from("referencias")
-        .select("id, nome, marca, fenil_mg_por_100g")
-        .eq("is_global", true)
-        .eq("is_ativa", true),
-      supabase
-        .from("referencias")
-        .select(
-          "id, nome, marca, fenil_mg_por_100g, referencia_eventos(id, tipo, created_at)"
-        )
-        .eq("is_global", true)
-        .eq("is_ativa", false),
-      supabase
-        .from("referencia_sync_pendencias")
-        .select("tipo, referencia_id, proposta")
-        .eq("status", "open"),
-      supabase
-        .from("referencia_sync_pendencias")
-        .select("tipo, referencia_id, proposta, status")
-        .in("tipo", ["absence", "new_item"])
-        .in("status", ["approved", "rejected"])
-        .order("decided_at", { ascending: true }),
+      buscarTodasAsLinhas<LinhaGlobalAtiva>((from, to) =>
+        supabase
+          .from("referencias")
+          .select("id, nome, marca, fenil_mg_por_100g")
+          .eq("is_global", true)
+          .eq("is_ativa", true)
+          .range(from, to)
+      ),
+      buscarTodasAsLinhas<LinhaGlobalArquivada>((from, to) =>
+        supabase
+          .from("referencias")
+          .select(
+            "id, nome, marca, fenil_mg_por_100g, referencia_eventos(id, tipo, created_at)"
+          )
+          .eq("is_global", true)
+          .eq("is_ativa", false)
+          .range(from, to)
+      ),
+      buscarTodasAsLinhas<LinhaPendencia>((from, to) =>
+        supabase
+          .from("referencia_sync_pendencias")
+          .select("tipo, referencia_id, proposta")
+          .eq("status", "open")
+          .range(from, to)
+      ),
+      buscarTodasAsLinhas<LinhaDecisao>((from, to) =>
+        supabase
+          .from("referencia_sync_pendencias")
+          .select("tipo, referencia_id, proposta, status")
+          .in("tipo", ["absence", "new_item"])
+          .in("status", ["approved", "rejected"])
+          .order("decided_at", { ascending: true })
+          .range(from, to)
+      ),
       supabase
         .from("referencia_syncs")
         .select("status")
@@ -433,23 +484,11 @@ async function consultarEstadoCatalogo(
         .neq("id", syncId),
     ]);
 
-  if (
-    resultadoAtivas.error ||
-    resultadoArquivadas.error ||
-    resultadoPendencias.error ||
-    resultadoDecisoes.error ||
-    resultadoHistorico.error
-  ) {
-    throw (
-      resultadoAtivas.error ??
-      resultadoArquivadas.error ??
-      resultadoPendencias.error ??
-      resultadoDecisoes.error ??
-      resultadoHistorico.error
-    );
+  if (resultadoHistorico.error) {
+    throw resultadoHistorico.error;
   }
 
-  const ativas: GlobalAtiva[] = ((resultadoAtivas.data ?? []) as LinhaGlobalAtiva[]).map(
+  const ativas: GlobalAtiva[] = ativasBrutas.map(
     (linha) => ({
       id: linha.id,
       nome: linha.nome,
@@ -458,9 +497,7 @@ async function consultarEstadoCatalogo(
     })
   );
 
-  const arquivadas: ArquivadaGlobal[] = (
-    (resultadoArquivadas.data ?? []) as LinhaGlobalArquivada[]
-  ).map((linha) => ({
+  const arquivadas: ArquivadaGlobal[] = arquivadasBrutas.map((linha) => ({
     nome: linha.nome,
     marca: linha.marca,
     fenil_mg_por_100g: linha.fenil_mg_por_100g,
@@ -470,22 +507,18 @@ async function consultarEstadoCatalogo(
     })),
   }));
 
-  const pendenciasAbertas: PendenciaAberta[] = (
-    (resultadoPendencias.data ?? []) as LinhaPendencia[]
-  ).map((pendencia) => ({
+  const pendenciasAbertas: PendenciaAberta[] = pendenciasAbertasBrutas.map((pendencia) => ({
     tipo: pendencia.tipo as PendenciaAberta["tipo"],
     referencia_id: pendencia.referencia_id,
     proposta: pendencia.proposta,
   }));
 
-  const decisoes: DecisaoPendencia[] = ((resultadoDecisoes.data ?? []) as LinhaDecisao[]).map(
-    (decisao) => ({
-      tipo: decisao.tipo as DecisaoPendencia["tipo"],
-      referencia_id: decisao.referencia_id,
-      proposta: decisao.proposta,
-      status: decisao.status as DecisaoPendencia["status"],
-    })
-  );
+  const decisoes: DecisaoPendencia[] = decisoesBrutas.map((decisao) => ({
+    tipo: decisao.tipo as DecisaoPendencia["tipo"],
+    referencia_id: decisao.referencia_id,
+    proposta: decisao.proposta,
+    status: decisao.status as DecisaoPendencia["status"],
+  }));
 
   const historico = (resultadoHistorico.data ?? []) as { status: string }[];
   const modo = derivarModoSync(historico);
@@ -623,13 +656,11 @@ async function executarSync(
       "backup",
       "backup_created",
       async () => {
-        const { data, error } = await supabase.from("referencias").select("*");
-
-        if (error) {
-          throw error;
-        }
-
-        const backupPayload = (data ?? []) as unknown[];
+        // Consulta paginada completa — o catálogo excede o teto de 1000 linhas
+        // do PostgREST; um backup truncado não conseguiria restaurar o catálogo.
+        const backupPayload = (await buscarTodasAsLinhas<unknown>((from, to) =>
+          supabase.from("referencias").select("*").range(from, to)
+        )) as unknown[];
         const payloadBackup = JSON.stringify(backupPayload);
         const backupSha256 = sha256Hex(payloadBackup);
         const contagemBackup = backupPayload.length;

@@ -150,6 +150,10 @@ function criarSupabaseMock(
         chamadas.push({ tabela, operacao: "order", argumentos: [coluna, opcoes] });
         return builder;
       },
+      range(from: unknown, to: unknown) {
+        chamadas.push({ tabela, operacao: "range", argumentos: [from, to] });
+        return builder;
+      },
       lt(coluna: unknown, valor: unknown) {
         chamadas.push({ tabela, operacao: "lt", argumentos: [coluna, valor] });
         return builder;
@@ -287,6 +291,97 @@ describe("referencias-sync handler", () => {
       (c) => c.tabela === "referencia_syncs" && c.operacao === "update"
     );
   }
+
+  it("consulta o catálogo completo com paginação (catálogo > 1000 linhas)", async () => {
+    setAmbiente();
+
+    const TOTAL_ATIVAS = 2500;
+    const TOTAL_ARQUIVADAS = 50;
+    const TOTAL_REFERENCIAS = TOTAL_ATIVAS + TOTAL_ARQUIVADAS;
+
+    const linhaAtiva = (i: number) => ({
+      id: `ref-${i}`,
+      nome: `Produto ${i}`,
+      marca: "",
+      fenil_mg_por_100g: 8,
+    });
+    const ativas = Array.from({ length: TOTAL_ATIVAS }, (_, i) => linhaAtiva(i));
+    const arquivadas = Array.from({ length: TOTAL_ARQUIVADAS }, (_, i) => ({
+      ...linhaAtiva(TOTAL_ATIVAS + i),
+      referencia_eventos: [],
+    }));
+    const todas = [...ativas, ...arquivadas];
+
+    // O PostgREST trunca em 1000 linhas por request — o mock devolve páginas
+    // de 1000 como o serviço real, e a rota deve iterar até a última página.
+    const paginas = (linhas: unknown[]) =>
+      Array.from({ length: Math.ceil(linhas.length / 1000) }, (_, p) =>
+        linhas.slice(p * 1000, (p + 1) * 1000)
+      );
+
+    const filas = filasBootstrap();
+    // Ordem de consumo da fila `referencias`: backup completo (estágio 5,
+    // sequencial), depois as consultas do estágio 6 em Promise.all — a 1ª
+    // página de ativas e arquivadas intercalam antes das páginas seguintes
+    // de ativas (o await só avança após cada página resolvida).
+    filas.referencias = [
+      ...paginas(todas).map((pagina) => ({ data: pagina, error: null })), // backup (estágio 5)
+      { data: ativas.slice(0, 1000), error: null }, // estágio 6 — ativas P1
+      { data: arquivadas, error: null }, // estágio 6 — arquivadas
+      { data: ativas.slice(1000, 2000), error: null }, // estágio 6 — ativas P2
+      { data: ativas.slice(2000), error: null }, // estágio 6 — ativas P3
+    ];
+
+    const origem = ativas.map((a) => ({
+      "Nome do Produto": a.nome,
+      "Marca do Produto": a.marca,
+      NU_MAX_AMINOACIDO: a.fenil_mg_por_100g,
+    }));
+    extractMock.mockResolvedValue({
+      rows: origem,
+      patchAplicado: true,
+      contagem: TOTAL_ATIVAS,
+    });
+
+    const mock = prepararHandler(
+      filas,
+      filasRpcAplicar({
+        equivalentes: TOTAL_ATIVAS,
+        criadas: 0,
+        arquivadas: 0,
+        divergencias: 0,
+      })
+    );
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "success" });
+
+    // Regressão do teto de 1000 linhas: sem paginação, 1500 ativas ficariam
+    // invisíveis para a comparação e virariam falsas pendências new_item.
+    const plano = chamadaRpc(mock)?.p_plano as {
+      pendencias: unknown[];
+      resumo: { equivalentes: number };
+    };
+    expect(plano.pendencias).toHaveLength(0);
+    expect(plano.resumo.equivalentes).toBe(TOTAL_ATIVAS);
+
+    // Estágios gravados com o retrato completo (backup + comparação).
+    const updateFinal = updatesSync(mock).at(-1)?.argumentos[0] as {
+      details: {
+        estagios: Array<{ estagio: string; contagem?: number; ativas?: number }>;
+      };
+    };
+    const backup = updateFinal.details.estagios.find((e) => e.estagio === "backup");
+    const comparacao = updateFinal.details.estagios.find((e) => e.estagio === "comparison");
+    expect(backup?.contagem).toBe(TOTAL_REFERENCIAS);
+    expect(comparacao?.ativas).toBe(TOTAL_ATIVAS);
+  });
 
   it("cron feliz: bootstrap (sem histórico) → plano só com pendências → pending_review", async () => {
     setAmbiente();
