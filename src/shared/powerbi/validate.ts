@@ -18,8 +18,9 @@
  *      ou fora de 0–2040 → rejeita.
  *    - Marca nula → normaliza para "" (produto sem marca declarada).
  *    - Marca não-string → rejeita.
- * 4. Duplicidades sobre linhas válidas: exatas contadas; conflitantes
- *    invalidam o sync inteiro (D-10).
+ * 4. Duplicidades sobre linhas válidas: exatas contadas; grupos com fenil
+ *    divergente (mesmo nome+marca) rejeitam TODAS as linhas do grupo — par
+ *    inteiro, nenhum valor arbitrário vence (BR-044 revisada 2026-09-14).
  *
  * Normalização de chave aqui é espelho local da identidade canônica do banco
  * (lower/trim — ENH-0004); o módulo canônico completo vive no motor (M3).
@@ -242,21 +243,13 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
     linhasValidas.push(numeroLinha);
   }
 
-  base.contagem.rejeitadas = rejeitadas.length;
-  base.rejeitadas = rejeitadas;
-
-  if (rowsValidas.length === 0) {
-    return {
-      ...base,
-      valida: false,
-      motivo:
-        `Origem sem linhas válidas ` +
-        `(${rows.length} brutas, ${rejeitadas.length} rejeitadas).`,
-    };
-  }
-
-  // Check 4 — duplicidades sobre linhas válidas (D-10).
-  const fenilPorNomeMarca = new Map<string, { fenil: number; linha: number }>();
+  // Check 4 — duplicidades sobre linhas válidas (BR-044 revisada 2026-09-14,
+  // decisão do usuário): duplicidades exatas são contadas; grupos com fenil
+  // divergente (mesmo nome+marca) têm TODAS as linhas rejeitadas individualmente
+  // — par inteiro, nenhum valor arbitrário vence; o produto fica fora do
+  // catálogo até a origem estabilizar. O conflito NÃO invalida a sync (só
+  // aborta se não restar nenhuma linha válida).
+  const grupos = new Map<string, { fenil: number; linha: number; nome: string }[]>();
 
   for (let i = 0; i < rowsValidas.length; i++) {
     const row = rowsValidas[i];
@@ -266,26 +259,53 @@ export function validarExtracao(rows: LinhaOrigem[]): ValidacaoExtracao {
     const marca = marcaRaw == null ? "" : (marcaRaw as string);
     const fenil = fenilNumerico(row["NU_MAX_AMINOACIDO"]) as number;
     const chaveDuplicidade = `${chaveNome(nome)}\u0000${chaveMarca(marca)}`;
-    const existente = fenilPorNomeMarca.get(chaveDuplicidade);
+    const ocorrencias = grupos.get(chaveDuplicidade) ?? [];
+    ocorrencias.push({ fenil, linha: numeroLinha, nome: nome.trim() });
+    grupos.set(chaveDuplicidade, ocorrencias);
+  }
 
-    if (existente) {
-      if (existente.fenil === fenil) {
-        base.contagem.duplicadasExatas++;
-      } else {
-        return {
-          ...base,
-          valida: false,
-          contagem: { ...base.contagem, conflitantes: 1 },
-          motivo:
-            `Duplicidade conflitante: "${nome.trim()}" / "${marca.trim()}" com ` +
-            `NU_MAX_AMINOACIDO ${existente.fenil} (linha ${existente.linha}) e ${fenil} (linha ${numeroLinha}).`,
-        };
-      }
-    } else {
-      fenilPorNomeMarca.set(chaveDuplicidade, { fenil, linha: numeroLinha });
+  const linhasConflitantes = new Set<number>();
+
+  for (const ocorrencias of grupos.values()) {
+    const fenilsDistintos = new Set(ocorrencias.map((o) => o.fenil));
+
+    if (fenilsDistintos.size === 1) {
+      base.contagem.duplicadasExatas += ocorrencias.length - 1;
+      continue;
+    }
+
+    base.contagem.conflitantes++;
+    const detalhePar = ocorrencias.map((o) => `${o.fenil} (linha ${o.linha})`).join(", ");
+
+    for (const o of ocorrencias) {
+      linhasConflitantes.add(o.linha);
+      rejeitadas.push({
+        linha: o.linha,
+        nome: o.nome,
+        motivo:
+          `Duplicidade conflitante: mesmo nome/marca com NU_MAX_AMINOACIDO ` +
+          `divergente — ${detalhePar} — par inteiro rejeitado`,
+      });
     }
   }
 
-  base.rowsValidas = rowsValidas;
+  const rowsValidasFinais = rowsValidas.filter(
+    (_, i) => !linhasConflitantes.has(linhasValidas[i])
+  );
+
+  base.contagem.rejeitadas = rejeitadas.length;
+  base.rejeitadas = rejeitadas;
+
+  if (rowsValidasFinais.length === 0) {
+    return {
+      ...base,
+      valida: false,
+      motivo:
+        `Origem sem linhas válidas ` +
+        `(${rows.length} brutas, ${rejeitadas.length} rejeitadas).`,
+    };
+  }
+
+  base.rowsValidas = rowsValidasFinais;
   return base;
 }

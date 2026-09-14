@@ -360,8 +360,8 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** lifecycle (segurança do bootstrap)
 - **Given:** execução de sync
 - **When:** o modo do ambiente ainda é `bootstrap` (nenhuma sync anterior `success`/`pending_review` no histórico) OU a extração/validação falhou (origem inválida/não confiável)
-- **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9: estrutura inesperada, nenhuma linha válida restante ou duplicidade conflitante); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
-- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts (checks 1/2/4 abortam; check 3 rejeita linha a linha); migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
+- **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9: estrutura inesperada ou nenhuma linha válida restante; duplicidade conflitante rejeita o par inteiro — BR-044); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
+- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts (checks 1/2 abortam; check 3 rejeita linha a linha; check 4 rejeita grupos conflitantes inteiros); migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
 - **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), `validate.test.ts` (24), `referencias-sync.test.ts`, REAL M4 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
@@ -401,13 +401,13 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tests:** suíte REAL `rpc-referencias-sync.test.ts` (aprovar por tipo/rejeitar/terminal) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-044 — Duplicidade conflitante na origem invalida a sync
+### BR-044 — Duplicidade conflitante na origem rejeita o par inteiro
 - **Tipo:** validação
-- **Given:** extração com duas linhas de mesma identidade e valores substantivos divergentes (mesmo nome+marca, fenil diferente)
+- **Given:** extração com duas ou mais linhas de mesma identidade de nome+marca e valores substantivos divergentes (fenil diferente)
 - **When:** validação da extração (estágio 3)
-- **Then:** a sync é invalidada (D-10) — abort, nada é aplicado, nenhum artifact de aplicação; duplicidades exatas (idênticas) são apenas contadas e deduplicadas na comparação. A checagem roda sobre as linhas VÁLIDAS (linhas rejeitadas individualmente não participam)
-- **Evidence:** `[CONFIRMED: code — src/shared/powerbi/validate.ts (check 4 — conflitantes invalidam, sobre rowsValidas); src/shared/referencias-sync/engine.ts:9 ("sem conflitantes D-10")]`
-- **Tests:** `validate.test.ts` (duplicidade conflitante aborta) `[CONFIRMED: test]`
+- **Then:** TODAS as linhas do grupo conflitante são rejeitadas individualmente — **par inteiro, nenhum valor arbitrário vence**; o produto fica fora do catálogo até a origem estabilizar. **Revisão 2026-09-14 da decisão D-10** (que invalidava a sync inteira): com a origem real, pares conflitantes existem e o abort permanente tornou-se inviável (origin_invalid a cada execução); a sync agora NÃO é invalidada pelo conflito — segue com as demais linhas e só aborta se não restar nenhuma válida. Cada rejeição reporta o grupo completo (`{linha, nome, motivo}` com os valores e linhas do par). Duplicidades exatas (idênticas) são apenas contadas e deduplicadas na comparação. A checagem roda sobre as linhas VÁLIDAS (linhas rejeitadas individualmente não participam)
+- **Evidence:** `[CONFIRMED: code — src/shared/powerbi/validate.ts (check 4 — grupos com fenil divergente rejeitam todas as linhas do grupo)]`
+- **Tests:** `validate.test.ts` (par conflitante rejeitado inteiro com sync seguindo; conflito aponta linhas originais; marca nula × vazia; tripla) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-045 — Sync é unidade com ID único; single-flight; pendências canceladas/revertidas sem nova decisão
