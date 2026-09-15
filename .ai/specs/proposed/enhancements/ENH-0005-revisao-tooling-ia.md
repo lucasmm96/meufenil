@@ -103,7 +103,9 @@ Nenhuma.
 - **Alternativa B — Revisão parcial (somente agents):** revisar apenas agents sem criar skills/commands. Mais conservador, menor esforço, menor valor.
 - **Alternativa C — Esta proposta (revisão holística em fases):** maior esforço, decisão item a item, documentação completa ao final. Maior valor de longo prazo.
 
-**Decision:** TBD — escolha humana obrigatória para ACCEPTED. Registrar **Approved by:** e **Approved on:** na aprovação.
+**Decision:** ACCEPTED
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-09-15
 
 ## Open Questions
 
