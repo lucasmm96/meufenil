@@ -1,10 +1,12 @@
 # ENH-0005 — Revisão e melhoria do tooling de IA do projeto
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Revisão e melhoria do tooling de IA do projeto
 **Issue:** #76
 **Created on:** 2026-09-15
+
+**Implemented Through:** commits `ccf8733` (Fase 4) + `bc880ef` (Fase 5, wiki) — branch `development` — 2026-09-15
 
 ## Problem
 
@@ -118,14 +120,14 @@ Nenhuma.
 
 ## Acceptance Criteria
 
-- [ ] Inventário factual de todo tooling de IA existente produzido e revisado, incluindo estimativa de footprint de tokens por agent e lista de tarefas candidatas a scripts determinísticos (Fase 1).
-- [ ] Plano de melhorias escrito em `.ai/.temp/analyses/` e aprovado item a item pelo humano, com os seis temas obrigatórios cobertos — incluindo "economia de tokens" e "scripts determinísticos" (Fases 2–3).
-- [ ] Auditoria de footprint de tokens dos agents concluída; oportunidades de redução identificadas, avaliadas no plano e — se aprovadas — aplicadas na Fase 4 sem remoção de cobertura funcional.
-- [ ] Para cada tarefa de agent identificada como candidata a script determinístico: proposta avaliada no plano (Fase 2–3); se aprovada, script criado/documentado na Fase 4.
-- [ ] Cada item aprovado implementado com diff apresentado e confirmação explícita antes de aplicar (Fase 4).
-- [ ] Wiki how-to publicada em PT-BR em `meufenil.wiki.git`, orientada ao uso prático com exemplos reais, cobrindo: agents, skills, commands, scripts determinísticos, convenções transversais e guia de contribuição (Fase 5).
-- [ ] Nenhuma alteração fora do escopo aprovado introduzida.
-- [ ] Nenhum commit/push/branch/PR criado sem confirmação explícita.
+- [x] Inventário factual de todo tooling de IA existente produzido e revisado, incluindo estimativa de footprint de tokens por agent e lista de tarefas candidatas a scripts determinísticos (Fase 1).
+- [x] Plano de melhorias escrito em `.ai/.temp/analyses/` e aprovado item a item pelo humano, com os seis temas obrigatórios cobertos — incluindo "economia de tokens" e "scripts determinísticos" (Fases 2–3).
+- [x] Auditoria de footprint de tokens dos agents concluída; oportunidades de redução identificadas, avaliadas no plano e — se aprovadas — aplicadas na Fase 4 sem remoção de cobertura funcional.
+- [x] Para cada tarefa de agent identificada como candidata a script determinístico: proposta avaliada no plano (Fase 2–3); se aprovada, script criado/documentado na Fase 4.
+- [x] Cada item aprovado implementado com diff apresentado e confirmação explícita antes de aplicar (Fase 4).
+- [x] Wiki how-to publicada em PT-BR em `meufenil.wiki.git`, orientada ao uso prático com exemplos reais, cobrindo: agents, skills, commands, scripts determinísticos, convenções transversais e guia de contribuição (Fase 5).
+- [x] Nenhuma alteração fora do escopo aprovado introduzida.
+- [x] Nenhum commit/push/branch/PR criado sem confirmação explícita.
 
 ## References
 
