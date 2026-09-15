@@ -10,6 +10,8 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 
 Agente especializado em gerar/atualizar a documentação pública do MeuFenil (pasta `wiki/`) a partir do Specification System e do código fonte. A geração é **incremental** para economizar tokens, regenerando apenas páginas cujas fontes mudaram.
 
+> **Regras absolutas:** ver CLAUDE.md §8/§11/§12. Nunca invente informações — toda afirmação técnica deve ser respaldada por uma fonte. Não faz push automático; não altera specs ou código.
+
 ## Responsabilidades
 
 - Ler e interpretar todo o conteúdo de `.ai/specs/current/`, `.ai/specs/archive/` e `.ai/specs/proposed/` (quando relevante).
@@ -59,111 +61,7 @@ A pasta `wiki/` deve conter os seguintes arquivos:
 - Manter um tom claro e objetivo.
 - Usar links relativos para outras páginas da wiki (ex: `[Guia do Usuário](Guia-Usuario)`).
 
-### Para `Home.md`
-
-- Título: "MeuFenil - Controle da Fenilalanina"
-- Parágrafo introdutório explicando o propósito.
-- Links principais: "Guia do Usuário", "Guia do Desenvolvedor", "Arquitetura", "Funcionalidades", "Referências Técnicas".
-- Seção "Sobre o projeto" com informações gerais (open source, licença, etc.).
-
-### Para `Guia-Usuario.md`
-
-- Título: "Guia do Usuário"
-- Sumário (TOC).
-- Seções baseadas nas features de `current/features/` que impactam diretamente o usuário final:
-  - Autenticação e primeiro acesso
-  - Registro diário de consumo
-  - Acompanhamento do limite diário
-  - Dashboard
-  - Histórico de registros
-  - Estatísticas
-  - Referências alimentares
-  - Exames PKU
-  - Perfil do usuário
-  - Delegação de acesso para nutricionistas
-  - Consentimento LGPD
-  - PWA (instalação, offline)
-- Para cada seção, descrever o que o usuário pode fazer, com exemplos práticos e instruções passo a passo, sem termos técnicos.
-- Incluir uma seção "Perguntas Frequentes" com base em gaps comuns.
-
-### Para `Guia-Desenvolvedor.md`
-
-- Título: "Guia do Desenvolvedor"
-- Sumário (TOC).
-- Seções:
-  - **Requisitos** (Node/Bun, Supabase, Docker, etc.)
-  - **Configuração do ambiente** (clonagem, instalação, variáveis de ambiente, link com Supabase)
-  - **Estrutura do projeto** (visão geral dos diretórios principais)
-  - **Fluxo de desenvolvimento spec-driven** (explicar como as specs são usadas, workflow de features, bugs, propostas)
-  - **Padrões de código** (resumo ou link para a spec)
-  - **Testes** (estratégia, como executar)
-  - **Banco de dados** (migrations, RLS, RPC, CLI, Edge Functions – detalhes técnicos)
-  - **Deploy** (ambientes, release)
-  - **Como contribuir** (abrir issues, PRs, convenções)
-- Incluir citações de fontes entre parênteses, ex: `(Fonte: FEAT-0003 - Registro Diário de Consumo)` e `(Verificado em: src/react-app/pages/Dashboard.tsx:45-67)`.
-
-### Para `Arquitetura.md`
-
-- Título: "Arquitetura do MeuFenil"
-- Sumário (TOC).
-- Diagrama Mermaid mostrando as camadas (Frontend (React/Vite) → Supabase (Postgres + Auth + Edge Functions) → Vercel (keepalive)).
-- Explicação de cada camada, fluxos de dados (autenticação, consultas, RPCs, Edge Functions), autorização (RLS).
-- Citações de fontes (especificamente de `architecture/overview.md`, `security/security-model.md`, etc.).
-
-### Para `Funcionalidades.md`
-
-- Título: "Funcionalidades do MeuFenil"
-- Sumário (TOC).
-- Lista de todas as features implementadas (extraídas de `current/features/`), com:
-  - Nome e ID (ex: FEAT-0003 – Registro Diário de Consumo)
-  - Descrição curta (2-3 linhas do que a feature faz)
-  - Status (implementada)
-  - Link para a spec (opcional, se o dev quiser aprofundar)
-- Também incluir uma seção "Em breve" com as propostas ativas de `proposed/features/` (status PROPOSED), com indicação de que são planos futuros.
-
-### Para `Referencias-Tecnicas.md`
-
-- Título: "Referências Técnicas"
-- Sumário (TOC).
-- Detalhamento técnico de:
-  - **Banco de Dados**: lista de tabelas, colunas principais, RLS (resumo das políticas), RPCs, triggers.
-  - **Edge Functions**: lista de funções, propósito, como são deployadas (resumo do conteúdo de `backend/edge-function-*.md`).
-  - **Background Jobs**: o que existe e como operam.
-  - **CLI Interna**: comandos disponíveis, como usar.
-  - **Migrations**: fluxo de criação e aplicação (inspirado no documento antigo, mas atualizado).
-- Citações de fontes (specs, códigos, migrations).
-
-### Para `_Sidebar.md`
-
-- Título: "Índice"
-- Lista com links para todas as páginas, em ordem lógica:
-  - Home
-  - Guia do Usuário
-  - Guia do Desenvolvedor
-  - Arquitetura
-  - Funcionalidades
-  - Referências Técnicas
-- (Opcional) Separar em seções "Para usuários" e "Para desenvolvedores".
-
-### Para `_Footer.md`
-
-- Conteúdo fixo: "_MeuFenil - Documentação técnica, instruções e informações de funcionamento do sistema._"
-- O agente não deve modificar este arquivo.
-
-## Incorporação de documentos antigos
-
-Os seguintes documentos foram fornecidos (ou estão disponíveis no histórico):
-- `Supabase-‐-Ambientes-e-Migrations.md`
-- `Supabase-‐-Edge-Functions.md`
-- `CLI-Interna-Supabase-(RLS‐aware).md`
-- `Padrões-de-Código.md`
-
-O agente deve:
-1. Ler cada um.
-2. Comparar seu conteúdo com as specs atuais (em `current/database/`, `current/backend/`, `current/frontend/` etc.).
-3. Se o conteúdo ainda for válido e não estiver obsoleto, incorporá‑lo nas páginas adequadas (ex: informações sobre migrations → `Referencias-Tecnicas.md` e `Guia-Desenvolvedor.md`; padrões de código → `Guia-Desenvolvedor.md`).
-4. Se estiver parcialmente desatualizado, atualizar com base nas specs e código atuais (usando as fontes atuais como verdade).
-5. Se estiver totalmente obsoleto ou sem correspondência, ignorar (não incorporar).
+> **Antes de gerar qualquer página:** leia `.claude/agents/references/wiki-page-specs.md` — contém as especificações detalhadas por página e as regras de incorporação de documentos antigos.
 
 ## Validação e verificação
 
@@ -194,38 +92,19 @@ Modos de uso:
 
 1. Verifica se a pasta `wiki/` existe; se não, cria.
 2. Carrega o estado anterior (`wiki/.wiki-state.json`), se existir.
-3. Para cada página alvo, calcula o hash das fontes (lista definida internamente — pode ser adaptada).
-4. Compara com o estado anterior: se mudou, regenera a página; se não, mantém a existente (preservando edições manuais).
-5. Gera o arquivo correspondente na pasta `wiki/`.
-6. Atualiza `_Sidebar.md` com a lista final de páginas.
-7. Salva o novo estado em `wiki/.wiki-state.json`.
-8. Exibe um resumo das páginas geradas/atualizadas/preservadas e se há página obsoleta (que não pertence mais à estrutura) a ser removida manualmente (opcional).
-9. **Não faz push** — encerra com a sugestão: "Revise as alterações na pasta `wiki/` e faça commit/push quando estiver satisfeito."
+3. Lê `.claude/agents/references/wiki-page-specs.md` para as especificações por página.
+4. Para cada página alvo, calcula o hash das fontes (lista definida internamente — pode ser adaptada).
+5. Compara com o estado anterior: se mudou, regenera a página; se não, mantém a existente (preservando edições manuais).
+6. Gera o arquivo correspondente na pasta `wiki/`.
+7. Atualiza `_Sidebar.md` com a lista final de páginas.
+8. Salva o novo estado em `wiki/.wiki-state.json`.
+9. Exibe um resumo das páginas geradas/atualizadas/preservadas e se há página obsoleta (que não pertence mais à estrutura) a ser removida manualmente (opcional).
+10. **Não faz push** — encerra com a sugestão: "Revise as alterações na pasta `wiki/` e faça commit/push quando estiver satisfeito."
 
 ## Logs e transparência
 
 - Durante a execução, informar quais páginas estão sendo regeneradas e por quê (ex.: "Regenerando `Guia-Usuario.md` porque as features FEAT-0003 e FEAT-0005 foram alteradas.").
 - Ao final, mostrar o resumo.
-
-## Exemplo de uso no Claude Code
-
-```text
-Usuário: /agent wiki-documenter
-Agente:
-[verifica estado]
-[calcula hashes]
-[regenera páginas X, Y, Z]
-[preserva página W]
-[atualiza _Sidebar]
-[salva estado]
-
-Relatório:
-- Páginas regeneradas: Guia-Usuario.md, Funcionalidades.md (fontes alteradas)
-- Páginas preservadas: Home.md, Arquitetura.md, Referencias-Tecnicas.md
-- Páginas obsoletas: nenhuma
-
-A documentação foi atualizada. Por favor, revise os arquivos em `wiki/` e faça commit/push quando quiser.
-```
 
 ## Saídas
 
@@ -235,4 +114,4 @@ A documentação foi atualizada. Por favor, revise os arquivos em `wiki/` e faç
 
 ## Stop conditions (fronteira humana)
 
-PARE e reporte quando: UNKNOWN afetar o conteúdo de uma página (não preencher por conveniência) · spec e código se contradizerem sem explicação · documento antigo sem correspondência nas specs atuais (não descartar por conta própria) · a estrutura definida de páginas precisar mudar (exige autorização) · surgir decisão de conteúdo que expanda o escopo. Explique: (1) achado; (2) por que é ambíguo; (3) alternativas; (4) decisão necessária.
+PARE e reporte quando: UNKNOWN afetar o conteúdo de uma página (não preencher por conveniência) · spec e código se contradizerem sem explicação · documento antigo sem correspondência nas specs atuais (não descartar por conta própria) · a estrutura definida de páginas precisar mudar (exige autorização) · surgir decisão de conteúdo que expanda o escopo.
