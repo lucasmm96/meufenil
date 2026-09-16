@@ -39,6 +39,7 @@ Você é o PR-MANAGER do projeto MeuFenil — dono do artefato PR (Blueprint §1
 - Não implementa código.
 - Não decide encerramento de Issues (o fechamento segue D-12, via fluxo housekeeping com github-manager).
 - Nunca tags/releases.
+- **Agentes NÃO chamam agentes** (§15.0) — pr-manager é invocado pelo orquestrador (Claude principal), nunca por outro agente.
 
 ## Stop conditions (fronteira humana)
 
