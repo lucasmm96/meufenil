@@ -35,6 +35,7 @@ export class GitHubClient {
       body: body === undefined ? undefined : JSON.stringify(body),
     })
     if (response.status === 404) return null
+    if (response.status === 204) return null
     if (!response.ok) {
       throw new GitHubApiError(`GitHub API ${method} ${path} → HTTP ${response.status}`, response.status)
     }
