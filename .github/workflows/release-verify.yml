@@ -12,31 +12,41 @@ name: release-verify
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag da release a verificar (ex: v1.13.0)"
+        required: true
 
 permissions:
   contents: read
   issues: write
 
 concurrency:
-  group: release-verify-${{ github.event.release.tag_name }}
+  group: release-verify-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       # O checkout aponta para o commit da tag publicada — as Specs verificadas
       # são as exatamente do código entregue na release.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ env.TAG }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Extrair corpo da Release
-        run: jq -r .release.body "$GITHUB_EVENT_PATH" > /tmp/release-body.md
+      - name: Extrair corpo da Release via API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Lê o body ATUAL da release (imune a edições pós-publicação).
+        run: gh release view "$TAG" --json body -q '.body' > /tmp/release-body.md
       - name: Verificar rastreabilidade (§23) e fechar milestone
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/spec-github/release-verify.js --tag "${{ github.event.release.tag_name }}" --body-file /tmp/release-body.md
+        run: node scripts/spec-github/release-verify.js --tag "$TAG" --body-file /tmp/release-body.md
