@@ -98,6 +98,29 @@
 - Conteúdo fixo: "_MeuFenil - Documentação técnica, instruções e informações de funcionamento do sistema._"
 - O agente **não deve modificar** este arquivo.
 
+### Para `Specs.md` (hub principal — ENH-0006)
+
+- Título: "Specs do Projeto"
+- Parágrafo explicando que esta seção espelha o Specification System interno (`.ai/specs/`), tornando-o navegável publicamente.
+- Seção "Diretórios" com links para os sub-hubs: `Specs-Current`, `Specs-Proposed`, `Specs-Decisions`, `Specs-Templates`, `Specs-Archive`.
+- Seção "Arquivos raiz" com links para `Specs-README` e `Specs-CONVENTIONS`.
+- Nota: "Os arquivos são espelhos do código-fonte. Para o estado mais atualizado, consulte o repositório."
+
+### Para `Specs-Current.md`, `Specs-Proposed.md`, `Specs-Decisions.md`, `Specs-Templates.md`, `Specs-Archive.md` (sub-hubs — ENH-0006)
+
+- Título: ex. "Specs — Current", "Specs — Proposed", etc.
+- Link de volta para `[Specs do Projeto](Specs)`.
+- Lista de todas as páginas do respectivo diretório, agrupadas por subdiretório quando aplicável.
+- Para cada entrada: `[nome-legível](Specs-<NomeWiki>)` — onde nome-legível é o nome do arquivo sem extensão.
+- Subdiretórios aparecem como sub-seções (`###`).
+
+### Para páginas espelho individuais `Specs-*.md` (ENH-0006)
+
+- Conteúdo copiado diretamente do arquivo fonte (`.ai/specs/<relpath>`), incluindo frontmatter YAML.
+- Links reescritos conforme regras da fase spec-sync (spec→spec = wiki-name; spec→código = GitHub URL; externos = inalterado).
+- **Não adicionar** nenhum cabeçalho, rodapé ou metadado extra além do conteúdo original.
+- Controle incremental: regenerar somente se o hash do arquivo fonte mudou.
+
 ---
 
 ## Incorporação de documentos antigos

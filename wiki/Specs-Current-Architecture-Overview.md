@@ -1,0 +1,120 @@
+# Architecture Overview — MeuFenil
+
+**Última verificação:** 2026-09-11 (FEAT-0017 M1–M6 — migrations 20260905*/20260906*/20260907000000 aplicadas em DEV e PROD — release v1.11.0, 2026-09-10)
+
+Índice ARQUITETURAL de alto nível (o índice FUNCIONAL é o [system-map](Specs-Current-System-Map)). Este documento aponta para as specs especializadas — não duplica conteúdo. Decisões arquiteturais: [decisions](Specs-Decisions).
+
+## Visão geral
+
+MeuFenil é uma **SPA sem servidor de aplicação próprio**: o frontend (React 19 + Vite) fala diretamente com o Supabase (PostgREST + Auth + Edge Functions); as únicas peças server-side próprias são as funções Vercel `api/keepalive` (cron diário) e `api/referencias-sync` (cron semanal — sincronização de referências, FEAT-0017); ferramentas de operação rodam localmente (CLI + script de migrations) `[CONFIRMED: código — ../backend/overview.md]`.
+
+## Arquitetura em camadas
+
+```mermaid
+flowchart TB
+    subgraph Browser
+        P[pages/ 9] --> H[hooks/ 13] --> S[services/ 12 client-side]
+        P --> C[components/ 10]
+        C --> H
+        S --> SUP[sdk supabase-js — anon key]
+        P --> AU[AuthContext + useUsuarioAtivo]
+        H --> AU
+    end
+    SUP -->|JWT do usuário| PG[(PostgREST → RLS/RPCs → PostgreSQL)]
+    S -->|Bearer + POST| ED[Edge Functions: delegar-acesso, delete-account]
+    ED -->|service role| PG
+    subgraph Vercel
+        CRON[Vercel Cron diário 0 12 * * *] --> KEEP[api/keepalive.ts]
+        KEEP --> BJ[src/shared/background-jobs.ts]
+        CRONW[Vercel Cron semanal 0 12 * * 1] --> SYNC[api/referencias-sync.ts]
+        SYNC --> SR[src/shared/referencias-sync/ + powerbi/ — motor puro]
+    end
+    KEEP -->|service role| PG
+    SYNC -->|service role| PG
+    PG --> TAB[(12 tabelas + 4 triggers + 15 funções — dev pós-FEAT-0017 M1–M6)]
+```
+
+Todas as arestas do diagrama são confirmadas por código/configuração `[CONFIRMED: code — Fases 4–5]`.
+
+## Frontend
+
+- SPA React 19 + TypeScript strict + Vite + Tailwind (config padrão, sem tokens customizados) + React Router 7 + Recharts + lucide + date-fns(-tz) — [frontend/overview](Specs-Current-Frontend-Overview).
+- Camadas internas: pages → hooks (1 por página) → services (client-side, anon) → `lib/supabase`; DTOs simples espelhando snake_case; erros `AppError`+`logger`; loading por skeletons `[CONFIRMED: code]`.
+- Autorização de UI é controle de EXPERIÊNCIA (o enforcement é do banco) — [security/security-model](Specs-Current-Security-Security-Model).
+
+## Backend
+
+- Sem servidor de aplicação: lógica server-side distribuída entre RPCs do banco (PostgREST), 2 Edge Functions (Deno, service role + validação de Bearer) e 2 funções Vercel (keepalive diário + referencias-sync semanal — FEAT-0017) — [backend/overview](Specs-Current-Backend-Overview).
+- RPCs de negócio (frontend): `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs da sincronização de referências (FEAT-0017): `aplicar_sync_referencias` (service_role — rota `/api/referencias-sync`, estágio 7) e `decidir_pendencia_referencia` (authenticated admin — curadoria de divergências; chamada pela UI do Admin via `referencias-sync.service`, M6); RPCs de recuperação (FEAT-0017 M5): `reverter_sync_referencias`/`restaurar_referencias_de_backup` (authenticated admin com `pode_recuperacao` — rollback seletivo de sync e restauração excepcional por backup; chamadas pela UI de recuperação do Admin, M6 — ações humanas, nunca automatizadas); RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](Specs-Current-Database-Rpc).
+- Operação: CLI (5 comandos) e `apply-supabase-migrations.sh` — [backend/cli](Specs-Current-Backend-Cli).
+
+## Database
+
+- PostgreSQL Supabase (dev, 2026-09-06): **12 tabelas** (7 legadas + 5 de sincronização do FEAT-0017 M1: `referencia_syncs`, `referencia_sync_pendencias`, `referencia_eventos`, `referencia_snapshots`, `referencia_backups`), RLS em TODAS, **36 políticas** (31 legadas + 5 `admin_select_*` das tabelas de sync), **15 funções** em `public` — todas SECURITY DEFINER: 8 pós-ENH-0004 + 2 de trigger do M1 (`fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`) + 2 RPCs do M4 (`aplicar_sync_referencias`, `decidir_pendencia_referencia`) + 3 do M5 (`pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`) — e **4 triggers** (3 em `public` + 1 em `auth.users`). PROD tem a **mesma estrutura** do dev desde a release v1.11.0 (2026-09-10): 12 tabelas, 36 políticas, 15 funções e 4 triggers (3 em `public` + 1 em `auth.users`) `[CONFIRMED: database — catálogo prod 2026-09-11]`. Todo o schema com DDL versionado desde a baseline 20260814000000 (DEBT-0001) — [database/overview](Specs-Current-Database-Overview).
+
+## Authentication / Authorization
+
+- Google OAuth via Supabase Auth; identidade = `auth.uid()`; perfil criado por trigger; login-as NÃO troca token — [security/security-model](Specs-Current-Security-Security-Model) seções 1–2, 9.
+
+## Integrations
+
+Supabase (BaaS) · Google OAuth · Vercel (cron/hosting) · ANVISA (seed de dados) · Power BI/ANVISA (origem da sincronização de referências — FEAT-0017) · GitHub (apenas repositório, sem CI) — [product/overview](Specs-Current-Product-Overview).
+
+## Deployment / Environments
+
+- Vercel (SPA + cron); 2 ambientes Supabase (dev/prod). Estrutura lógica idêntica até 2026-08-14; de 2026-09-04 a 2026-09-10 divergiram (dev recebeu a ENH-0004 em 2026-09-04 e o FEAT-0017 M1–M6 em 2026-09-05/06/07; prod acompanhou na release v1.11.0, 2026-09-10) — os ambientes voltaram a ter estrutura idêntica. Restam: escala do fenil (dev `numeric(10,2)` desde 2026-09-11 × prod `numeric(10,1)` até a aplicação da 20260911000000), pg_graphql (dev-only) e diferenças de dados — [database/overview](Specs-Current-Database-Overview), [security/secrets-and-environments](Specs-Current-Security-Secrets-And-Environments).
+
+## Testing
+
+Vitest + Testing Library (jsdom), testes colocalizados; suítes de segurança com JWTs reais contra o banco dev; sem E2E/smoke/CI — [testing/testing-strategy](Specs-Current-Testing-Testing-Strategy).
+
+## Background jobs
+
+Keepalive (cron) → ping service role → persistência em `background_job_executions` → retenção 365d (trigger) → monitoramento admin-only — [backend/api-keepalive](Specs-Current-Backend-Api-Keepalive), [backend/background-jobs](Specs-Current-Backend-Background-Jobs).
+
+## Runtime boundaries (fronteiras reais)
+
+| Fronteira | Natureza | Enforcement |
+|---|---|---|
+| Browser × servidor | sem app server — tudo server-side é BaaS/edge | — |
+| Não autenticado × autenticado | RLS (anon vê só referências globais) | banco |
+| Usuário × Admin | `usuarios.role` + `is_admin_user`/claim JWT | banco + gate de UI |
+| Dono × Delegado | `delegacoes_acesso` ativa | banco (15 policies + 2 RPCs) |
+| anon/authenticated × service_role | bypass de RLS apenas server-side (edge/keepalive) | segredo service role fora do browser |
+| Supabase × Vercel | keepalive Vercel → Supabase via service role | envs Vercel |
+| DEV × PROD | bancos distintos; keepalive por ambiente; labels `dev`/`prod` | envs |
+
+## Data flows (resumo — detalhe nas specs de feature)
+
+| Fluxo | Caminho | Spec |
+|---|---|---|
+| Authentication | Browser → Supabase Auth (OAuth) → trigger cria perfil | [FEAT-0001](Specs-Current-Features-FEAT-0001-Autenticacao) |
+| Registro de consumo | UI calcula fenil → PostgREST INSERT (RLS dono/delegado + referência ativa) | [FEAT-0003](Specs-Current-Features-FEAT-0003-Registro-Diario-Consumo) |
+| Referências | UI → PostgREST (CRUD) / RPCs (ativar/remover) | [FEAT-0008](Specs-Current-Features-FEAT-0008-Referencias-Alimentares) |
+| Exames | UI → PostgREST (RLS dono/delegado) | [FEAT-0009](Specs-Current-Features-FEAT-0009-Exames-Pku) |
+| Delegação | UI → edge function (Bearer + service role) → delegacoes_acesso; autorização por RLS | [FEAT-0011](Specs-Current-Features-FEAT-0011-Delegacao-Acesso) |
+| Admin | UI → PostgREST/RPC (get_estatisticas_admin) | [FEAT-0012](Specs-Current-Features-FEAT-0012-Painel-Administrativo) |
+| Keepalive | Vercel Cron → service role → ping + persistência | [FEAT-0013](Specs-Current-Features-FEAT-0013-Background-Jobs) |
+| Exclusão de conta | UI → edge function (registros → usuarios → auth) | [FEAT-0010](Specs-Current-Features-FEAT-0010-Perfil-Usuario) |
+
+## Architectural patterns (observados)
+
+> "Padrão observado" NÃO significa decisão formal registrada. Decisões com ADR estão em [decisions](Specs-Decisions).
+
+1. **SPA + BaaS** — cliente fala direto com Supabase; sem app server (ADR-0001, ADR-0008).
+2. **Camadas hooks→services** — hooks de dados por página; services finos com DTOs; erros codificados (AppError).
+3. **RLS como fronteira de autorização** — grants amplos; enforcement em policies/RPCs (ADR-0004).
+4. **RPC SECURITY DEFINER para operações sensíveis** — com verificação interna de dono/delegado/admin (ADR-0010).
+5. **Soft delete/arquivamento via coluna de estado** — `referencias.is_ativa` + RPC (ADR-0006). Desde a ENH-0004: o trigger de limpeza de favoritos foi eliminado (arquivamento preserva favoritos), globais são SEMPRE arquivadas (nunca exclusão física) e o RPC decide soft/hard apenas para pessoais — ver [ADR-0006](Specs-Decisions-ADR-0006-Soft-Delete-Referencias) (nota de revisão) e [../database/referencias.md](Specs-Current-Database-Referencias).
+6. **Delegação sem troca de identidade** — login-as é estado de UI; banco autoriza por tabela de delegação (ADR-0005).
+7. **Background job com persistência própria** — tabela dedicada + retenção por trigger (ADR-0007).
+8. **Segurança testada com autenticação real** — Abordagem B (ADR-0011).
+
+## Evidências
+
+- E1 — Todas as afirmações deste documento derivam das specs das Fases 2–8 (links acima) `[CONFIRMED: specs]`
+- E2 — Diagrama validado contra código/configurações (Fases 4–5) `[CONFIRMED: code]`
+
+## Veja também
+
+- [../system-map.md](Specs-Current-System-Map) (índice funcional), [decisions](Specs-Decisions) (ADRs), [../testing/testing-strategy.md](Specs-Current-Testing-Testing-Strategy)

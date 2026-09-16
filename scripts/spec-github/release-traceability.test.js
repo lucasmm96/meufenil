@@ -415,8 +415,9 @@ describe('W6 — release-verify.yml (§18.1)', () => {
 
   it('roda o release-verify.js com a tag e o corpo extraídos do evento', () => {
     const w = read('.github/workflows/release-verify.yml')
-    expect(w).toMatch(/jq -r \.release\.body/)
-    expect(w).toMatch(/node scripts\/spec-github\/release-verify\.js --tag "\$\{\{ github\.event\.release\.tag_name \}\}" --body-file \/tmp\/release-body\.md/)
+    // Body lido via API (imune a edições pós-publicação) — PR #80
+    expect(w).toMatch(/gh release view.*--json body/)
+    expect(w).toMatch(/node scripts\/spec-github\/release-verify\.js --tag "\$TAG" --body-file \/tmp\/release-body\.md/)
   })
 
   it('não usa secrets em condicionais if (schema do Actions rejeita)', () => {
