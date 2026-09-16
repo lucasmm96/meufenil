@@ -13,6 +13,10 @@
 - [Referências Técnicas](Referencias-Tecnicas)
 - [Sincronização ANVISA](Sincronizacao-Referencias-ANVISA)
 
+## Specs
+
+- [Specs do Projeto](Specs)
+
 ## Tooling de IA
 
 - [Ferramentas de IA](Ferramentas-IA)

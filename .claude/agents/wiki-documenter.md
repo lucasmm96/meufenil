@@ -43,6 +43,68 @@ A pasta `wiki/` deve conter os seguintes arquivos:
 - `Referencias-Tecnicas.md` – detalhes profundos: banco de dados (tabelas, RLS, RPC), Edge Functions, background jobs, CLI, migrations, segurança.
 - `_Sidebar.md` – índice com links para todas as páginas, usado pela wiki do GitHub.
 - `_Footer.md` – rodapé fixo (conteúdo atual: "_MeuFenil - Documentação técnica, instruções e informações de funcionamento do sistema._").
+- **Seção Specs (ENH-0006):** `Specs.md` (hub principal) + sub-hubs + páginas espelho — ver fase spec-sync abaixo.
+
+## Fase spec-sync (ENH-0006)
+
+Esta fase espelha todo o conteúdo de `.ai/specs/` na wiki, transformando cada arquivo `.md` em uma página navegável com links reescritos.
+
+### Quando executar
+
+Execute a fase spec-sync como parte de qualquer invocação do wiki-documenter (antes de atualizar `_Sidebar.md`). O controle incremental (hash-based) garante que somente arquivos alterados sejam regravados.
+
+### Convenção de nomeação
+
+`<caminho-relativo-dentro-de-.ai/specs/>` → `Specs-<Segmentos>.md`, onde:
+- Cada segmento do path (diretório ou nome de arquivo sem `.md`) é transformado individualmente.
+- **Transformação por segmento:** dividir por `-`; para cada parte: se começa com maiúscula ou é número → manter como está; caso contrário → capitalizar a primeira letra. Rejuntar com `-`.
+- Exemplos:
+  - `current/features/FEAT-0001-autenticacao.md` → `Specs-Current-Features-FEAT-0001-Autenticacao.md`
+  - `decisions/ADR-0001-supabase-como-baas.md` → `Specs-Decisions-ADR-0001-Supabase-Como-Baas.md`
+  - `CONVENTIONS.md` → `Specs-CONVENTIONS.md`
+  - `README.md` → `Specs-README.md`
+  - `proposed/index.md` → `Specs-Proposed-Index.md`
+
+### Reescrita de links
+
+Dentro de cada arquivo espelho, reescrever todos os links markdown `[texto](url)`:
+
+1. **Link para outra spec** (`url` relativo, resolve dentro de `.ai/specs/`): converter para nome wiki sem extensão.
+   - Exemplo: `[FEAT-0016](../../archive/implemented/features/FEAT-0016-geracao.md)` → `[FEAT-0016](Specs-Archive-Implemented-Features-FEAT-0016-Geracao)`
+2. **Link para arquivo fora de `.ai/specs/`** (`url` relativo, resolve fora de `.ai/specs/`): converter para URL GitHub em `master`.
+   - Exemplo: `[workflow](../../../../.github/workflows/sync-wiki.yml)` → `[workflow](https://github.com/lucasmm96/meufenil/blob/master/.github/workflows/sync-wiki.yml)`
+3. **Link externo** (`url` começa com `http://` ou `https://`): manter inalterado.
+4. **Âncora pura** (`url` começa com `#`): manter inalterada.
+5. **Links com fragmento** (ex.: `arquivo.md#ancora`): reescrever o path, manter o fragmento (`#ancora`) concatenado após o nome wiki ou URL GitHub.
+
+### Páginas hub
+
+Além das páginas espelho, gerar:
+
+- **`Specs.md`** — hub principal com links para sub-hubs (`Specs-Current.md`, `Specs-Proposed.md`, `Specs-Decisions.md`, `Specs-Templates.md`, `Specs-Archive.md`) e para arquivos raiz (`Specs-README.md`, `Specs-CONVENTIONS.md`).
+- **`Specs-Current.md`** — lista todas as páginas de `current/`, agrupadas por subdiretório.
+- **`Specs-Proposed.md`** — lista todas as páginas de `proposed/`, agrupadas por subdiretório.
+- **`Specs-Decisions.md`** — lista todos os ADRs de `decisions/`.
+- **`Specs-Templates.md`** — lista todos os templates de `templates/`.
+- **`Specs-Archive.md`** — lista todos os arquivos de `archive/`, agrupados por subdiretório.
+
+### Integração
+
+- `Home.md`: deve conter link para "Specs do Projeto" → `Specs`.
+- `_Sidebar.md`: deve conter seção `## Specs` com pelo menos o link `[Specs do Projeto](Specs)`.
+
+### Controle incremental para spec-sync
+
+- Para cada página espelho, a chave de hash é o conteúdo do arquivo fonte (`.ai/specs/<relpath>`).
+- Para páginas hub, a chave é o hash combinado de todos os arquivos do diretório correspondente.
+- Se o hash não mudou → pular, preservar o arquivo existente.
+- Ao final, atualizar `wiki/.wiki-state.json` com as entradas de spec-sync.
+
+### Não
+
+- Não interpretar o conteúdo das specs — copiar o corpo e frontmatter como estão; apenas reescrever links.
+- Não filtrar ou omitir seções.
+- Não alterar páginas da documentação pública existente (Guia-Usuario, Arquitetura, etc.).
 
 ## Estratégia incremental
 
@@ -96,10 +158,11 @@ Modos de uso:
 4. Para cada página alvo, calcula o hash das fontes (lista definida internamente — pode ser adaptada).
 5. Compara com o estado anterior: se mudou, regenera a página; se não, mantém a existente (preservando edições manuais).
 6. Gera o arquivo correspondente na pasta `wiki/`.
-7. Atualiza `_Sidebar.md` com a lista final de páginas.
-8. Salva o novo estado em `wiki/.wiki-state.json`.
-9. Exibe um resumo das páginas geradas/atualizadas/preservadas e se há página obsoleta (que não pertence mais à estrutura) a ser removida manualmente (opcional).
-10. **Não faz push** — encerra com a sugestão: "Revise as alterações na pasta `wiki/` e faça commit/push quando estiver satisfeito."
+7. **Fase spec-sync:** itera `.ai/specs/**/*.md`, aplica naming, reescrita de links e gera páginas espelho + hubs (ver seção "Fase spec-sync" acima).
+8. Atualiza `_Sidebar.md` com a lista final de páginas (incluindo link para Specs na seção "Specs").
+9. Salva o novo estado em `wiki/.wiki-state.json`.
+10. Exibe um resumo das páginas geradas/atualizadas/preservadas e se há página obsoleta (que não pertence mais à estrutura) a ser removida manualmente (opcional).
+11. **Não faz push** — encerra com a sugestão: "Revise as alterações na pasta `wiki/` e faça commit/push quando estiver satisfeito."
 
 ## Logs e transparência
 

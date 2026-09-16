@@ -1,0 +1,58 @@
+# Proposed — Catálogo de Evoluções Possíveis
+
+**Última verificação:** 2026-09-16 (ENH-0006 adicionada — 14 ativas + 8 arquivadas)
+
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (15) · arquivadas = linhas da seção "Arquivadas" (7) · as 6 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017) permanecem no Catálogo, fora das contagens.
+
+> ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
+>
+> **Regra de arquivamento (ADR-0012, 2026-08-16):** `proposed/` contém SOMENTE propostas ativas. Propostas em estado terminal (IMPLEMENTED/REJECTED/SUPERSEDED) são movidas para `../archive/<estado>/<categoria>/`. Cada proposta possui uma Issue canônica no GitHub (coluna `Issue` — campo `Issue:` no arquivo + label `spec:<ID>` na Issue) e um item no GitHub Project (Status derivado, CONVENTIONS §18).
+
+## Catálogo
+
+| ID | Type | Title | Status | Issue | Source |
+|---|---|---|---|---|---|
+| [FEAT-0015](Specs-Proposed-Features-FEAT-0015-Atribuicao-Papel-Admin) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
+| [FEAT-0002](Specs-Proposed-Features-FEAT-0002-Exportar-Historico-Csv) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
+| [ENH-0001](Specs-Proposed-Enhancements-ENH-0001-Pwa-Offline) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
+| [ENH-0002](Specs-Proposed-Enhancements-ENH-0002-Identidade-Bot-Claude-Prs) | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED | #21 | PRs #4/#5/#20 (autoria `lucasmm96`) — decisão do autor 2026-08-16 |
+| [REF-0001](Specs-Proposed-Refactors-REF-0001-Modal-Concessao-Duplicado) | REF | Consolidar modal de concessão duplicado | PROPOSED | #12 | Divergência Fase 5 |
+| [REF-0002](Specs-Proposed-Refactors-REF-0002-Rpcs-Orfas-Dashboard) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | #13 | Fase 4; O-003 (análise 25) |
+| [REF-0003](Specs-Archive-Implemented-Refactors-REF-0003-Fluxos-Automaticos-Deterministicos) | REF | Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação) | IMPLEMENTED | #44 | W3 + W7 + ADR-0013 (PR #45, merge `b7090d4`) — 2026-08-24 |
+| [DEBT-0005](Specs-Archive-Implemented-Technical-Debt-DEBT-0005-Lint-Src-Pendencias-Eslint) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | IMPLEMENTED | #26 | lint verde + W1 restaurado (PR #42, merge `9c583ceb`) — 2026-08-23 |
+| [DEBT-0006](Specs-Archive-Implemented-Technical-Debt-DEBT-0006-Restaurar-Keepalive-Dev) | DEBT | Restaurar keepalive do ambiente dev (regressão 879a6c0) | IMPLEMENTED | #40 | multi-alvo restaurado (PR #41, merge `4ac65fa`) — 2026-08-23 |
+| [SEC-0001](Specs-Proposed-Security-SEC-0001-Autorizacao-Funcoes-Consulta) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | #14 | Fatos Fase 3 |
+| [TEST-0002](Specs-Proposed-Testing-TEST-0002-Suites-Seguranca-Policies) | TEST | Suítes de segurança para policies não cobertas | PROPOSED | #16 | GAP-007/012 |
+| [TEST-0003](Specs-Proposed-Testing-TEST-0003-Testes-Server-Side) | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED | #17 | GAP-005/006/008 |
+| [TEST-0004](Specs-Proposed-Testing-TEST-0004-Testes-Services-Faltantes) | TEST | Completar testes de services faltantes | PROPOSED | #18 | GAP-004/009 |
+| [TEST-0005](Specs-Proposed-Testing-TEST-0005-Determinismo-Testes-Seguranca) | TEST | Determinismo dos testes de segurança | PROPOSED | #19 | GAP-011 + O-004 |
+| [ENH-0004](Specs-Archive-Implemented-Enhancements-ENH-0004-Modelo-Identidade-Referencias) | ENH | Modelo canônico e identidade imutável de referências | IMPLEMENTED | #49 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 · PR #55 (squash merge `82bd0f3`) — 2026-09-04 |
+| [FEAT-0017](Specs-Archive-Implemented-Features-FEAT-0017-Sincronizacao-Referencias-Anvisa) | FEAT | Sincronização controlada de referências com a fonte ANVISA/Power BI | IMPLEMENTED | #50 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 · M1–M6 (PRs #57–#62, merges `5b1ed18`/`7ec0bf5`/`dd631d6`/`6e7d3e5`/`cb5d776`/`cb1123d`) + specs finais (M7) — 2026-09-05/06/07 |
+| [REF-0004](Specs-Archive-Implemented-Refactors-REF-0004-Automacao-Residuo-Gate-E-Prevencao-Tentativa-Erro) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | IMPLEMENTED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), PR #52 (squash merge) — 2026-09-03 |
+| [REF-0005](Specs-Proposed-Refactors-REF-0005-Heading-Canonico-Corpo-Release-Pre-Release-Check-Ampliado) | REF | Corpo de Release com heading canônico da tabela de rastreabilidade + pre-release-check ampliado | PROPOSED | #54 | W6 `no-table` em v1.10.0 (run 33139076564) e v1.10.1 (run 33826721637) — 2026-09-03 |
+| [DEBT-0007](Specs-Proposed-Technical-Debt-DEBT-0007-Gate-Validacao-Rotas-Vercel) | DEBT | Gate de validação não cobre rotas Vercel em modo Node.js ESM | PROPOSED | TBD | ERR_MODULE_NOT_FOUND em prod (v1.11.0, 2026-09-10) — fix `2ea335c` |
+| [ENH-0005](Specs-Archive-Implemented-Enhancements-ENH-0005-Revisao-Tooling-Ia) | ENH | Revisão e melhoria do tooling de IA do projeto | IMPLEMENTED | #76 | commits `ccf8733`/`bc880ef` (dev, 2026-09-15) |
+| [ENH-0006](Specs-Proposed-Enhancements-ENH-0006-Espelho-Specs-Wiki) | ENH | Espelho das Specs do Projeto na Wiki | ACCEPTED | #79 | Draft 005-specs-reflected-on-wiki (arquivado) — 2026-09-16 |
+
+## Arquivadas
+
+Propostas em estado terminal, movidas de `proposed/` para `../archive/implemented/<categoria>/` no retrofit (Fase 8, 2026-08-19). Linhas nunca são apagadas — histórico do catálogo. `Implemented Through` completo com evidência no arquivo.
+
+| ID | Type | Title | Status | Issue | Implemented Through (resumo) |
+|---|---|---|---|---|---|
+| [DEBT-0001](Specs-Archive-Implemented-Technical-Debt-DEBT-0001-Ddl-Nao-Versionado) | DEBT | Versionar objetos sem DDL | IMPLEMENTED | #6 | migration `20260814000000` (dev e prod) — commits `f1d4af5`/`a4d3017` |
+| [DEBT-0002](Specs-Archive-Implemented-Technical-Debt-DEBT-0002-Limite-Diario-Default-Duplicado) | DEBT | Limite diário default duplicado (500 × 150) | IMPLEMENTED | #7 | migration `20260815000000` (dev e prod) — commit `5e6467b` |
+| [DEBT-0003](Specs-Archive-Implemented-Technical-Debt-DEBT-0003-Atualizar-Readme) | DEBT | Atualizar README (documentation drift) | IMPLEMENTED | #8 | README.md corrigido (2026-08-15) — commit `0eb2e9b` |
+| [DEBT-0004](Specs-Archive-Implemented-Technical-Debt-DEBT-0004-Reconciliar-Templates) | DEBT | Reconciliar templates e convenções do Specification System | IMPLEMENTED | #9 | Fase 12 — commits `683ed63`/`fb67c5e`/`1180de8` |
+| [TEST-0001](Specs-Archive-Implemented-Testing-TEST-0001-Testes-Paginas-Componentes) | TEST | Cobertura de testes de páginas e componentes | IMPLEMENTED | #15 | 69 testes novos (suíte 128 → 197) — commit `6645b1a` |
+| [FEAT-0016](Specs-Archive-Implemented-Features-FEAT-0016-Geracao-Automatica-De-Documentacao-Via-Agente-Wiki-Documenter) | FEAT | Geração automática da documentação pública via agente wiki-documenter | IMPLEMENTED | #36 | PR #37 — merge `cd9b3fa` (2026-08-20) |
+| [ENH-0003](Specs-Archive-Implemented-Enhancements-ENH-0003-Historico-Execucoes-Seletor-Paginacao) | ENH | Histórico das execuções com seletor de tamanho de página | IMPLEMENTED | #39 | PR #47 — merge `bbda6a1` (2026-08-27) |
+
+
+## Como usar este catálogo
+
+- Cada proposta descreve o estado ATUAL (com link para `../current/`) e o estado PROPOSTO — nunca confunda os dois.
+- Nenhuma proposta é aprovada/priorizada por estar aqui. Fluxo de aprovação: revisão humana (decisão registrada na proposta: `Decision:` + `Approved by/on:`) → implementação (work branch + PR → `development`) → promoção/arquivamento conforme `../CONVENTIONS.md` seções 8, 10 e 18.
+- Toda proposta possui Issue canônica no GitHub (ligação 1:1 via campo `Issue:` + label `spec:<ID>` + bloco `SPEC-PROJECTION`) e item no GitHub Project — ver `../CONVENTIONS.md` §18.
+- Propostas agrupam múltiplas evidências (ex.: TEST-0001 consolida GAP-001/002/003/010). Mapeamento completo no relatório `.ai/.temp/analyses/26-catalogo-propostas.md`.
+- Novas categorias SEC e TEST adicionadas nesta fase (extensão registrada — ver DEBT-0004).
