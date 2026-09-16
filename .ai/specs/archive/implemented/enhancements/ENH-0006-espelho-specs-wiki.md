@@ -1,10 +1,11 @@
 # ENH-0006 — Espelho das Specs do Projeto na Wiki
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Espelho das Specs do Projeto na Wiki
 **Issue:** #79
 **Created on:** 2026-09-16
+**Implemented Through:** PR #81, squash merge `83f9618` (development, 2026-09-16)
 
 ## Problem
 
@@ -119,15 +120,15 @@ Todas resolvidas em 2026-09-16:
 
 ## Acceptance Criteria
 
-- [ ] Wiki-documenter contém fase de spec-sync que itera `.ai/specs/**/*.md`.
-- [ ] Todos os arquivos de `.ai/specs/` têm página correspondente em `wiki/` com nome seguindo a convenção `Specs-<Path-Derivado>.md`.
-- [ ] Links entre specs são reescritos para nomes de página wiki. Links para código/scripts apontam para `https://github.com/lucasmm96/meufenil/blob/master/<path>`. Links externos e âncoras não são alterados.
-- [ ] `wiki/Specs.md` existe como hub principal com links para sub-hubs (`Specs-Current.md`, `Specs-Proposed.md`, `Specs-Decisions.md`, `Specs-Templates.md`).
-- [ ] Sub-hubs existem e listam os arquivos do respectivo diretório, agrupados por subdiretório quando aplicável.
-- [ ] `wiki/Home.md` contém link para "Specs do Projeto".
-- [ ] `wiki/_Sidebar.md` contém seção "Specs" com link para `Specs.md`.
-- [ ] Execuções subsequentes do wiki-documenter regeneram apenas páginas cujas fontes mudaram (controle incremental comprovado por log).
-- [ ] Nenhuma página da documentação pública existente é alterada ou removida.
+- [x] Wiki-documenter contém fase de spec-sync que itera `.ai/specs/**/*.md`.
+- [x] Todos os arquivos de `.ai/specs/` têm página correspondente em `wiki/` com nome seguindo a convenção `Specs-<Path-Derivado>.md`.
+- [x] Links entre specs são reescritos para nomes de página wiki. Links para código/scripts apontam para `https://github.com/lucasmm96/meufenil/blob/master/<path>`. Links externos e âncoras não são alterados.
+- [x] `wiki/Specs.md` existe como hub principal com links para sub-hubs (`Specs-Current.md`, `Specs-Proposed.md`, `Specs-Decisions.md`, `Specs-Templates.md`).
+- [x] Sub-hubs existem e listam os arquivos do respectivo diretório, agrupados por subdiretório quando aplicável.
+- [x] `wiki/Home.md` contém link para "Specs do Projeto".
+- [x] `wiki/_Sidebar.md` contém seção "Specs" com link para `Specs.md`.
+- [x] Execuções subsequentes do wiki-documenter regeneram apenas páginas cujas fontes mudaram (controle incremental comprovado por log).
+- [x] Nenhuma página da documentação pública existente é alterada ou removida.
 
 ## References
 
