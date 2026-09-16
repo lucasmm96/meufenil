@@ -1,0 +1,139 @@
+# Testing Strategy — Estado Atual
+
+**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` com suíte real `rpc-referencias-sync-seed.test.ts`, guard `isFeat0017M6Applied`, UI de sincronização no Admin com `referencias-sync.service.test.ts` (25), `useReferenciasSyncAdmin.test.tsx` (9) e `Admin.test.tsx` (15); seção 5 reexecutada — entrada 2026-09-07 abaixo)
+
+Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM hoje. A análise de gaps e as recomendações estão no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`) — NÃO aqui.
+
+## 1. Stack
+
+| Item | Valor | Evidência |
+|---|---|---|
+| Runner | Vitest ^4.0.17 | `package.json` |
+| UI | @testing-library/react ^16.3.1 + jest-dom ^6.9.1 | `package.json`, `vitest.setup.ts` |
+| Ambiente | jsdom (`test.environment = "jsdom"`) | `vitest.config.ts` |
+| Globals | `test.globals = true` (describe/it/expect sem import) | `vitest.config.ts` |
+| Setup file | `vitest.setup.ts` (jest-dom + carga de `.env.development` e `.env` no processo Node) | `vitest.setup.ts` |
+| Coverage provider | @vitest/coverage-v8 | `package.json` |
+| Aliases | `@` → `./src`, `@skeletons` → skeletons/index | `vitest.config.ts`, `tsconfig.json` |
+| Scripts npm | `test` (vitest watch), `test:run` (vitest run), `test:coverage` (vitest run --coverage) | `package.json` |
+| Thresholds de coverage | **NENHUM configurado** (`vitest.config.ts` não possui `coverage.thresholds`) | `vitest.config.ts` |
+| CI | W1 — `.github/workflows/ci.yml` (push/PR: lint → `test:run` → build; sem IA; `contents: read`; `TZ: America/Sao_Paulo` — semântica de data local do produto; suítes de segurança pulam sem `SUPABASE_SERVICE_ROLE_KEY`) | `.github/workflows/ci.yml` |
+| Exclusões de coverage | nenhuma configuração explícita | `vitest.config.ts` |
+
+## 2. Organização e convenções
+
+- **Localização:** testes colocalizados ao lado do código (`X.test.ts`/`X.test.tsx` junto de `X.ts`/`X.tsx`) — sem diretório `__tests__` `[CONFIRMED: filesystem]`.
+- **Naming:** `describe("<módulo>")` + `it("descrição em pt-BR")` ("deve ...", "define erro quando ..."); cenários de segurança numerados (`AV.x`, `T1.x`, `T2.x`, `T3.x`) `[CONFIRMED: test]`.
+- **Fixtures:** dados inline nos testes; nenhuma pasta de fixtures `[CONFIRMED: ausência]`.
+- **Mocks:** `vi.mock` de módulos (services mockam o cliente supabase e fazem assertions sobre chamadas — `toHaveBeenCalledWith`); `Admin.test.tsx` mocka 6 módulos (Layout, skeletons, AuthContext, useAdmin, useBackgroundJobsAdmin, useReferenciasSyncAdmin — FEAT-0017 M6); os testes de páginas criados pelo TEST-0001 seguem o mesmo padrão de mocks de hooks (e.g. `Perfil.test.tsx` mocka Layout, skeletons, AuthContext, usePerfil, supabase, react-router-dom; `Referencias.test.tsx` e `Dashboard.test.tsx` mockam os hooks e, no Dashboard, os componentes filhos e o recharts); `api/keepalive.test.ts` mocka `createClient` e `recordBackgroundJobExecution` `[CONFIRMED: test]`.
+- **Helpers:** `src/shared/security/test-helpers.ts` — Abordagem B (JWTs reais), `createTestUser`, `cleanupAllTestUsers`, `isSecurityMigrationApplied`, `isEnh0004MigrationApplied` (condiciona T3.7 do rpc-remover às migrations ENH-0004 aplicadas no banco dev — 2026-09-04), `isFeat0017M1Applied`/`isFeat0017M4Applied`/`isFeat0017M5Applied`/`isFeat0017M6Applied` (guards das suítes de sync FEAT-0017 — as do M4/M5 sondam via `.rpc(...)` com uuid zero contra o banco dev: função presente ⇒ permissão negada; ausente ⇒ PGRST202; a do M6 sonda o CATÁLOGO `pg_proc` com conexão direta `pg` (`prosrc LIKE '%pre_sync_inativa%'` na `aplicar_sync_referencias`) — sem `SUPABASE_DATABASE_URL`/`DATABASE_URL` → false, safe default) e `isSistemaProvisionado` (sonda o ator Sistema — pré-condição das RPCs M4/M5) `[CONFIRMED: test]`.
+- **Snapshots:** nenhum identificado `[CONFIRMED: ausência]`.
+
+## 3. Níveis de teste existentes
+
+| Nível | Arquivos | Característica |
+|---|---|---|
+| Unit (shared) | `src/shared/background-jobs.test.ts` | helper puro com client mockado |
+| Unit (lib frontend) | `src/react-app/lib/referencias.test.ts` (ENH-0004 + canônico revisto 2026-09-04) | helpers puros do modelo canônico de referências — `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca` (20 testes) |
+| Service (client-side) | 11 arquivos em `services/*.service.test.ts` (inclui `referencias-sync.service.test.ts`, FEAT-0017 M6 — 25 testes) | mocks do supabase; assertions de chamadas e AppError |
+| Hook | 13 arquivos em `hooks/use*.test.ts(x)` (inclui `useReferenciasSyncAdmin.test.tsx`, FEAT-0017 M6 — 9 testes) | `renderHook` (Testing Library) + mocks de services/supabase |
+| Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 84 testes (15+17+25+12+13+2 — Admin com a seção de sincronização FEAT-0017 M6) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
+| API/Serverless | `api/keepalive.test.ts`, `api/referencias-sync.test.ts` (FEAT-0017 M4) | handler Node-style com mocks (`createClient` + módulo de extração; motor M3 e validação reais na rota de sync); 4 + 13 cenários |
+| Security (integração real) | `src/shared/security/` — 8 suítes: `auth-real-validation`, `rls-usuarios`, `rpc-ativar-referencia`, `rpc-remover-referencia`, `rls-referencia-sync` (FEAT-0017 M1), `rpc-referencias-sync` (FEAT-0017 M4), `rpc-referencias-sync-rollback` (FEAT-0017 M5), `rpc-referencias-sync-seed` (FEAT-0017 M6 — seed `pre_sync_inativa`, 6 testes) | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll; **execução serial global** (`fileParallelism: false` — banco dev compartilhado; ver seção 5, entrada 2026-09-06) |
+| E2E | **NÃO identificado** `[CONFIRMED: ausência]` | — |
+| Smoke | **NÃO identificado** `[CONFIRMED: ausência]` | — |
+
+## 4. Testes de segurança (integração real)
+
+- `auth-real-validation.test.ts` (AV.1–AV.7): criação de usuário de teste, autenticação email/senha, cliente anon bloqueado por RLS, visibilidade da própria role, admin vê todos, usuário comum não vê terceiros.
+- `rls-usuarios.test.ts` (T1.0–T1.4): políticas de `usuarios` — incluindo T1.0 (detecção legada de `debug_allow_all`, "sempre passa").
+- `rpc-ativar-referencia.test.ts` (T2.0–T2.5): autorização de `ativar_referencia` (dono, delegado, admin, não autorizado, inexistente; T2.0 legado).
+- `rpc-remover-referencia.test.ts` (T3.0–T3.8): autorização de `remover_ou_desativar_referencia` (dono, delegado, admin, global, vínculo soft-delete, inexistente; T3.0 legado). **T3.7 (ENH-0004):** remoção de referência GLOBAL por admin sempre arquiva (`'deactivated'`, linha permanece com `is_ativa = false`) — condicionado a `isEnh0004MigrationApplied` (migrations ENH-0004 aplicadas em dev) `[CONFIRMED: test]`.
+- `rls-referencia-sync.test.ts` (FEAT-0017 M1, guard `isFeat0017M1Applied`): RLS das tabelas de sync — anon/authenticated sem INSERT/UPDATE/DELETE; SELECT admin-only.
+- `rpc-referencias-sync.test.ts` (FEAT-0017 M4, guards `isFeat0017M4Applied`/`isSistemaProvisionado`): aplicar exclusivo service_role (authenticated → permissão negada; rollback total em 23505/estado mudado; `criado_por` = Sistema); decidir exclusivo admin com sessão (service_role → permissão negada; aprovar os 3 tipos com GUC D-7; rejeitar com/sem motivo; terminais; sync running).
+- `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5, 17 testes, guards `isFeat0017M5Applied`/`isSistemaProvisionado`): reverter (11) — permissões (admin sem flag, não-admin, service_role), guarda de execução por environment, status restritos, no-op, preservação de alterações posteriores (skip), colisão 23505 → skip por op, pendências → `cancelled`, status → `reverted`; restaurar (6) — permissões, backup inexistente, integridade sha256 (conteúdo corrompido), conflito de identidade aborta a transação, happy path DENTRO de transação PG real (forge de `request.jwt.claims` + ROLLBACK — zero persistência; timeout de 120s no teste) `[CONFIRMED: test]`.
+- `rpc-referencias-sync-seed.test.ts` (FEAT-0017 M6, 6 testes, guard `isFeat0017M6Applied`): bootstrap com global inativa legada → 1 evento `pre_sync_inativa` por inativa (actor NULL, sync da 1ª sync); inativa QUE JÁ TEM evento → sem seed (histórico honesto preservado); NÃO-bootstrap (`pos_bootstrap`) → sem seed; plano sem `modo` (contrato antigo) → sem seed (default seguro); idempotência — 2ª aplicação bootstrap não duplica eventos; seed é INSERT de evento e não dispara o trigger `is_ativa_manual` `[CONFIRMED: test]`.
+- **Skip condicional:** as 8 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente); as suítes de sync exigem ainda os guards de migration correspondentes (M1/M4/M5/M6 + ator Sistema) `[CONFIRMED: test]`.
+- Pré-condição: `isSecurityMigrationApplied()` (exige `admin_can_select_all_usuarios` em pg_policies) `[CONFIRMED: test]`.
+
+## 5. Resultados observados
+
+**2026-09-07 (FEAT-0017 M6):**
+- Suítes de segurança agora são **8** (M6 adicionou `rpc-referencias-sync-seed`); guard novo `isFeat0017M6Applied` em `test-helpers.ts` — sonda o catálogo `pg_proc` por conexão direta (`prosrc` da `aplicar_sync_referencias` contém `pre_sync_inativa`), sem `SUPABASE_DATABASE_URL` → false (seção 4).
+- `rpc-referencias-sync-seed.test.ts`: **6/6 verdes** contra o banco dev com a migration `20260907000000` aplicada (seed dentro do happy path de bootstrap com ROLLBACK/limpeza).
+- UI do Admin (M6): `referencias-sync.service.test.ts` **25/25**, `useReferenciasSyncAdmin.test.tsx` **9/9**, `Admin.test.tsx` **15/15** (seção de sincronização: matching, ausência do botão manual em dev, aba de recuperação só com permissão, histórico + detalhes, ponte divergências→pendências, rejeição com motivo obrigatório, aprovação sem motivo, confirmação forte REVERTER/RESTAURAR) — `vi.spyOn(window, "confirm"/"prompt")` para os diálogos nativos (jsdom não os implementa).
+- Suite completa pós-M6 (`npm run test:run`, serial, 2026-09-07): **61 arquivos / 618 testes — todos verdes** em 248.0s (+3 arquivos/+49 testes sobre o pós-M5); `npm run build` (`tsc -b` + `vite build`) e eslint dos 7 arquivos tocados também verdes.
+
+**2026-09-06 (FEAT-0017 M4/M5):**
+- Suítes de segurança agora são **7** (M1/M4/M5 adicionaram `rls-referencia-sync`, `rpc-referencias-sync`, `rpc-referencias-sync-rollback`); os guards de migration correspondentes vivem em `test-helpers.ts` (seção 4).
+- `rpc-referencias-sync-rollback.test.ts` (M5): **17/17 verdes** — suíte isolada em ~51.8s (o happy path da restauração reescreve o catálogo global real dentro de transação PG + ROLLBACK; ver guarda serial abaixo).
+- **Execução serial global** (`fileParallelism: false` em `vitest.config.ts`): as suítes reais compartilham o banco dev e a restauração toca o catálogo global de `referencias` — paralelismo entre arquivos reintroduziria a classe de não-determinismo registrada em 2026-08-15 (execução 3) e 2026-08-13 (Fase 6); serial elimina o mecanismo na raiz.
+- Suite completa pós-M5 (`npm run test:run`, serial, 2026-09-06): **58 arquivos / 569 testes — todos verdes** em 239.5s (a suíte M5 levou 57.2s dentro da rodada completa; `tsc -b && vite build` e eslint também verdes).
+- Descoberta de ambiente: dentro de SECURITY DEFINER com `search_path = public`, `digest` da pgcrypto NÃO resolve (pgcrypto vive no schema `extensions`) — a migration M5 usa `extensions.digest(...)`; documentado nas specs ([../database/rpc.md](Specs-Current-Database-Rpc)).
+
+**2026-08-15 (pós-TEST-0001):**
+- **34 arquivos de teste, 197 testes.**
+- Execução 1 (`test:run`): **197/197 passaram** (0 falhas, 0 skips — as 4 suítes de segurança rodaram).
+- Execução 2 (`test:coverage`): **197/197 passaram** — cobertura coletada (seção 6).
+- Execução 3 (`test:coverage`): falha transitória em `rpc-remover-referencia` (`createTestUser`: `status=500 Database error creating new user`) — mesmo mecanismo de não-determinismo identificado na Fase 6 (colisão de email entre workers paralelos); demais suítes verdes. Registrada, não tratada (escopo do TEST-0005).
+
+**2026-08-13 (Fase 6):**
+- **29 arquivos de teste, 128 testes.**
+- Execução 1: **1 suíte falhou** (`rpc-remover-referencia` — erro transitório `422 "A user with this email address has already been registered"` em `createTestUser`); 119 passaram; 9 skipped.
+- Execução 2: **128/128 passaram** (0 falhas, 0 skips).
+- Execução 3 (coverage): **9 skipped** na mesma suíte (mesmo mecanismo).
+- **Causa identificada:** `uniqueTestEmail()` usa `Date.now()` + contador POR PROCESSO (`test-helpers.ts:112-118`); as suítes `rpc-ativar` e `rpc-remover` rodam em workers paralelos e podem gerar o mesmo email no mesmo milissegundo → colisão. **Não-determinismo sob paralelismo — fato confirmado em 2 de 3 execuções.**
+- Duração típica: ~30–40s (setup 30s; suítes de segurança 4–10s cada).
+
+## 6. Cobertura quantitativa (execução com --coverage, 2026-08-15)
+
+**Overall: 82.46% statements · 71.25% branches · 83.6% functions · 85.39% lines** (Fase 6: 80.7 / 65.18 / 84.96 / 83.2)
+
+Por área:
+
+| Área | % Stmts | % Branch | % Funcs | % Lines | Observação |
+|---|---|---|---|---|---|
+| `api/` | 78.18 | 74.07 | 100 | 78.18 | `keepalive.ts` inalterado |
+| `src/react-app/components/` | 94.0 | 89.83 | 93.54 | 97.82 | `ConsentimentoLGPD` 100; `AdicionarRegistro` 93.58; `ModalReferencia` e cards login-as exercitados via páginas |
+| `src/react-app/hooks/` | 89.81 | 67.05 | 84.21 | 91.13 | inalterado; `useReferencias` 60.86 (mais baixo) |
+| `src/react-app/lib/` | 100 | 100 | 100 | 100 | `errors.ts` |
+| `src/react-app/pages/` | 80.51 | 74.75 | 72.09 | 84.78 | `Admin` 74.66, `Dashboard` 80.55, `Perfil` 92.75, `Referencias` 77.34 — **4 de 9 páginas na tabela**; as outras 5 não são importadas por nenhum teste (sem cobertura registrada) |
+| `src/react-app/services/` | 76.24 | 64.81 | 86.95 | 79.59 | inalterado; `referencias.service` 48.23 (mais baixo) |
+| `src/shared/` | 100 | 100 | 100 | 100 | `background-jobs.ts`; `security/test-helpers.ts` 70.31 (exercitado pelas 4 suítes reais) |
+
+Notas factuais sobre a medição:
+- A tabela de cobertura lista somente arquivos IMPORTADOS por testes; ausência na tabela = sem cobertura registrada (não aparece com 0%, simplesmente não é listado) `[CONFIRMED: comportamento do relatório observado]`.
+- `context/` (AuthContext) continua ausente — apenas MOCKADO pelos testes de páginas → não medido `[CONFIRMED: comportamento do relatório observado]`.
+- Nenhum threshold configurado; o percentual é informativo, não um gate `[CONFIRMED: configuration]`.
+
+## 7. Limitações observadas (fatos)
+
+- Páginas sem teste próprio: `Estatisticas`, `Exames`, `Historico`, `Home`, `Sobre` (5 de 9). As 4 testadas (Admin, Perfil, Referencias, Dashboard) usam mocks de hooks — o comportamento real de hooks/contextos não é exercitado nelas.
+- Componentes sem teste direto: `Layout`, `ModalReferencia` e os 5 de `login-as/` — exercitados apenas indiretamente via testes de páginas (ModalReferencia e cards login-as) ou mockados (Layout).
+- `AuthContext` sem teste direto (apenas mockado).
+- `delegacoesAcesso.service` sem teste (único service sem teste).
+- Edge functions (`delegar-acesso`, `delete-account`) sem testes.
+- CLI e script de migrations sem testes.
+- Políticas RLS de `registros`, `exames_pku`, `referencias_favoritas` e `delegacoes_acesso` sem suítes de segurança próprias (as 4 suítes cobrem `usuarios` + 2 RPCs).
+- Trigger restante do banco (retenção 365d de `background_job_executions`) sem teste direto — os triggers de normalização de nome e de limpeza de favoritos foram ELIMINADOS na ENH-0004 (2026-09-04, dev); ver [../database/triggers.md](Specs-Current-Database-Triggers).
+- Testes de segurança dependem do banco development real (dados de teste criados/limpos; estado compartilhado com desenvolvimento).
+
+## 8. Relação Spec × Test (mecanismo existente)
+
+- Cada spec de `current/` possui a seção `## Testes que cobrem...` (tabelas/RPCs) ou `## Testes existentes` (páginas) — listando os arquivos de teste reais (ou a ausência). Esse é o vínculo atual entre comportamento documentado e comportamento testado `[CONFIRMED: specs — database/*.md, rpc.md, frontend/pages/*.md]`.
+- Direção de uso: spec → comportamento esperado → arquivos de teste citados → verificação.
+- A consolidação em matrizes (feature × teste etc.) vive no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`), não em `current/`.
+
+## Evidências
+
+- E1 — Inventário: 34 arquivos de teste (find, 2026-08-15); 29 em 2026-08-13 `[CONFIRMED: filesystem]`
+- E2 — Execuções: 3 rodadas em 2026-08-15 (resultados na seção 5; saída completa em `.ai/.temp/test-0001-coverage.txt`) `[CONFIRMED: runtime behavior]`
+- E3 — Configuração: `vitest.config.ts`, `vitest.setup.ts`, `package.json` `[CONFIRMED: configuration]`
+- E4 — Cobertura: saída de `vitest run --coverage` (tabela acima) `[CONFIRMED: runtime behavior]`
+- E5 — Helpers e skips: `test-helpers.ts`, `describeOrSkip` nas 4 suítes `[CONFIRMED: test]`
+- E6 — Testes criados pelo TEST-0001: `pages/{Perfil,Referencias,Dashboard}.test.tsx`, `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` `[CONFIRMED: test]`
+
+## Veja também
+
+- [../security/security-model.md](Specs-Current-Security-Security-Model) (regras testadas), [../backend/](Specs-Current-Backend) e [../frontend/](Specs-Current-Frontend) (componentes sob teste)
+- `.ai/.temp/analyses/22-auditoria-testes.md` (gap analysis — fora do Current State)
