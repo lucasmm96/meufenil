@@ -1,7 +1,7 @@
 # ENH-0006 — Espelho das Specs do Projeto na Wiki
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Espelho das Specs do Projeto na Wiki
 **Issue:** #79
 **Created on:** 2026-09-16
@@ -21,11 +21,16 @@ Os 122 arquivos do Specification System (`.ai/specs/`) não são acessíveis pub
 
 Uma nova seção "Specs do Projeto" na wiki, produzida como uma fase adicional do wiki-documenter:
 
-- **Página hub** `Specs.md`: índice navegável organizado por seção (current/, proposed/, decisions/, templates/), com links para cada página espelho.
-- **Páginas espelho**: cada arquivo `.md` de `.ai/specs/` copiado 1:1 (conteúdo exato, incluindo frontmatter YAML) para `wiki/` com nome derivado do path relativo.
-- **Convenção de nomeação** [*ver Open Question 1*]: path relativo dentro de `.ai/specs/`, com `/` substituído por `-` e sem a extensão `.md` duplicada (ex.: `current/features/FEAT-0001-autenticacao.md` → `Specs-Current-Features-FEAT-0001-autenticacao.md`).
-- **Integração**: `Home.md` ganha link para `Specs do Projeto`; `_Sidebar.md` ganha seção "Specs".
-- **Mecanismo**: nova fase no wiki-documenter que itera `.ai/specs/**/*.md`, deriva nomes de páginas e copia os arquivos para `wiki/`. O workflow existente (`sync-wiki.yml`) trata a sincronização para o GitHub wiki sem alteração.
+- **Hub principal** `Specs.md`: página de entrada com links para sub-hubs por diretório de primeiro nível (`current/`, `proposed/`, `decisions/`, `templates/`).
+- **Sub-hubs por diretório** (ex.: `Specs-Current.md`, `Specs-Proposed.md`): índice das páginas daquele subdiretório, agrupado por subdiretório interno quando aplicável (ex.: `current/features/`, `current/frontend/`).
+- **Páginas espelho**: cada arquivo `.md` de `.ai/specs/` copiado para `wiki/` com nome derivado do path relativo e conteúdo com links reescritos (ver abaixo). Conteúdo do corpo e frontmatter preservados.
+- **Convenção de nomeação**: path relativo dentro de `.ai/specs/`, prefixado com `Specs-`, cada segmento com primeira letra maiúscula, separados por `-`. Exemplo: `current/features/FEAT-0001-autenticacao.md` → `Specs-Current-Features-FEAT-0001-Autenticacao.md`. Identidades como `FEAT-0001` mantêm uppercase; palavras após `-` recebem maiúscula.
+- **Reescrita de links**:
+  - Links relativos entre specs (`.md` dentro de `.ai/specs/`) → convertidos para nome de página wiki correspondente.
+  - Links relativos para código/scripts fora de `.ai/specs/` → convertidos para URL absoluta do GitHub apontando para `master` (ex.: `https://github.com/lucasmm96/meufenil/blob/master/scripts/apply.sh`).
+  - Links externos (`https://`) e âncoras (`#secao`) → mantidos como estão.
+- **Integração**: `Home.md` ganha link para "Specs do Projeto"; `_Sidebar.md` ganha seção "Specs" com link para `Specs.md`.
+- **Mecanismo**: nova fase no wiki-documenter que itera `.ai/specs/**/*.md`, deriva nomes de páginas, reescreve links e copia os arquivos para `wiki/`. O workflow existente (`sync-wiki.yml`) trata a sincronização para o GitHub wiki sem alteração.
 - **Incremental**: o controle de hash existente do wiki-documenter se aplica — um arquivo espelho só é regravado se o arquivo fonte mudou desde a última execução.
 
 ## Motivation
@@ -45,8 +50,8 @@ Uma nova seção "Specs do Projeto" na wiki, produzida como uma fase adicional d
 ## Scope
 
 - Extensão do agente `wiki-documenter` (`.claude/agents/wiki-documenter.md`) com uma fase de spec-sync.
-- Geração de `wiki/Specs.md` (hub navegável).
-- Geração de até 122 páginas espelho em `wiki/` (uma por arquivo em `.ai/specs/`).
+- Geração de `wiki/Specs.md` (hub principal) e sub-hubs por diretório de primeiro nível.
+- Geração de até 122 páginas espelho em `wiki/` (uma por arquivo em `.ai/specs/`), com links reescritos.
 - Atualização de `wiki/Home.md` para incluir link para `Specs do Projeto`.
 - Atualização de `wiki/_Sidebar.md` para incluir seção "Specs".
 - Controle incremental por hash para as páginas espelho (via `.wiki-state.json` existente).
@@ -54,7 +59,6 @@ Uma nova seção "Specs do Projeto" na wiki, produzida como uma fase adicional d
 ## Out of Scope
 
 - Transformar ou interpretar o conteúdo das specs (responsabilidade do wiki-documenter existente).
-- Reescrever links relativos internos dos arquivos espelhados.
 - Criar uma nova ferramenta de sync (o wiki-documenter é o mecanismo).
 - Alterar o workflow `sync-wiki.yml`.
 - Tradução do conteúdo das specs.
@@ -87,10 +91,11 @@ N/A — extensão do agente existente sem impacto arquitetural no sistema de pro
 
 ## Risks
 
-- **Escala de páginas**: 122 páginas + hub → wiki consideravelmente maior. Nomes longos derivados do path podem ser pouco legíveis.
-- **Links relativos quebrados**: specs usam links relativos internos (ex.: `../current/features/FEAT-0001.md`) que não resolverão na wiki. O leitor verá conteúdo correto mas links sem destino. [*ver Open Question 2*]
-- **Nomes colisão**: arquivos genéricos em múltiplos diretórios (`index.md`, `README.md`, `overview.md`) gerariam nomes colisores se o prefixo não incluir o path completo. A convenção de path completo mitiga, mas nomes ficam longos.
+- **Escala de páginas**: 122 páginas espelho + hub + sub-hubs → wiki consideravelmente maior. Nomes longos derivados do path são menos legíveis que nomes semânticos, mas são determinísticos e únicos.
+- **Nomes colisão**: arquivos genéricos em múltiplos diretórios (`index.md`, `README.md`, `overview.md`) gerariam nomes colisores sem o path completo como prefixo. A convenção de path completo mitiga — `Specs-Current-Backend-Overview.md` vs `Specs-Proposed-Overview.md`.
 - **Frontmatter visível**: o YAML de frontmatter renderiza como texto em algumas visualizações GitHub Wiki; pode parecer "ruído" para quem lê sem contexto de spec.
+- **Links para branches divergentes**: links para código/scripts apontam para `master`; se o código em `development` divergir significativamente, o link pode referenciar versão desatualizada. Risco baixo dado o fluxo dev → master do projeto.
+- **Complexidade de reescrita de links**: resolver links relativos (ex.: `../../archive/implemented/features/FEAT-0016.md`) exige resolução de path relativo ao arquivo fonte. Risco de link incorreto se a lógica não for bem testada.
 
 ## Alternatives
 
@@ -98,28 +103,31 @@ N/A — extensão do agente existente sem impacto arquitetural no sistema de pro
 - **B. Script local (npm/bash)** — comando `npm run sync-specs-wiki` rodado manualmente. Simples, zero dependência de IA, mas sem hub, sem integração com `Home.md`/`_Sidebar.md` e sem controle de estado.
 - **C. Extensão do wiki-documenter** *(proposta)* — nova fase no agente existente. Reutiliza infraestrutura de hash, gera o hub, atualiza `Home.md` e `_Sidebar.md`. Custo: invocação manual e consumo de tokens do agente.
 
-**Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED.
+**Decision:** C — Extensão do wiki-documenter. ACCEPTED.
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-09-16
 
 ## Open Questions
 
-1. **Convenção de nomeação das páginas**: a derivação `path/relativo/arquivo.md` → `Specs-Path-Relativo-Arquivo.md` (capitalizando cada segmento) é legível o suficiente? Alternativa: manter lowercase (`specs-path-relativo-arquivo.md`). Definir antes da implementação — afeta o hub e todos os links.
+Todas resolvidas em 2026-09-16:
 
-2. **Links relativos internos**: aceitar links quebrados na wiki (simpler, conteúdo correto), ou adicionar um cabeçalho automático "Ver no repositório: [link GitHub]" acima do conteúdo espelhado para facilitar navegação? A segunda opção requer uma linha de transformação mínima e afeta o "conteúdo exato".
+1. **Convenção de nomeação** — **RESOLVIDA:** seguir padrão existente da wiki (PascalCase por segmento, separado por `-`). Exemplo: `current/features/FEAT-0001-autenticacao.md` → `Specs-Current-Features-FEAT-0001-Autenticacao.md`.
 
-3. **Granularidade do hub `Specs.md`**: listar todos os 122 arquivos diretamente com âncoras por seção, ou criar sub-hubs por diretório (ex.: `Specs-Current.md`, `Specs-Proposed.md`) com o `Specs.md` vinculando apenas aos sub-hubs? A primeira opção é mais simples; a segunda é mais navegável em escala.
+2. **Links relativos** — **RESOLVIDA:** spec→spec convertidos para nome de página wiki; spec→código/scripts convertidos para URL GitHub apontando para `master`; externos e âncoras mantidos como estão.
+
+3. **Granularidade do hub** — **RESOLVIDA:** sub-hubs por diretório. `Specs.md` linka para `Specs-Current.md`, `Specs-Proposed.md`, `Specs-Decisions.md`, `Specs-Templates.md`; cada sub-hub lista os arquivos daquele diretório.
 
 ## Acceptance Criteria
 
-TBD até a Decision — cobrir as alternativas com chance real de decisão. Critérios mínimos esperados:
-
 - [ ] Wiki-documenter contém fase de spec-sync que itera `.ai/specs/**/*.md`.
-- [ ] Todos os 122 arquivos de `.ai/specs/` têm página correspondente em `wiki/` com conteúdo exato (incluindo frontmatter).
-- [ ] Página `wiki/Specs.md` existe como hub com links para todas as páginas espelho, organizados por seção.
-- [ ] `wiki/Home.md` contém link para `Specs do Projeto`.
-- [ ] `wiki/_Sidebar.md` contém seção "Specs" com link para o hub.
-- [ ] Execuções subsequentes do wiki-documenter regeneram apenas páginas cujas fontes mudaram (controle incremental comprovado).
+- [ ] Todos os arquivos de `.ai/specs/` têm página correspondente em `wiki/` com nome seguindo a convenção `Specs-<Path-Derivado>.md`.
+- [ ] Links entre specs são reescritos para nomes de página wiki. Links para código/scripts apontam para `https://github.com/lucasmm96/meufenil/blob/master/<path>`. Links externos e âncoras não são alterados.
+- [ ] `wiki/Specs.md` existe como hub principal com links para sub-hubs (`Specs-Current.md`, `Specs-Proposed.md`, `Specs-Decisions.md`, `Specs-Templates.md`).
+- [ ] Sub-hubs existem e listam os arquivos do respectivo diretório, agrupados por subdiretório quando aplicável.
+- [ ] `wiki/Home.md` contém link para "Specs do Projeto".
+- [ ] `wiki/_Sidebar.md` contém seção "Specs" com link para `Specs.md`.
+- [ ] Execuções subsequentes do wiki-documenter regeneram apenas páginas cujas fontes mudaram (controle incremental comprovado por log).
 - [ ] Nenhuma página da documentação pública existente é alterada ou removida.
-- [ ] Open Questions 1–3 resolvidas antes da implementação.
 
 ## References
 
