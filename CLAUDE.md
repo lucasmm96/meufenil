@@ -74,7 +74,7 @@ Se o comportamento atual contradiz a spec: **STOP** — determine se o código e
 3. Localizar a Issue canônica (`Issue: #N` no frontmatter ou label `spec:<ID>`) e o item do Project.
 4. Implementar em work branch `<tipo>/<id>-<slug>` → testar → atualizar Current Specs no mesmo commit.
 5. **PUSH: STOP — solicitar autorização explícita** (resumo: branch, commits, testes, PR proposto) antes de qualquer push.
-6. Após push: criar PR (`Part of #N`, template `.github/pull_request_template.md`) → aprovação humana → merge.
+6. Após push: criar PR (`Part of #N`, template `.github/pull_request_template.md`) → **verificar resultado do CI** (aguardar runs concluírem; verde = prosseguir, vermelho = investigar e reportar ao usuário antes de declarar concluído, distinguindo falhas causadas pela mudança de falhas pré-existentes) → aprovação humana → merge.
 7. Housekeeping pós-merge: validar ACs → marcar proposta `IMPLEMENTED` com **Implemented Through** → mover para `archive/implemented/<categoria>/` → atualizar `proposed/index.md` → fechar a Issue (cadeia CONVENTIONS §18.6) → atualizar Project → validar documentação.
 
 ## 6. Evidência — nunca transforme UNKNOWN em CONFIRMED sem evidência
@@ -108,7 +108,7 @@ Ao parar, NÃO implemente parcialmente "para resolver depois". Explique: (1) o q
 | MEDIUM | mudança comportamental/estrutural com impacto controlado | pode exigir validação adicional |
 | HIGH | schema, migrations, RLS, RPC, autorização, segurança, dados destrutivos, regras de negócio, arquitetura, secrets/environment, contratos externos | decisão humana ANTES da implementação, salvo autorização explícita por spec aprovada |
 
-**Stop conditions operacionais** (além das acima): push necessário → **PARE** e solicite autorização explícita (resumo antes do push) · aprovação de PR / merge → aguarde a aprovação humana (após aprovação explícita, o merge é executado pelo agente) · fechamento de Issue que represente decisão de negócio/governança → aguarde decisão · tag / publicação de release → aguarde confirmação humana · migration/deploy em production → nunca automática · ambiguidade sobre Source of Truth → reporte. **Não pare** para pedir confirmação de ações já autorizadas por este workflow (ex.: commit, atualizar Issue/Project, criar PR, fechar Issue factual — CASO 1 da CONVENTIONS §18.6).
+**Stop conditions operacionais** (além das acima): push necessário → **PARE** e solicite autorização explícita (resumo antes do push) · CI vermelho pós-push → **PARE**, investigue e reporte ao usuário (distinguir falha causada pela mudança de falha pré-existente em `development`; nunca declarar tarefa concluída com CI vermelho não explicado) · aprovação de PR / merge → aguarde a aprovação humana (após aprovação explícita, o merge é executado pelo agente) · fechamento de Issue que represente decisão de negócio/governança → aguarde decisão · tag / publicação de release → aguarde confirmação humana · migration/deploy em production → nunca automática · ambiguidade sobre Source of Truth → reporte. **Não pare** para pedir confirmação de ações já autorizadas por este workflow (ex.: commit, atualizar Issue/Project, criar PR, fechar Issue factual — CASO 1 da CONVENTIONS §18.6).
 
 (Matrizes completas: [`CONVENTIONS.md`](.ai/specs/CONVENTIONS.md) seções 13–14.)
 
@@ -150,6 +150,7 @@ Após qualquer mudança de comportamento: revise as specs afetadas usando a matr
 - [ ] nenhuma mudança HIGH RISK sem aprovação; nenhuma alteração não relacionada introduzida
 - [ ] Issue canônica e Project sincronizados (Status derivado correto; PR com `Part of #N` — nunca `Closes`)
 - [ ] housekeeping executado (arquivo `archive/`, `index.md`, encerramento da Issue conforme CONVENTIONS §18.6)
+- [ ] CI verificado após push: verde, ou falhas pré-existentes identificadas, explicadas e confirmadas com o usuário
 
 ## 14. Fluxo de trabalho ideal
 
