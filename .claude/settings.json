@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm ls *)",
+      "Bash(node *)",
+      "Bash(npx vitest *)",
+      "Bash(npx eslint *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vercel *)",
+      "Bash(npx --no-install supabase --version)",
+      "Bash(psql --version)",
+      "Bash(node scripts/spec-github/*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "github"
+  ]
+}
