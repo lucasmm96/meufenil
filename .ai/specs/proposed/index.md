@@ -1,8 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-09-17 (ENH-0007 criada — 14 ativas + 8 arquivadas)
+**Última verificação:** 2026-09-18 (ENH-0007 IMPLEMENTED — 13 ativas + 8 arquivadas)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (14) · arquivadas = linhas da seção "Arquivadas" (7) · as 8 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (13) · arquivadas = linhas da seção "Arquivadas" (7) · as 9 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -33,7 +33,7 @@
 | [DEBT-0007](technical-debt/DEBT-0007-gate-validacao-rotas-vercel.md) | DEBT | Gate de validação não cobre rotas Vercel em modo Node.js ESM | PROPOSED | TBD | ERR_MODULE_NOT_FOUND em prod (v1.11.0, 2026-09-10) — fix `2ea335c` |
 | [ENH-0005](../archive/implemented/enhancements/ENH-0005-revisao-tooling-ia.md) | ENH | Revisão e melhoria do tooling de IA do projeto | IMPLEMENTED | #76 | commits `ccf8733`/`bc880ef` (dev, 2026-09-15) |
 | [ENH-0006](../archive/implemented/enhancements/ENH-0006-espelho-specs-wiki.md) | ENH | Espelho das Specs do Projeto na Wiki | IMPLEMENTED | #79 | Draft 005-specs-reflected-on-wiki (arquivado) — PR #81, merge `83f9618` — 2026-09-16 |
-| [ENH-0007](enhancements/ENH-0007-compatibilidade-multi-ferramenta-ai-tooling.md) | ENH | Compatibilidade multi-ferramenta do AI Tooling | PROPOSED | #84 | Draft 006-generic-ai-tooling (arquivado) — criada 2026-09-17 |
+| [ENH-0007](../archive/implemented/enhancements/ENH-0007-compatibilidade-multi-ferramenta-ai-tooling.md) | ENH | Compatibilidade multi-ferramenta do AI Tooling | IMPLEMENTED | #84 | Draft 006-generic-ai-tooling (arquivado) — AGENTS.md + GEMINI.md (PR Part of #84, 2026-09-18) |
 
 ## Arquivadas
 
