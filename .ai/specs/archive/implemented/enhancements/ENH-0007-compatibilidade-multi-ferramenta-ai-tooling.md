@@ -1,10 +1,12 @@
 # ENH-0007 — Compatibilidade multi-ferramenta do AI Tooling
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Compatibilidade multi-ferramenta do AI Tooling
 **Issue:** #84
 **Created on:** 2026-09-17
+
+**Implemented Through:** `AGENTS.md` (instrução universal) + `GEMINI.md` (wrapper Gemini CLI) criados na raiz — branch `enhancement/ENH-0007-compatibilidade-multi-ferramenta` — PR `Part of #84` — 2026-09-18
 
 ## Problem
 
@@ -140,16 +142,16 @@ N/A
 - **Alternativa C — Híbrido (esta proposta):** AGENTS.md como fonte universal + arquivos nativos condicionais onde necessário. Equilíbrio entre compatibilidade e manutenibilidade; complexidade moderada.
 - **Alternativa D — Status quo:** manter somente CLAUDE.md. Zero esforço; portabilidade zero para outras ferramentas.
 
-**Decision:** TBD
-**Approved by:** —
-**Approved on:** —
+**Decision:** Alternativa C — Híbrido: `AGENTS.md` como instrução universal + `GEMINI.md` condicional para o Gemini CLI (confirmada gap analysis Fase 1: Gemini CLI não lê AGENTS.md automaticamente, requer configuração manual).
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-09-18
 
 ## Open Questions
 
-1. **Gemini CLI lê AGENTS.md nativamente?** (verificar na Fase 1 — determina necessidade do GEMINI.md)
-2. **Há alguma ferramenta-alvo que o dev já usa hoje além do Claude Code?** (define prioridade de validação na Fase 4)
-3. **Cobertura de papéis no AGENTS.md:** todos os 9 agentes atuais ou apenas os invocados diretamente de forma interativa? (os agentes subordinados como `release-notes`, invocado pelo `release-manager`, precisam ser descritos individualmente ou agrupados?)
-4. **Idioma do AGENTS.md:** PT-BR (alinhado com CLAUDE.md e `.ai/specs/`) ou EN (potencial vantagem de compatibilidade com ferramentas treinadas majoritariamente em inglês)?
+1. **Gemini CLI lê AGENTS.md nativamente?** → **RESOLVED:** Parcialmente — requer configuração manual via `context.fileName` em `settings.json`. Arquivo nativo padrão é `GEMINI.md`. **Decisão:** criar `GEMINI.md` mínimo com referência a `AGENTS.md` e instrução de configuração.
+2. **Há alguma ferramenta-alvo que o dev já usa hoje além do Claude Code?** → **RESOLVED:** Nenhuma atualmente; objetivo é preparar o projeto para adoção futura de qualquer ferramenta (Cursor, Copilot, Windsurf, Gemini CLI, etc.).
+3. **Cobertura de papéis no AGENTS.md:** → **RESOLVED:** Todos os 9 agentes — os 8 de invocação direta (`spec-assistant`, `spec-manager`, `github-manager`, `project-manager`, `pr-manager`, `release-manager`, `test-manager`, `wiki-documenter`) + `release-notes` descrito como subordinado do `release-manager`.
+4. **Idioma do AGENTS.md:** → **RESOLVED:** PT-BR — consistência com `CLAUDE.md` e `.ai/specs/`.
 
 ## Acceptance Criteria
 
