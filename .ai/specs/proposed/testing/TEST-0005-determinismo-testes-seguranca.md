@@ -48,7 +48,7 @@ Baixo; atenção a compatibilidade com o domínio de email do Supabase test (`@m
 ## Alternatives
 
 A — `crypto.randomUUID()` no email · B — contador/processo compartilhado (ex.: arquivo/global) · C — sequencializar as suítes de segurança (vitest pool options) · D — manter status quo
-**Decision:** TBD
+**Decision:** A — `crypto.randomUUID()` no email (aplicado também em `createTestReference`)
 
 ## Open Questions
 
