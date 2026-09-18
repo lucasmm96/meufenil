@@ -18,6 +18,7 @@ import {
   updateReferencia,
   activateReferencia,
   deleteOrDeactivateReferencia,
+  toggleFavoritoReferencia,
 } from "./referencias.service";
 
 type Fn = ReturnType<typeof vi.fn>;
@@ -394,6 +395,111 @@ describe("referencias.service", () => {
       }).catch((e: unknown) => e);
 
       expect((err as AppError).code).toBe("REFERENCIA_UPDATE_NOT_ALLOWED");
+    });
+  });
+
+  describe("toggleFavoritoReferencia", () => {
+    /**
+     * Cenário: favorito JÁ existe → delete
+     * Cadeia: from(check) → select(*) → eq(ref) → eq(user) → maybeSingle [resolve exists]
+     *         from(delete) → delete() → eq(ref) → eq(user) [último eq é terminal]
+     */
+    it("favorito existe → chama delete com os IDs corretos", async () => {
+      const checkB = criarBuilder();
+      checkB.maybeSingle.mockResolvedValue({ data: { id: "fav-1" }, error: null });
+
+      const deleteB = criarBuilder();
+      // Primeiro eq retorna o builder (chainable); segundo eq é o terminal
+      deleteB.eq
+        .mockReturnValueOnce(deleteB)
+        .mockResolvedValue({ error: null });
+
+      from.mockReturnValueOnce(checkB).mockReturnValueOnce(deleteB);
+
+      await toggleFavoritoReferencia("ref-1", "user-1");
+
+      expect(from).toHaveBeenNthCalledWith(1, "referencias_favoritas");
+      expect(from).toHaveBeenNthCalledWith(2, "referencias_favoritas");
+      expect(checkB.select).toHaveBeenCalledWith("*");
+      expect(deleteB.delete).toHaveBeenCalled();
+      expect(deleteB.eq).toHaveBeenCalledWith("referencia_id", "ref-1");
+      expect(deleteB.eq).toHaveBeenCalledWith("usuario_id", "user-1");
+    });
+
+    /**
+     * Cenário: favorito NÃO existe → insert
+     * Cadeia: from(check) → maybeSingle [resolve null]
+     *         from(insert) → insert({referencia_id, usuario_id}) [terminal]
+     */
+    it("favorito não existe → chama insert com os IDs corretos", async () => {
+      const checkB = criarBuilder();
+      checkB.maybeSingle.mockResolvedValue({ data: null, error: null });
+
+      const insertB = criarBuilder();
+      insertB.insert.mockResolvedValue({ error: null });
+
+      from.mockReturnValueOnce(checkB).mockReturnValueOnce(insertB);
+
+      await toggleFavoritoReferencia("ref-1", "user-1");
+
+      expect(from).toHaveBeenNthCalledWith(2, "referencias_favoritas");
+      expect(insertB.insert).toHaveBeenCalledWith({
+        referencia_id: "ref-1",
+        usuario_id: "user-1",
+      });
+    });
+
+    it("erro na consulta inicial → lança AppError REFERENCIA_FAVORITO_ERROR", async () => {
+      const checkB = criarBuilder();
+      // Código diferente de PGRST116 para acionar o throw
+      checkB.maybeSingle.mockResolvedValue({
+        data: null,
+        error: { code: "DB_ERROR", message: "DB error" },
+      });
+      from.mockReturnValue(checkB);
+
+      const err = await toggleFavoritoReferencia("ref-1", "user-1").catch(
+        (e: unknown) => e
+      );
+
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).code).toBe("REFERENCIA_FAVORITO_ERROR");
+    });
+
+    it("erro no delete → lança AppError REFERENCIA_FAVORITO_ERROR", async () => {
+      const checkB = criarBuilder();
+      checkB.maybeSingle.mockResolvedValue({ data: { id: "fav-1" }, error: null });
+
+      const deleteB = criarBuilder();
+      deleteB.eq
+        .mockReturnValueOnce(deleteB)
+        .mockResolvedValue({ error: new Error("Delete failed") });
+
+      from.mockReturnValueOnce(checkB).mockReturnValueOnce(deleteB);
+
+      const err = await toggleFavoritoReferencia("ref-1", "user-1").catch(
+        (e: unknown) => e
+      );
+
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).code).toBe("REFERENCIA_FAVORITO_ERROR");
+    });
+
+    it("erro no insert → lança AppError REFERENCIA_FAVORITO_ERROR", async () => {
+      const checkB = criarBuilder();
+      checkB.maybeSingle.mockResolvedValue({ data: null, error: null });
+
+      const insertB = criarBuilder();
+      insertB.insert.mockResolvedValue({ error: new Error("Insert failed") });
+
+      from.mockReturnValueOnce(checkB).mockReturnValueOnce(insertB);
+
+      const err = await toggleFavoritoReferencia("ref-1", "user-1").catch(
+        (e: unknown) => e
+      );
+
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).code).toBe("REFERENCIA_FAVORITO_ERROR");
     });
   });
 
