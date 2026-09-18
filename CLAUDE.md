@@ -75,7 +75,7 @@ Se o comportamento atual contradiz a spec: **STOP** — determine se o código e
 4. Implementar em work branch `<tipo>/<id>-<slug>` → testar → atualizar Current Specs no mesmo commit.
 5. **PUSH: STOP — solicitar autorização explícita** (resumo: branch, commits, testes, PR proposto) antes de qualquer push.
 6. Após push: criar PR (`Part of #N`, template `.github/pull_request_template.md`) → **verificar resultado do CI** (aguardar runs concluírem; verde = prosseguir, vermelho = investigar e reportar ao usuário antes de declarar concluído, distinguindo falhas causadas pela mudança de falhas pré-existentes) → aprovação humana → merge.
-7. Housekeeping pós-merge: validar ACs → marcar proposta `IMPLEMENTED` com **Implemented Through** → mover para `archive/implemented/<categoria>/` → atualizar `proposed/index.md` → fechar a Issue (cadeia CONVENTIONS §18.6) → atualizar Project → validar documentação.
+7. Housekeeping pós-merge: validar ACs → marcar proposta `IMPLEMENTED` com **Implemented Through** → mover para `archive/implemented/<categoria>/` → atualizar `proposed/index.md` → fechar a Issue (cadeia CONVENTIONS §18.6) → atualizar Project → validar documentação → **deletar a work branch** (local: `git branch -d <ref>`; remota: `git push origin --delete <ref>` — o `gh pr merge --delete-branch` remove a remota mas não garante a local).
 
 ## 6. Evidência — nunca transforme UNKNOWN em CONFIRMED sem evidência
 
