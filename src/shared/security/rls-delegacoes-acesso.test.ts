@@ -45,7 +45,6 @@ describeOrSkip("RLS: delegacoes_acesso (Abordagem B)", () => {
 
   let concedenteClient: SupabaseClient;
   let delegado1Client: SupabaseClient;
-  let delegado2Client: SupabaseClient;
   let adminClient: SupabaseClient;
 
   // delegacaoPreExistenteId: criada via admin no beforeAll, usada em T4.2-T4.3 e T4.6
@@ -63,7 +62,6 @@ describeOrSkip("RLS: delegacoes_acesso (Abordagem B)", () => {
 
     concedenteClient = await signInAsTestUser(concedente);
     delegado1Client = await signInAsTestUser(delegado1);
-    delegado2Client = await signInAsTestUser(delegado2);
     adminClient = await signInAsTestUser(adminUser);
 
     // Criar delegação concedente → delegado1 via admin para os testes de
