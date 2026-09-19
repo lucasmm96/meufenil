@@ -12,7 +12,7 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
-| [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | TBD | sessão meuFenil013 (2026-09-18) — inconsistência ALL CAPS × Sentence Case confirmada |
+| [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | #87 | sessão meuFenil013 (2026-09-18) — inconsistência ALL CAPS × Sentence Case confirmada |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |

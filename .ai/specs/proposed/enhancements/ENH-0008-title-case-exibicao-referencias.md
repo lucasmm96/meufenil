@@ -3,7 +3,7 @@
 **Type:** ENH
 **Status:** ACCEPTED
 **Title:** Title Case dinâmico para exibição de referências alimentares
-**Issue:** TBD
+**Issue:** #87
 **Created on:** 2026-09-18
 **Decision:** ACCEPTED
 **Approved by:** Lucas Martins Menezes
