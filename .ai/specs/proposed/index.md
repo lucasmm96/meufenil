@@ -1,8 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-09-18 (ENH-0007 IMPLEMENTED — 13 ativas + 8 arquivadas)
+**Última verificação:** 2026-09-19 (TEST-0002/0003/0004/0005 IMPLEMENTED — 9 ativas + 8 arquivadas)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (13) · arquivadas = linhas da seção "Arquivadas" (7) · as 9 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (9) · arquivadas = linhas da seção "Arquivadas" (7) · as 13 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -22,10 +22,10 @@
 | [DEBT-0005](../archive/implemented/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | IMPLEMENTED | #26 | lint verde + W1 restaurado (PR #42, merge `9c583ceb`) — 2026-08-23 |
 | [DEBT-0006](../archive/implemented/technical-debt/DEBT-0006-restaurar-keepalive-dev.md) | DEBT | Restaurar keepalive do ambiente dev (regressão 879a6c0) | IMPLEMENTED | #40 | multi-alvo restaurado (PR #41, merge `4ac65fa`) — 2026-08-23 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | #14 | Fatos Fase 3 |
-| [TEST-0002](testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | PROPOSED | #16 | GAP-007/012 |
-| [TEST-0003](testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED | #17 | GAP-005/006/008 |
-| [TEST-0004](testing/TEST-0004-testes-services-faltantes.md) | TEST | Completar testes de services faltantes | PROPOSED | #18 | GAP-004/009 |
-| [TEST-0005](testing/TEST-0005-determinismo-testes-seguranca.md) | TEST | Determinismo dos testes de segurança | PROPOSED | #19 | GAP-011 + O-004 |
+| [TEST-0002](../archive/implemented/testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | IMPLEMENTED | #16 | GAP-007/012 → PR #86 (`development`, 2026-09-19) |
+| [TEST-0003](../archive/implemented/testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | IMPLEMENTED | #17 | GAP-005/008 → PR #86 (`development`, 2026-09-19) |
+| [TEST-0004](../archive/implemented/testing/TEST-0004-testes-services-faltantes.md) | TEST | Completar testes de services faltantes | IMPLEMENTED | #18 | GAP-004/009 → PR #86 (`development`, 2026-09-19) |
+| [TEST-0005](../archive/implemented/testing/TEST-0005-determinismo-testes-seguranca.md) | TEST | Determinismo dos testes de segurança | IMPLEMENTED | #19 | GAP-011/O-004 → PR #86 (`development`, 2026-09-19) |
 | [ENH-0004](../archive/implemented/enhancements/ENH-0004-modelo-identidade-referencias.md) | ENH | Modelo canônico e identidade imutável de referências | IMPLEMENTED | #49 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 · PR #55 (squash merge `82bd0f3`) — 2026-09-04 |
 | [FEAT-0017](../archive/implemented/features/FEAT-0017-sincronizacao-referencias-anvisa.md) | FEAT | Sincronização controlada de referências com a fonte ANVISA/Power BI | IMPLEMENTED | #50 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 · M1–M6 (PRs #57–#62, merges `5b1ed18`/`7ec0bf5`/`dd631d6`/`6e7d3e5`/`cb5d776`/`cb1123d`) + specs finais (M7) — 2026-09-05/06/07 |
 | [REF-0004](../archive/implemented/refactors/REF-0004-automacao-residuo-gate-e-prevencao-tentativa-erro.md) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | IMPLEMENTED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), PR #52 (squash merge) — 2026-09-03 |

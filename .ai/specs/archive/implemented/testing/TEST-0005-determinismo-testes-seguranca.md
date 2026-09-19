@@ -1,9 +1,10 @@
 # TEST-0005 — Determinismo dos testes de segurança
 
 **Type:** TEST
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #19
 **Title:** Determinismo dos testes de segurança
+**Implemented Through:** substituição de `Date.now()` por `crypto.randomUUID()` em `uniqueTestEmail()` e `createTestReference()` em `src/shared/security/test-helpers.ts` — GAP-011 encerrado — PR #86, merge em `development` — 2026-09-19
 
 ## Problem
 
