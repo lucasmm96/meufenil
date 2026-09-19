@@ -41,6 +41,16 @@ async function getErrorBody(
   return { error: (error as { message?: string }).message };
 }
 
+// supabase.functions.invoke() returns data as a JSON string when the edge
+// function omits Content-Type: application/json. Parse defensively.
+function parseData<T = Record<string, unknown>>(raw: unknown): T | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as T; } catch { return null; }
+  }
+  return raw as T;
+}
+
 describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
   let concedente: TestUser;
   let delegado: TestUser;
@@ -91,8 +101,8 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
     if (!functionAvailable) return;
 
     const [
-      { data: listaConcedente, error: errConcedente },
-      { data: listaDelegado, error: errDelegado },
+      { data: rawLC, error: errConcedente },
+      { data: rawLD, error: errDelegado },
     ] = await Promise.all([
       clienteConcedente.functions.invoke("delegar-acesso", {
         body: { acao: "listar" },
@@ -101,6 +111,8 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
         body: { acao: "listar" },
       }),
     ]);
+    const listaConcedente = parseData(rawLC);
+    const listaDelegado = parseData(rawLD);
 
     expect(errConcedente).toBeNull();
     expect(Array.isArray(listaConcedente?.concedidos)).toBe(true);
@@ -117,21 +129,23 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
   it("EF1.1: conceder acesso por email do delegado retorna { success: true }", async () => {
     if (!functionAvailable) return;
 
-    const { data, error } = await clienteConcedente.functions.invoke(
+    const { data: rawData1, error } = await clienteConcedente.functions.invoke(
       "delegar-acesso",
       { body: { acao: "conceder", email: delegado.email } }
     );
+    const data = parseData(rawData1);
 
     expect(error).toBeNull();
     expect(data).toMatchObject({ success: true });
 
     // A concessão retorna apenas { success: true }.
     // Obtemos o delegacaoId via listagem.
-    const { data: lista, error: errLista } =
+    const { data: listaRaw, error: errLista } =
       await clienteConcedente.functions.invoke("delegar-acesso", {
         body: { acao: "listar" },
       });
     expect(errLista).toBeNull();
+    const lista = parseData(listaRaw);
     const concedidos = lista?.concedidos as Array<{ id: string }>;
     expect(concedidos.length).toBeGreaterThanOrEqual(1);
     delegacaoId = concedidos[concedidos.length - 1].id;
@@ -146,8 +160,8 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
     expect(delegacaoId).toBeTruthy(); // depende de EF1.1
 
     const [
-      { data: listaConcedente, error: errC },
-      { data: listaDelegado, error: errD },
+      { data: rawC, error: errC },
+      { data: rawD, error: errD },
     ] = await Promise.all([
       clienteConcedente.functions.invoke("delegar-acesso", {
         body: { acao: "listar" },
@@ -156,6 +170,8 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
         body: { acao: "listar" },
       }),
     ]);
+    const listaConcedente = parseData(rawC);
+    const listaDelegado = parseData(rawD);
 
     expect(errC).toBeNull();
     const concedidos = listaConcedente?.concedidos as Array<{ id: string }>;
@@ -212,10 +228,11 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
     if (!functionAvailable) return;
     expect(delegacaoId).toBeTruthy();
 
-    const { data, error } = await clienteDelegado.functions.invoke(
+    const { data: rawData5, error } = await clienteDelegado.functions.invoke(
       "delegar-acesso",
       { body: { acao: "assumir", delegacao_id: delegacaoId } }
     );
+    const data = parseData(rawData5);
 
     expect(error).toBeNull();
     expect(data?.usuario_assumido_id).toBe(concedente.id);
@@ -250,10 +267,11 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
   it("EF1.7: sair do perfil assumido retorna { success: true }", async () => {
     if (!functionAvailable) return;
 
-    const { data, error } = await clienteDelegado.functions.invoke(
+    const { data: rawData7, error } = await clienteDelegado.functions.invoke(
       "delegar-acesso",
       { body: { acao: "sair" } }
     );
+    const data = parseData(rawData7);
 
     expect(error).toBeNull();
     expect(data).toMatchObject({ success: true });
@@ -266,19 +284,21 @@ describeOrSkip("Edge Function: delegar-acesso (integração real)", () => {
     if (!functionAvailable) return;
     expect(delegacaoId).toBeTruthy();
 
-    const { data, error } = await clienteConcedente.functions.invoke(
+    const { data: rawData8, error } = await clienteConcedente.functions.invoke(
       "delegar-acesso",
       { body: { acao: "revogar", delegacao_id: delegacaoId } }
     );
+    const data = parseData(rawData8);
 
     expect(error).toBeNull();
     expect(data).toMatchObject({ success: true });
 
     // Verificar que a delegação não aparece mais na listagem ativa
-    const { data: lista } = await clienteConcedente.functions.invoke(
+    const { data: listaRaw8 } = await clienteConcedente.functions.invoke(
       "delegar-acesso",
       { body: { acao: "listar" } }
     );
+    const lista = parseData(listaRaw8);
     const concedidos = lista?.concedidos as Array<{ id: string }>;
     expect(concedidos.some((d) => d.id === delegacaoId)).toBe(false);
   });

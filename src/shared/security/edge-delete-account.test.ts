@@ -24,6 +24,16 @@ import {
   type TestUser,
 } from "./test-helpers";
 
+// supabase.functions.invoke() returns data as a JSON string when the edge
+// function omits Content-Type: application/json. Parse defensively.
+function parseData<T = Record<string, unknown>>(raw: unknown): T | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as T; } catch { return null; }
+  }
+  return raw as T;
+}
+
 const hasServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 const describeOrSkip = hasServiceRole ? describe : describe.skip;
 
@@ -110,10 +120,11 @@ describeOrSkip("Edge Function: delete-account (integração real)", () => {
 
     const userId = usuarioParaExcluir.id;
 
-    const { data, error } = await clienteUsuario.functions.invoke(
+    const { data: rawData, error } = await clienteUsuario.functions.invoke(
       "delete-account",
       {}
     );
+    const data = parseData(rawData);
 
     expect(error).toBeNull();
     expect(data).toMatchObject({ success: true });
