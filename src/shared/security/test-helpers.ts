@@ -109,12 +109,9 @@ export interface TestUser {
   role: "user" | "admin";
 }
 
-let testUserCounter = 0;
-
 function uniqueTestEmail(role: string): string {
-  testUserCounter += 1;
-  const ts = Date.now();
-  return `test.security.${role}.${ts}.${testUserCounter}@meufenil-test.local`;
+  const uid = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  return `test.security.${role}.${uid}@meufenil-test.local`;
 }
 
 /**
@@ -270,7 +267,7 @@ export async function createTestReference(
   overrides: Partial<Pick<TestReference, "is_global" | "is_ativa" | "nome">> = {}
 ): Promise<TestReference> {
   const admin = getAdminClient();
-  const suffix = `${Date.now()}.${testUserCounter}`;
+  const suffix = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
   const nome = overrides.nome ?? `_test_ref_${suffix}`;
 
   const { data, error } = await admin
