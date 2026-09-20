@@ -168,11 +168,11 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 
 ## Open Questions
 
-1. **Dados existentes em `referencia_sync_pendencias`:** Dropar a tabela destrói o histórico de todas as decisões de curadoria até a data do deploy. Alternativas: (a) aceitar a perda — dados eram operacionais e não têm utilidade num sistema sem curadoria; (b) exportar para arquivo JSONB antes de dropar (ex.: registro em `referencia_backups` com campo dedicado); (c) manter a tabela como "frozen" (sem novas escritas, sem UI) por período de retenção antes de dropar. **Decisão necessária antes da implementação.**
+1. **Dados existentes em `referencia_sync_pendencias`:** Dropar a tabela destrói o histórico de todas as decisões de curadoria até a data do deploy. **RESOLVIDA:** (a) aceitar a perda — dados eram operacionais e não têm utilidade num sistema sem curadoria.
 
-2. **Pendências `open` em produção no momento do deploy:** Se existirem pendências abertas, devem ser: (a) resolvidas manualmente (aprovar/rejeitar) antes do deploy; (b) canceladas automaticamente pela migration de deploy (UPDATE status = 'cancelled'). **Decisão necessária antes da implementação.**
+2. **Pendências `open` em produção no momento do deploy:** Se existirem pendências abertas, devem ser resolvidas antes de aplicar as migrations. **RESOLVIDA:** (a) resolver manualmente (aprovar/rejeitar no painel admin) antes do deploy.
 
-3. **`referencia_syncs.alteracoes` — histórico existente:** Linhas de syncs anteriores têm `alteracoes` no formato estruturado atual (log de operações). Após a ENH, o campo passa a armazenar contadores. Os dados históricos permanecem no banco no formato antigo — o painel admin precisará tolerar ambos os formatos ao ler o histórico, ou tratar o campo como opaco para syncs anteriores.
+3. **`referencia_syncs.alteracoes` — histórico existente:** Linhas de syncs anteriores têm `alteracoes` no formato estruturado atual (log de operações). **RESOLVIDA:** limpar o histórico — a migration zera `alteracoes` das syncs existentes (ex.: `UPDATE referencia_syncs SET alteracoes = '[]'`) antes de alterar o contrato do campo para contadores.
 
 ## Acceptance Criteria
 
