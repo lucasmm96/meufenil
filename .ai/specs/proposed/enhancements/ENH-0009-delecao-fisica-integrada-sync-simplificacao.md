@@ -1,7 +1,7 @@
 # ENH-0009 — Deleção física integrada ao sync e simplificação do processo de sincronização
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017)
 **Issue:** #88
 **Created on:** 2026-09-20
@@ -178,7 +178,7 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 - **A1 — Manter curadoria, adicionar apenas deleção física:** escopo menor; curadoria permanece como proteção para divergências substantivas. **Decision:** descartada — `restaurar_referencias_de_backup` cobre o mesmo caso de uso com menos complexidade; curadoria introduz acumulação permanente de globais (`is_ativa = false`) para referências processadas por ela, que ficam imunes ao DELETE físico via FK RESTRICT.
 - **A2 — Manter rollback, adicionar deleção física:** `alteracoes` registraria op `delete` com linha completa; `reverter_sync_referencias` ganharia path de INSERT para recrear. **Decision:** descartada — `restaurar_referencias_de_backup` já cobre o caso de uso de forma mais ampla (qualquer ponto nos 12 meses vs. somente a última sync); os dois mecanismos são sobrepostos.
 - **A3 — Deleção física somente no path principal (sem sweep):** backlog de globais arquivadas antes da ENH permanece. **Decision:** descartada — sweep é baixo custo e endereça o problema completo (acumulação passada e futura) sem processo adicional.
-- **Decision:** implementar com deleção física integrada + sweep + remoção de curadoria e rollback (conforme Proposed State). **Approved by:** TBD · **Approved on:** TBD
+- **Decision:** implementar com deleção física integrada + sweep + remoção de curadoria e rollback (conforme Proposed State). **Approved by:** Lucas Martins Menezes · **Approved on:** 2026-09-23
 
 ## Open Questions
 
