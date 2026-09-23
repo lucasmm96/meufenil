@@ -32,7 +32,13 @@ Ver `../current/backend/api-referencias-sync.md` e `../current/domain/business-r
 
 **Curadoria removida.** `referencia_sync_pendencias` descontinuada; `decidir_pendencia_referencia` removido. Toda ausência detectada pela comparação resulta em ação automática imediata — sem fila de revisão humana, sem pendências. O mesmo se aplica ao bootstrap: a distinção de modo bootstrap/pós-bootstrap baseada em curadoria desaparece; a proteção passa a ser o backup pré-sync (criado antes de qualquer aplicação, como hoje).
 
-**Rollback removido.** `reverter_sync_referencias` removido. Recuperação de erros feita exclusivamente via `restaurar_referencias_de_backup`. `referencia_syncs.alteracoes` torna-se campo informacional com contadores simples (`{criadas, arquivadas, deletadas}`); o log estruturado de operações inversas não é mais necessário.
+**Rollback removido.** `reverter_sync_referencias` removido. Recuperação de erros feita exclusivamente via `restaurar_referencias_de_backup`. `referencia_syncs.alteracoes` torna-se campo legado com valor fixo `'{}'::jsonb` (sem leitura esperada); os contadores migram para colunas individuais — `criadas` e `arquivadas` existentes mais `deletadas integer` nova. O log estruturado de operações inversas não é mais necessário.
+
+### Divergências substantivas (substitutions)
+
+**A origem é sempre fonte da verdade para `fenil_mg_por_100g`.** Quando o motor detecta que uma referência existe no catálogo e na origem com a mesma identidade (`nome+marca`) mas com `fenil_mg_por_100g` diferente, a divergência é auto-aplicada sem revisão humana: `construirPlanoSync` converte a `substitution` em duas operações no plano — `archive` (fenil antigo) + `create` (fenil atualizado). O campo `pendencias` some do plano; a RPC processa apenas `criacoes`, `arquivamentos` e o sweep.
+
+O plano inclui campo `motivo` por operação de arquivamento: `'ausencia'` (referência ativa, ausente da origem) ou `'substituicao'` (mesma identidade `nome+marca`, fenil divergente — arquivada e substituída). A RPC propaga o `motivo` nos `detalhes` do evento `referencia_arquivada`: `{ "identidade": {...}, "motivo": "ausencia" | "substituicao" }`. O par `referencia_arquivada(motivo=substituicao)` + `referencia_criada` dentro do mesmo `sync_id` permite reconstrução completa do histórico de substituições.
 
 ### Deleção física integrada ao sync
 
@@ -43,15 +49,15 @@ Quando `aplicar_sync_referencias` detecta que uma global está ausente da origem
 | Sem `registros` AND sem `referencias_favoritas` | DELETE físico |
 | Com qualquer relacionamento (`registros` OR `referencias_favoritas`) | `is_ativa = false` (comportamento atual) |
 
-A verificação é feita via SELECT antes do DELETE — as constraints de banco são respeitadas, não contornadas.
+A verificação é feita via SELECT antes do DELETE — as constraints de banco são respeitadas, não contornadas. Em caso de violação de FK no DELETE (race condition: `registro` criado entre o check e o DELETE), a exceção é capturada e a operação degrada para `is_ativa = false` — a sync não falha; a referência é contabilizada em `arquivadas`.
 
 ### Varrimento retroativo (sweep)
 
 Ao final de cada execução de sync, `aplicar_sync_referencias` varre globais `is_ativa = false` sem `registros` e sem `referencias_favoritas`:
 
-- Aplica DELETE físico para cada elegível
+- Aplica DELETE físico para cada elegível, com **LIMIT 100 por execução** — processamento gradual do backlog ao longo das semanas seguintes
 - Cobre o backlog acumulado antes desta ENH e referências arquivadas logicamente por syncs anteriores
-- Contabiliza em `alteracoes.deletadas`
+- Contabiliza em `deletadas` (nova coluna de `referencia_syncs`)
 
 O sweep processa gradualmente a cada sync semanal — sem necessidade de script pontual.
 
@@ -61,11 +67,11 @@ FK `ON DELETE SET NULL` removida. A coluna permanece nullable (`uuid`) e o UUID 
 
 ### Novos eventos de auditoria
 
-Adição do valor `referencia_deletada` ao enum `sync_evento_tipo`. Registrado para cada DELETE físico no path principal e no sweep.
+Adição do valor `referencia_deletada` ao enum `sync_evento_tipo`. Registrado para cada DELETE físico no path principal e no sweep — evento único para ambos os casos; a origem (path principal vs. sweep) é implícita pelo contexto da sync.
 
 ### Admin UI
 
-Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substituição). Histórico de syncs mantido (status, timestamps, contagens criadas/arquivadas/deletadas). Restauração mantida sem alterações.
+Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substituição); ação de rollback removida. Histórico de syncs mantido (status, timestamps, contagens `criadas`/`arquivadas`/`deletadas`). Mensagem de conclusão: "Sincronização concluída: X equivalentes, Y criadas, Z arquivadas, W deletadas." Restauração mantida sem alterações.
 
 ## Motivation
 
@@ -75,6 +81,7 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 ## Evidence
 
 - Sessão de design meuFenil014 (2026-09-18 a 2026-09-20): análise de crescimento do banco, mapeamento de FKs de `referencias`, decisões Q1–Q6, revisão de gaps, decisões de simplificação (curadoria e rollback). Arquivo de decisões: `.ai/.temp/decisions/cleanup-referencias-oqs.md` (retenção 7 dias — referência temporária).
+- Sessão meuFenil015 (2026-09-22/23): gap analysis aprofundado + questionário Q1–Q12. Arquivo de decisões: `.ai/.temp/decisions/enh-0009-questionario.md` (retenção 7 dias). Decisões cobertas: substitutions auto-aplicadas (Q1/Q2), LIMIT 100 sweep (Q3/Q12), coluna `deletadas` (Q4), DROP `divergencias` (Q5), race condition EXCEPTION block (Q6), DROP `bootstrap` (Q7), script pré-deploy `pending_review→success` (Q8), mensagem de conclusão (Q9), evento único `referencia_deletada` (Q10), `motivo` em `referencia_arquivada` (Q11).
 - FEAT-0017 spec (arquivada): Out of Scope para deleção física; Alternatives B4 (rollback) e curadoria (§§13–15).
 - `supabase/migrations/20260906000000_referencias_sync_aplicacao_curadoria.sql` — código atual de `aplicar_sync_referencias` e `decidir_pendencia_referencia`.
 - `supabase/migrations/20260905000000_referencias_sync_tabelas.sql` — schema de `referencia_sync_pendencias` e FKs.
@@ -86,20 +93,24 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 - Remoção dos tipos `sync_pendencia_tipo` e `sync_pendencia_status` (enums orfanados após drop da tabela)
 - Remoção de `decidir_pendencia_referencia` (função RPC)
 - Remoção de `reverter_sync_referencias` (função RPC)
-- Atualização de `aplicar_sync_referencias`: path de deleção física + sweep + sem curadoria; simplificação de `alteracoes`
+- Atualização de `aplicar_sync_referencias`: substitutions auto-aplicadas; path de deleção física com degradação por race condition (`foreign_key_violation` → `is_ativa = false`); sweep LIMIT 100; campo `motivo` nos eventos de arquivamento; sem curadoria/pendências
+- Atualização de `construirPlanoSync` (motor M3): conversão de `substitution` → `archive`(motivo)+`create` no plano; remoção do campo `pendencias` do schema do plano; remoção de `derivarModoSync` (distinção bootstrap/pos_bootstrap sem efeito)
 - Adição do valor `referencia_deletada` ao enum `sync_evento_tipo`
 - Remoção do FK `referencia_eventos.referencia_id` (coluna permanece, tipo `uuid` nullable)
-- Remoção do FK `referencia_eventos.pendencia_id` (cascateado via DROP TABLE ou explícito; coluna permanece)
-- Revisão de BR-037, BR-040, BR-043, BR-046; novas BRs para deleção física e sweep
-- Atualização de testes: remoção de suítes de curadoria/rollback; novas suítes para deleção física e sweep
+- Remoção do FK `referencia_eventos.pendencia_id` (cascateado via DROP TABLE CASCADE; coluna permanece)
+- DDL em `referencia_syncs`: DROP COLUMN `bootstrap`; DROP COLUMN `divergencias`; ADD COLUMN `deletadas integer`; `alteracoes` zerada para `'{}'::jsonb` (campo legado, sem leitura esperada)
+- Script pré-deploy: `UPDATE referencia_syncs SET status = 'success' WHERE status = 'pending_review'` (após OQ2: todas as pendências resolvidas antes do deploy)
+- Remoção da lógica de status `pending_review` e `reverted` da rota e da UI (enum values permanecem no banco como ociosos — PostgreSQL não remove valores de enum)
+- Revisão de BR-037, BR-040, BR-043, BR-046; novas BRs para deleção física, sweep, substitutions e race condition
+- Atualização de testes: remoção de suítes de curadoria/rollback; novas suítes para deleção física, sweep, substitutions, race condition e motivo nos eventos
 - Atualização de specs afetadas (ver Impacted)
-- Admin UI: remoção de componentes de curadoria; simplificação da seção de syncs
+- Admin UI: remoção de componentes de curadoria e rollback; simplificação da seção de syncs
 
 ## Out of Scope
 
 - `restaurar_referencias_de_backup`, `referencia_backups`, `referencia_snapshots` — mantidos sem alterações
 - Processo de extração e validação ANVISA — mantido sem alterações
-- Lógica de comparação bidirecional do motor — mantida sem alterações
+- Lógica de comparação bidirecional do motor — mantida (mas `construirPlanoSync` recebe atualização para eliminar `pendencias` e converter substitutions; ver Scope)
 - Referências pessoais (`is_global = false`) — sem impacto
 - Alteração de RLS das tabelas remanescentes
 - Alteração de `remover_ou_desativar_referencia` (RPC de remoção manual — sem impacto)
@@ -120,9 +131,11 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 - **BR-043** — curadoria removida integralmente
 
 **Novas (numeração na promoção):**
-- Global ausente da origem, sem `registros` e sem `referencias_favoritas` → DELETE físico em `aplicar_sync_referencias` (path principal)
-- Global `is_ativa = false`, sem `registros` e sem `referencias_favoritas` → DELETE físico no sweep ao final de cada sync
+- Global ausente da origem, sem `registros` e sem `referencias_favoritas` → DELETE físico em `aplicar_sync_referencias` (path principal); em caso de race condition (FK violation no DELETE), degrada para `is_ativa = false`
+- Global `is_ativa = false`, sem `registros` e sem `referencias_favoritas` → DELETE físico no sweep ao final de cada sync (LIMIT 100 por execução)
 - Global ausente da origem com qualquer relacionamento (`registros` OR `referencias_favoritas`) → `is_ativa = false`
+- Divergência substantiva (mesma identidade `nome+marca`, `fenil_mg_por_100g` diferente) → auto-aplicada: archive (fenil antigo) + create (fenil atualizado); a origem é sempre fonte da verdade para `fenil_mg_por_100g`
+- Evento `referencia_arquivada` inclui `detalhes.motivo`: `'ausencia'` (ausente da origem) ou `'substituicao'` (fenil divergente)
 - `referencia_eventos.referencia_id` é UUID sem FK; UUID preservado após DELETE físico da referência
 
 ## Impacted Architecture
@@ -133,16 +146,16 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 ## Impacted Frontend / Backend / Database / Security / Tests
 
 - **Frontend:** `pages/admin.md` — remoção de componentes de curadoria (pendências, aprovar/rejeitar, diff); simplificação da seção de syncs (contadores criadas/arquivadas/deletadas; sem coluna de pendências)
-- **Backend:** `api-referencias-sync.md` — atualização completa do pipeline pós-comparação: remoção dos estágios de curadoria/pendências; novo path de deleção física; sweep retroativo; simplificação de `alteracoes`
+- **Backend:** `api-referencias-sync.md` — atualização completa do pipeline pós-comparação: remoção dos estágios de curadoria/pendências e rollback; substitutions auto-aplicadas; deleção física com degradação por race condition; sweep LIMIT 100; `motivo` nos eventos de arquivamento; simplificação de `alteracoes`; remoção de `derivarModoSync`
 - **Database:**
   - `referencia_sync_pendencias.md` — tabela descontinuada (ver OQ1/OQ2)
-  - `referencia_eventos.md` — FKs `referencia_id` e `pendencia_id` removidas; novo valor `referencia_deletada` em `sync_evento_tipo`
-  - `rpc.md` — remoção de `decidir_pendencia_referencia` e `reverter_sync_referencias`; atualização de `aplicar_sync_referencias`
-  - `referencia_syncs` (coluna `alteracoes`) — formato muda de log estruturado para contadores
+  - `referencia_eventos.md` — FKs `referencia_id` e `pendencia_id` removidas; novo valor `referencia_deletada` em `sync_evento_tipo`; campo `motivo` em `detalhes` de `referencia_arquivada`
+  - `rpc.md` — remoção de `decidir_pendencia_referencia` e `reverter_sync_referencias`; atualização de `aplicar_sync_referencias` (substitutions, deleção física, sweep, motivo, race condition)
+  - `referencia_syncs` — DROP COLUMN `bootstrap`, `divergencias`; ADD COLUMN `deletadas integer`; `alteracoes` = `'{}'` legado
 - **Security:** sem alteração de RLS ou autorização
 - **Tests:**
   - Remoção: suítes de curadoria em `rpc-referencias-sync.test.ts`; suíte de rollback `rpc-referencias-sync-rollback.test.ts` (18 testes)
-  - Novas: DELETE físico path principal (com/sem relacionamentos); sweep retroativo; UUID preservado em `referencia_eventos` após DELETE; `restaurar_referencias_de_backup` intacta após deleção física
+  - Novas: substitutions auto-aplicadas (motivo `substituicao` no evento); arquivamento por ausência (motivo `ausencia`); DELETE físico path principal (com/sem relacionamentos); race condition FK violation → degradação; sweep LIMIT 100; UUID preservado em `referencia_eventos` após DELETE; `restaurar_referencias_de_backup` intacta após deleção física
   - Mantidas (regressão obrigatória): motor de comparação, extração/validação, backup/restore, RLS de tabelas remanescentes
 
 ## Dependencies
@@ -156,7 +169,8 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 - **Mudança no comportamento de bootstrap (OQ3 da FEAT-0017 revogada):** FEAT-0017 OQ3 definiu que globais sem correspondência na 1ª extração viram divergência conhecida para curadoria manual. Com curadoria removida, o 1º sync pós-deploy aplica auto-arquivamento/deleção para qualquer global ausente da origem. O backup pré-sync é a única proteção. `[ASSUMPTION: comportamento aceito pelo usuário na sessão de design]`
 - **Dados históricos de `referencia_sync_pendencias` perdidos ao dropar a tabela** — ver OQ1.
 - **Pendências `open` em produção no momento do deploy** — ver OQ2.
-- **Volume do sweep na 1ª execução pós-deploy:** se o backlog de globais `is_ativa = false` elegíveis for grande, o sweep pode aumentar a duração da primeira sync. Mitigação: pode-se aplicar `LIMIT` no sweep e processar gradualmente ao longo das semanas seguintes.
+- **Volume do sweep na 1ª execução pós-deploy:** LIMIT 100 por execução decidido — o backlog é consumido gradualmente (100 deleções/semana); sem risco de timeout. Backlog de 1.000 referências limpo em ~10 semanas.
+- **Substitutions auto-aplicadas sem revisão humana:** divergências substantivas (mudança de fenil) são aplicadas automaticamente. O backup pré-sync é a única proteção contra aplicação indevida de fenil incorreto na origem. `[ASSUMPTION: risco aceito; origem é fonte da verdade]`
 - **Enum values ociosos:** `sync_pendencia_tipo` e `sync_pendencia_status` são dropados com a tabela. Valores de `sync_evento_tipo` relacionados a curadoria (ex.: `pendencia_criada`, `pendencia_decidida`) ficam ociosos no enum — valores não podem ser removidos facilmente em PostgreSQL; permanecem no tipo sem uso.
 
 ## Alternatives
@@ -172,21 +186,27 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 
 2. **Pendências `open` em produção no momento do deploy:** Se existirem pendências abertas, devem ser resolvidas antes de aplicar as migrations. **RESOLVIDA:** (a) resolver manualmente (aprovar/rejeitar no painel admin) antes do deploy.
 
-3. **`referencia_syncs.alteracoes` — histórico existente:** Linhas de syncs anteriores têm `alteracoes` no formato estruturado atual (log de operações). **RESOLVIDA:** limpar o histórico — a migration zera `alteracoes` das syncs existentes (ex.: `UPDATE referencia_syncs SET alteracoes = '[]'`) antes de alterar o contrato do campo para contadores.
+3. **`referencia_syncs.alteracoes` — histórico existente:** Linhas de syncs anteriores têm `alteracoes` no formato estruturado atual (log de operações). **RESOLVIDA:** limpar o histórico — a migration zera `alteracoes` das syncs existentes (`UPDATE referencia_syncs SET alteracoes = '{}'::jsonb`) antes de tornar o campo legado.
 
 ## Acceptance Criteria
 
+- [ ] Substitution auto-aplicada: `referencia_arquivada` (fenil antigo, `detalhes.motivo='substituicao'`) + `referencia_criada` (fenil atualizado) dentro do mesmo `sync_id`
+- [ ] Arquivamento por ausência: `referencia_arquivada` com `detalhes.motivo='ausencia'`
 - [ ] Global ausente da origem, sem `registros` e sem `referencias_favoritas` → DELETE físico em `aplicar_sync_referencias`; evento `referencia_deletada` registrado
 - [ ] Global ausente da origem, com qualquer relacionamento → `is_ativa = false` (comportamento preservado)
-- [ ] Sweep ao final de cada sync: globais `is_ativa = false` sem relacionamentos → DELETE físico; evento `referencia_deletada` registrado; contagem em `alteracoes.deletadas`
+- [ ] Race condition (FK violation no DELETE): exceção capturada, referência degradada para `is_ativa = false`, sync continua sem falhar
+- [ ] Sweep ao final de cada sync (LIMIT 100): globais `is_ativa = false` sem relacionamentos → DELETE físico; evento `referencia_deletada` registrado; contagem em `referencia_syncs.deletadas`
 - [ ] `referencia_eventos.referencia_id` sem FK: UUID preservado em eventos de deleção física
 - [ ] `restaurar_referencias_de_backup`: funcional sem alterações; referências fisicamente deletadas existentes em backup são recriadas por INSERT com UUID original
 - [ ] `referencia_sync_pendencias` descontinuada conforme decisão OQ1; `decidir_pendencia_referencia` removido
-- [ ] Pendências `open` tratadas conforme decisão OQ2
+- [ ] Pendências `open` tratadas conforme decisão OQ2; script pré-deploy migra syncs `pending_review` → `success`
 - [ ] `reverter_sync_referencias` removido; admin UI sem ação de rollback
-- [ ] `aplicar_sync_referencias` simplificado: sem lógica de divergência/pendências; `alteracoes` com contadores
-- [ ] BR-037 atualizada com exceção do processo de sync; BR-040 e BR-043 revogadas; BR-046 revisada
-- [ ] Testes de curadoria e rollback removidos; novas suítes de deleção física e sweep verdes
+- [ ] `aplicar_sync_referencias` simplificado: substitutions auto-aplicadas; sem lógica de curadoria/pendências; campo `pendencias` ausente do plano
+- [ ] `construirPlanoSync` atualizado: substitutions → `archive`(motivo)+`create`; sem `pendencias` no plano; `derivarModoSync` removido
+- [ ] `referencia_syncs`: coluna `deletadas integer` presente; colunas `bootstrap` e `divergencias` dropadas; `alteracoes` = `'{}'` legado
+- [ ] Mensagem de conclusão: "Sincronização concluída: X equivalentes, Y criadas, Z arquivadas, W deletadas."
+- [ ] BR-037 atualizada com exceção do processo de sync; BR-040 e BR-043 revogadas; BR-046 revisada; novas BRs para substitutions, motivo nos eventos e race condition
+- [ ] Testes de curadoria e rollback removidos; novas suítes verdes: deleção física, sweep, substitutions, race condition, motivo nos eventos
 - [ ] Motor de comparação, extração/validação, backup/restore: sem regressão (testes verdes)
 - [ ] Specs afetadas atualizadas no mesmo commit: `api-referencias-sync.md`, `database/rpc.md`, `database/referencia_eventos.md`, `business-rules.md`, `system-map.md`, `FEAT-0017` (referência à revisão)
 
@@ -198,4 +218,5 @@ Seções de curadoria removidas (pendências, aprovar/rejeitar, diff de substitu
 - [../current/domain/business-rules.md](../current/domain/business-rules.md) — BR-037, BR-040, BR-043, BR-046
 - `supabase/migrations/20260905000000_referencias_sync_tabelas.sql`
 - `supabase/migrations/20260906000000_referencias_sync_aplicacao_curadoria.sql`
-- Sessão de design: `.ai/.temp/decisions/cleanup-referencias-oqs.md` (retenção 7 dias)
+- Sessão de design meuFenil014: `.ai/.temp/decisions/cleanup-referencias-oqs.md` (retenção 7 dias)
+- Sessão meuFenil015 — decisões Q1–Q12: `.ai/.temp/decisions/enh-0009-questionario.md` (retenção 7 dias)
