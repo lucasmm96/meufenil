@@ -19,18 +19,13 @@ vi.mock("@/react-app/lib/app-environment", () => ({
 import { supabase } from "@/react-app/lib/supabase";
 import {
   getBackupsReferencia,
-  decidirPendenciaReferencia,
   executarSyncManual,
   getEventosReferencia,
-  getHistoricoPendencia,
-  getPendenciasReferencia,
   getPermissaoRecuperacao,
   getSyncRunningAmbiente,
   getSyncsReferencias,
-  getSyncsRevertiveis,
   getSyncValidadaAmbiente,
   restaurarBackupReferencias,
-  reverterSyncReferencias,
 } from "./referencias-sync.service";
 
 type Fn = ReturnType<typeof vi.fn>;
@@ -74,7 +69,6 @@ const linhaSync = {
   environment: "dev",
   trigger_source: "manual",
   requested_by: null,
-  bootstrap: false,
   status: "success",
   started_at: "2026-09-06T12:00:00.000Z",
   finished_at: "2026-09-06T12:01:00.000Z",
@@ -82,7 +76,7 @@ const linhaSync = {
   equivalentes: 3195,
   criadas: 3,
   arquivadas: 2,
-  divergencias: 0,
+  deletadas: null,
   message: "Sincronização concluída",
   details: { estagios: [{ nome: "extracao", ms: 900 }] },
   alteracoes: [
@@ -130,7 +124,6 @@ describe("referencias-sync.service", () => {
       expect(page.items[0]).toMatchObject({
         id: "sync-1",
         status: "success",
-        bootstrap: false,
         details: { estagios: expect.any(Array) },
       });
       expect(page.items[0].alteracoes).toEqual([
@@ -165,11 +158,12 @@ describe("referencias-sync.service", () => {
   });
 
   describe("getSyncValidadaAmbiente / getSyncRunningAmbiente", () => {
-    it("matching validado quando existe sync success/pending_review no ambiente", async () => {
+    it("matching validado quando existe sync success no ambiente", async () => {
       const b = criarBuilder();
       b.select.mockReturnValue(b);
-      b.eq.mockReturnValue(b);
-      b.in.mockResolvedValue({ data: null, error: null, count: 3 });
+      b.eq.mockImplementation((campo: string) =>
+        campo === "status" ? Promise.resolve({ data: null, error: null, count: 3 }) : b,
+      );
       from.mockReturnValue(b);
 
       const validada = await getSyncValidadaAmbiente();
@@ -177,7 +171,7 @@ describe("referencias-sync.service", () => {
       expect(from).toHaveBeenCalledWith("referencia_syncs");
       expect(b.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
       expect(b.eq).toHaveBeenCalledWith("environment", "dev");
-      expect(b.in).toHaveBeenCalledWith("status", ["success", "pending_review"]);
+      expect(b.eq).toHaveBeenCalledWith("status", "success");
       expect(validada).toBe(true);
     });
 
@@ -190,136 +184,6 @@ describe("referencias-sync.service", () => {
       from.mockReturnValue(b);
 
       expect(await getSyncRunningAmbiente()).toBe(true);
-    });
-  });
-
-  describe("getSyncsRevertiveis", () => {
-    it("lista syncs success/pending_review com limite", async () => {
-      const b = criarBuilder();
-      b.limit.mockResolvedValue({ data: [linhaSync], error: null });
-      from.mockReturnValue(b);
-
-      const items = await getSyncsRevertiveis();
-
-      expect(b.in).toHaveBeenCalledWith("status", ["success", "pending_review"]);
-      expect(b.limit).toHaveBeenCalledWith(50);
-      expect(items).toHaveLength(1);
-    });
-  });
-
-  describe("getPendenciasReferencia", () => {
-    const linhaPendencia = {
-      id: "p-1",
-      sync_id: "sync-1",
-      tipo: "substitution",
-      referencia_id: "ref-1",
-      proposta: { nome: "Arroz Integral", marca: "Marca X", fenil_mg_por_100g: 45 },
-      diff: [
-        { campo: "nome", antes: "Arroz", depois: "Arroz Integral" },
-        { campo: "fenil_mg_por_100g", antes: 50, depois: 45 },
-      ],
-      status: "open",
-      motivo: null,
-      created_at: "2026-09-06T12:00:00.000Z",
-      decided_at: null,
-      decided_by: null,
-      referencia_syncs: { started_at: "2026-09-06T12:00:00.000Z", status: "pending_review" },
-      referencias: { nome: "Arroz", marca: "Marca X", fenil_mg_por_100g: 50 },
-    };
-
-    it("consulta com embeds e devolve DTO com proposta/diff/referência atual", async () => {
-      const b = criarBuilder();
-      b.range.mockResolvedValue({ data: [linhaPendencia], error: null, count: 1 });
-      from.mockReturnValue(b);
-
-      const page = await getPendenciasReferencia({ status: "open", page: 1, pageSize: 3 });
-
-      expect(from).toHaveBeenCalledWith("referencia_sync_pendencias");
-      expect(b.eq).toHaveBeenCalledWith("status", "open");
-      expect(b.range).toHaveBeenCalledWith(0, 2);
-
-      const item = page.items[0];
-      expect(item).toMatchObject({
-        tipo: "substitution",
-        status: "open",
-        sync: { started_at: "2026-09-06T12:00:00.000Z", status: "pending_review" },
-        referencia: { nome: "Arroz", marca: "Marca X" },
-      });
-      expect(item.proposta).toEqual({ nome: "Arroz Integral", marca: "Marca X", fenil_mg_por_100g: 45 });
-      expect(item.diff).toHaveLength(2);
-    });
-
-    it("filtra por sync (trilha) quando syncId informado", async () => {
-      const b = criarBuilder();
-      b.range.mockResolvedValue({ data: [], error: null, count: 0 });
-      from.mockReturnValue(b);
-
-      await getPendenciasReferencia({ syncId: "sync-1", page: 1, pageSize: 3 });
-
-      expect(b.eq).toHaveBeenCalledWith("sync_id", "sync-1");
-    });
-
-    it("sem filtro de status quando 'all' (chamador omite o campo)", async () => {
-      const b = criarBuilder();
-      b.range.mockResolvedValue({ data: [], error: null, count: 0 });
-      from.mockReturnValue(b);
-
-      await getPendenciasReferencia({ status: undefined, page: 1, pageSize: 3 });
-
-      const chamadasEq = (b.eq as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
-      expect(chamadasEq).not.toContain("status");
-    });
-  });
-
-  describe("getHistoricoPendencia", () => {
-    it("rastreia por referencia_id em pendências de absence/substitution", async () => {
-      const b = criarBuilder();
-      b.eq.mockReturnValue(b);
-      b.order.mockReturnValue(b);
-      b.limit = vi.fn().mockResolvedValue({ data: [], error: null });
-      from.mockReturnValue(b);
-
-      await getHistoricoPendencia({
-        tipo: "absence",
-        referencia_id: "ref-1",
-        proposta: null,
-      } as never);
-
-      const eqFields = (b.eq as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
-      expect(eqFields).toContain("referencia_id");
-      expect(b.limit).toHaveBeenCalledWith(12);
-    });
-
-    it("rastreia por identidade da proposta em new_item", async () => {
-      const b = criarBuilder();
-      b.eq.mockReturnValue(b);
-      b.order.mockReturnValue(b);
-      b.limit = vi.fn().mockResolvedValue({ data: [], error: null });
-      from.mockReturnValue(b);
-
-      await getHistoricoPendencia({
-        tipo: "new_item",
-        referencia_id: null,
-        proposta: { nome: "Arroz", marca: "", fenil_mg_por_100g: 50 },
-      } as never);
-
-      const eqCampos = (b.eq as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
-      expect(eqCampos).toContain("proposta->>nome");
-      expect(eqCampos).toContain("proposta->>marca");
-    });
-
-    it("sem referência nem proposta não consulta", async () => {
-      const b = criarBuilder();
-      from.mockReturnValue(b);
-
-      const resultado = await getHistoricoPendencia({
-        tipo: "new_item",
-        referencia_id: null,
-        proposta: null,
-      } as never);
-
-      expect(resultado).toEqual([]);
-      expect(from).not.toHaveBeenCalled();
     });
   });
 
@@ -424,53 +288,8 @@ describe("referencias-sync.service", () => {
     });
   });
 
-  describe("RPCs de curadoria e recuperação", () => {
-    it("decidirPendenciaReferencia chama a RPC com parâmetros nomeados", async () => {
-      rpc.mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: { pendencia_id: "p-1", status: "rejected", sync_id: "sync-1", sync_status: "success" },
-          error: null,
-        }),
-      });
-
-      const resultado = await decidirPendenciaReferencia("p-1", false, "Item ainda existe");
-
-      expect(rpc).toHaveBeenCalledWith("decidir_pendencia_referencia", {
-        p_pendencia_id: "p-1",
-        p_aprovar: false,
-        p_motivo: "Item ainda existe",
-      });
-      expect(resultado.status).toBe("rejected");
-    });
-
-    it("sem motivo na rejeição passa null (a RPC exige e lança)", async () => {
-      rpc.mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: { pendencia_id: "p-1", status: "rejected", sync_id: "sync-1", sync_status: "pending_review" },
-          error: null,
-        }),
-      });
-
-      await decidirPendenciaReferencia("p-1", false, undefined);
-
-      expect(rpc).toHaveBeenCalledWith("decidir_pendencia_referencia", {
-        p_pendencia_id: "p-1",
-        p_aprovar: false,
-        p_motivo: null,
-      });
-    });
-
-    it("reverter/restaurar chamam as RPCs do M5", async () => {
-      rpc.mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: { sync_id: "s-1", status: "reverted", revertidas: 2, preservadas: 1, pendencias_canceladas: 0 },
-          error: null,
-        }),
-      });
-      const reverter = await reverterSyncReferencias("s-1");
-      expect(rpc).toHaveBeenCalledWith("reverter_sync_referencias", { p_sync_id: "s-1" });
-      expect(reverter.revertidas).toBe(2);
-
+  describe("restaurarBackupReferencias", () => {
+    it("chama a RPC e retorna o resultado", async () => {
       rpc.mockReturnValue({
         single: vi.fn().mockResolvedValue({
           data: { backup_id: "b-1", reativadas: 1, criadas: 0, arquivadas: 0, pendencias_canceladas: 0 },
@@ -483,9 +302,8 @@ describe("referencias-sync.service", () => {
     });
 
     it("erro da RPC vira AppError", async () => {
-      rpc.mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: new Error("não") }) });
-
-      await expect(decidirPendenciaReferencia("p-1", true)).rejects.toBeInstanceOf(AppError);
+      rpc.mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: new Error("nao") }) });
+      await expect(restaurarBackupReferencias("b-1")).rejects.toBeInstanceOf(AppError);
     });
   });
 

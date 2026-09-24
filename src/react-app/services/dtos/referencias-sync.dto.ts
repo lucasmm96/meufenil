@@ -1,10 +1,9 @@
 /**
- * DTOs da sincronização de referências (FEAT-0017) para o painel admin.
+ * DTOs da sincronização de referências (FEAT-0017/ENH-0009) para o painel admin.
  *
- * Espelham as 5 tabelas do M1 (`20260905000000_referencias_sync_tabelas.sql`)
- * e os contratos das RPCs do M4/M5 — snake_case preservado, como nos demais
- * dtos (overview.md). `details`/`alteracoes`/`detalhes`/`diff`/`proposta` são
- * jsonb do banco e chegam como `Record`/arrays tipados pelos services.
+ * Espelham as tabelas do M1 e os contratos das RPCs — snake_case preservado,
+ * como nos demais dtos (overview.md). `details`/`detalhes` são jsonb do banco
+ * e chegam como `Record` tipados pelos services.
  */
 
 export const SYNC_STATUSES = [
@@ -18,14 +17,6 @@ export const SYNC_STATUSES = [
 
 export type SyncStatus = (typeof SYNC_STATUSES)[number];
 
-export const SYNC_PENDENCIA_TIPOS = ["substitution", "absence", "new_item"] as const;
-
-export type SyncPendenciaTipo = (typeof SYNC_PENDENCIA_TIPOS)[number];
-
-export const SYNC_PENDENCIA_STATUSES = ["open", "approved", "rejected", "cancelled"] as const;
-
-export type SyncPendenciaStatus = (typeof SYNC_PENDENCIA_STATUSES)[number];
-
 export const SYNC_EVENTO_TIPOS = [
   "sync_started",
   "extraction",
@@ -34,6 +25,7 @@ export const SYNC_EVENTO_TIPOS = [
   "backup_created",
   "referencia_criada",
   "referencia_arquivada",
+  "referencia_deletada",
   "mudanca_aprovada",
   "mudanca_rejeitada",
   "is_ativa_manual",
@@ -52,13 +44,6 @@ export interface IdentidadeReferenciaSyncDTO {
   fenil_mg_por_100g: number;
 }
 
-/** Mudança campo a campo de uma divergência (diff GitHub-like — design §5.2). */
-export interface DiffCampoSyncDTO {
-  campo: "nome" | "marca" | "fenil_mg_por_100g";
-  antes: string | number;
-  depois: string | number;
-}
-
 /** Operação de uma sync (`referencia_syncs.alteracoes` — RPCs M4). */
 export interface AlteracaoSyncDTO {
   op: "create" | "archive";
@@ -73,7 +58,6 @@ export interface ReferenciaSyncDTO {
   environment: string;
   trigger_source: string;
   requested_by: string | null;
-  bootstrap: boolean;
   status: SyncStatus;
   started_at: string;
   finished_at: string | null;
@@ -81,7 +65,7 @@ export interface ReferenciaSyncDTO {
   equivalentes: number | null;
   criadas: number | null;
   arquivadas: number | null;
-  divergencias: number | null;
+  deletadas: number | null;
   message: string | null;
   details: Record<string, unknown>;
   alteracoes: AlteracaoSyncDTO[];
@@ -102,32 +86,6 @@ export interface ReferenciaSyncFiltersDTO {
   pageSize: number;
 }
 
-/** Linha de `referencia_sync_pendencias` (§5.2) + embeds de contexto. */
-export interface PendenciaSyncDTO {
-  id: string;
-  sync_id: string;
-  tipo: SyncPendenciaTipo;
-  referencia_id: string | null;
-  proposta: IdentidadeReferenciaSyncDTO | null;
-  diff: DiffCampoSyncDTO[] | null;
-  status: SyncPendenciaStatus;
-  motivo: string | null;
-  created_at: string;
-  decided_at: string | null;
-  decided_by: string | null;
-  /** Embed da sync da pendência (contexto da divergência). */
-  sync: { started_at: string; status: SyncStatus } | null;
-  /** Embed da referência atual (absence/substitution). */
-  referencia: { nome: string; marca: string; fenil_mg_por_100g: number } | null;
-}
-
-export interface PendenciasSyncPageDTO {
-  items: PendenciaSyncDTO[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
 /** Linha de `referencia_eventos` (§5.3) + embeds de contexto. */
 export interface EventoSyncDTO {
   id: string;
@@ -140,7 +98,7 @@ export interface EventoSyncDTO {
   created_at: string;
   /** Embed da sync (trilha). */
   sync: { started_at: string; status: SyncStatus } | null;
-  /** Embed da referência do evento (nome atual ou null após DELETE físico). */
+  /** Embed da referência do evento (null após DELETE físico — UUID ainda gravado). */
   referencia: { nome: string; marca: string } | null;
 }
 
@@ -159,17 +117,6 @@ export interface BackupSyncDTO {
   contagem: number;
   created_at: string;
   sync: { started_at: string } | null;
-}
-
-/** Resposta das RPCs `reverter_sync_referencias`/`restaurar_referencias_de_backup`. */
-export interface ResultadoReverterSyncDTO {
-  sync_id: string;
-  status: string;
-  revertida?: boolean;
-  motivo?: string;
-  revertidas?: number;
-  preservadas?: number;
-  pendencias_canceladas?: number;
 }
 
 export interface ResultadoRestaurarBackupDTO {

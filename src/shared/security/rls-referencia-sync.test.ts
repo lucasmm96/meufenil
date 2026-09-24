@@ -1,6 +1,6 @@
 /**
- * Testes de RLS das 5 tabelas novas da FEAT-0017 (M1 — migrations
- * 20260905xxxxxx): referencia_syncs, referencia_sync_pendencias,
+ * Testes de RLS das 4 tabelas de sincronização (FEAT-0017 M1, atualizado
+ * pelo ENH-0009 que removeu referencia_sync_pendencias): referencia_syncs,
  * referencia_eventos, referencia_snapshots, referencia_backups.
  *
  * Padrão Abordagem B (design §5.6/§17): leitura admin-only via
@@ -37,7 +37,6 @@ describeOrSkip("RLS: tabelas de sincronização de referências (Abordagem B)", 
   const runSuffix = `${Date.now()}.${Math.floor(Math.random() * 1e6)}`;
   const testTables = [
     "referencia_syncs",
-    "referencia_sync_pendencias",
     "referencia_eventos",
     "referencia_snapshots",
     "referencia_backups",
@@ -53,7 +52,6 @@ describeOrSkip("RLS: tabelas de sincronização de referências (Abordagem B)", 
   // sync_id das linhas-filhas referenciam o sync da própria linha de teste.
   const createdRows: Record<string, string[]> = {
     referencia_syncs: [],
-    referencia_sync_pendencias: [],
     referencia_eventos: [],
     referencia_snapshots: [],
     referencia_backups: [],
@@ -89,9 +87,6 @@ describeOrSkip("RLS: tabelas de sincronização de referências (Abordagem B)", 
 
     let linha: Record<string, unknown>;
     switch (table) {
-      case "referencia_sync_pendencias":
-        linha = { sync_id: syncData.id, tipo: "new_item" };
-        break;
       case "referencia_eventos":
         linha = { sync_id: syncData.id, tipo: "sync_started" };
         break;
@@ -143,7 +138,6 @@ describeOrSkip("RLS: tabelas de sincronização de referências (Abordagem B)", 
       "referencia_backups",
       "referencia_snapshots",
       "referencia_eventos",
-      "referencia_sync_pendencias",
     ]) {
       const ids = createdRows[table];
       for (const id of ids) {

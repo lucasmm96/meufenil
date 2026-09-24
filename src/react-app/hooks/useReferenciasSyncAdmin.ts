@@ -2,35 +2,26 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppError } from "@/react-app/lib/errors";
 import { logger } from "@/react-app/lib/logger";
 import {
-  decidirPendenciaReferencia,
   executarSyncManual,
   getBackupsReferencia,
   getEventosReferencia,
-  getHistoricoPendencia,
-  getPendenciasReferencia,
   getPermissaoRecuperacao,
   getSyncRunningAmbiente,
   getSyncsReferencias,
-  getSyncsRevertiveis,
   getSyncValidadaAmbiente,
   getDefaultReferenciasSyncPageSize,
   restaurarBackupReferencias,
-  reverterSyncReferencias,
 } from "@/react-app/services/referencias-sync.service";
 import {
   BackupSyncDTO,
   EventoSyncDTO,
-  PendenciaSyncDTO,
   ReferenciaSyncDTO,
   ResultadoSyncManualDTO,
   SyncEventoTipo,
-  SyncPendenciaStatus,
   SyncStatus,
 } from "@/react-app/services/dtos/referencias-sync.dto";
 
-/** Filtro com "all" = sem filtro (enviado `undefined` ao service). */
 type FiltroStatusSync = SyncStatus | "all";
-type FiltroStatusPendencia = SyncPendenciaStatus | "all";
 type FiltroTipoEvento = SyncEventoTipo | "all";
 
 interface DominioPaginado<T> {
@@ -44,16 +35,14 @@ interface DominioPaginado<T> {
 }
 
 /**
- * Dados da seção "Sincronização de Referências" do Admin (FEAT-0017, M6).
+ * Dados da seção "Sincronização de Referências" do Admin (FEAT-0017/ENH-0009).
  *
- * Domínios: histórico de syncs, pendências de curadoria, auditoria de
- * eventos, backups/rollback (recuperação), estado "matching validado" e a
- * permissão `pode_recuperacao` da sessão. Paginação server-side no padrão de
- * `useBackgroundJobsAdmin`; mutações chamam as RPCs do M4/M5 e o POST manual
- * da rota, relançando o erro para a página exibir.
+ * Domínios: histórico de syncs, auditoria de eventos, backups (recuperação),
+ * estado "matching validado" e a permissão `pode_recuperacao` da sessão.
+ * Curadoria e rollback seletivo removidos (ENH-0009). Paginação server-side
+ * no padrão de `useBackgroundJobsAdmin`.
  */
 export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
-  // Estado do ambiente + permissão (gate da aba Recuperação)
   const [matchingValidado, setMatchingValidado] = useState<boolean | null>(null);
   const [podeRecuperar, setPodeRecuperar] = useState(false);
   const [syncRunning, setSyncRunning] = useState<boolean | null>(null);
@@ -70,16 +59,6 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
   const [syncsLoading, setSyncsLoading] = useState(false);
   const [syncsError, setSyncsError] = useState<AppError | null>(null);
 
-  // Pendências de curadoria
-  const [pendencias, setPendencias] = useState<PendenciaSyncDTO[]>([]);
-  const [pendenciasTotal, setPendenciasTotal] = useState(0);
-  const [pendenciasPage, setPendenciasPage] = useState(1);
-  const [pendenciasPageSize, setPendenciasPageSizeState] = useState(pageSizeDefault);
-  const [pendenciasStatus, setPendenciasStatusState] = useState<FiltroStatusPendencia>("open");
-  const [pendenciasSyncId, setPendenciasSyncIdState] = useState<string | null>(null);
-  const [pendenciasLoading, setPendenciasLoading] = useState(false);
-  const [pendenciasError, setPendenciasError] = useState<AppError | null>(null);
-
   // Auditoria de eventos
   const [eventos, setEventos] = useState<EventoSyncDTO[]>([]);
   const [eventosTotal, setEventosTotal] = useState(0);
@@ -91,16 +70,12 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
   const [eventosLoading, setEventosLoading] = useState(false);
   const [eventosError, setEventosError] = useState<AppError | null>(null);
 
-  // Recuperação: backups + syncs revertíveis
+  // Recuperação: backups
   const [backups, setBackups] = useState<BackupSyncDTO[]>([]);
   const [backupsLoading, setBackupsLoading] = useState(false);
   const [backupsError, setBackupsError] = useState<AppError | null>(null);
 
-  const [syncsRevertiveis, setSyncsRevertiveis] = useState<ReferenciaSyncDTO[]>([]);
-  const [revertiveisLoading, setRevertiveisLoading] = useState(false);
-  const [revertiveisError, setRevertiveisError] = useState<AppError | null>(null);
-
-  // Execução manual (rota prod)
+  // Execução manual
   const [executandoSync, setExecutandoSync] = useState(false);
 
   const totalPagesDe = (total: number, size: number) => Math.max(1, Math.ceil(total / size));
@@ -108,10 +83,6 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
   const syncsTotalPages = useMemo(
     () => totalPagesDe(syncsTotal, syncsPageSize),
     [syncsTotal, syncsPageSize],
-  );
-  const pendenciasTotalPages = useMemo(
-    () => totalPagesDe(pendenciasTotal, pendenciasPageSize),
-    [pendenciasTotal, pendenciasPageSize],
   );
   const eventosTotalPages = useMemo(
     () => totalPagesDe(eventosTotal, eventosPageSize),
@@ -163,30 +134,6 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     }
   }, [enabled, usuarioId]);
 
-  const loadPendencias = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      setPendenciasLoading(true);
-      setPendenciasError(null);
-      const data = await getPendenciasReferencia({
-        status: pendenciasStatus === "all" ? undefined : pendenciasStatus,
-        syncId: pendenciasSyncId ?? undefined,
-        page: pendenciasPage,
-        pageSize: pendenciasPageSize,
-      });
-      setPendencias(data.items);
-      setPendenciasTotal(data.total);
-    } catch (err) {
-      const appError = toAppError(err, "Erro inesperado ao carregar pendências de curadoria");
-      logger.error("Erro em useReferenciasSyncAdmin (pendências)", appError);
-      setPendenciasError(appError);
-      setPendencias([]);
-      setPendenciasTotal(0);
-    } finally {
-      setPendenciasLoading(false);
-    }
-  }, [enabled, pendenciasStatus, pendenciasSyncId, pendenciasPage, pendenciasPageSize]);
-
   const loadEventos = useCallback(async () => {
     if (!enabled) return;
     try {
@@ -216,45 +163,27 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     if (!enabled) return;
     try {
       setBackupsLoading(true);
-      setRevertiveisLoading(true);
       setBackupsError(null);
-      setRevertiveisError(null);
-      const [backupsData, revertiveisData] = await Promise.all([
-        getBackupsReferencia(),
-        getSyncsRevertiveis(),
-      ]);
+      const backupsData = await getBackupsReferencia();
       setBackups(backupsData);
-      setSyncsRevertiveis(revertiveisData);
     } catch (err) {
-      const appError = toAppError(err, "Erro inesperado ao carregar recuperação");
+      const appError = toAppError(err, "Erro inesperado ao carregar backups");
       logger.error("Erro em useReferenciasSyncAdmin (recuperação)", appError);
       setBackups([]);
-      setSyncsRevertiveis([]);
       setBackupsError(appError);
-      setRevertiveisError(appError);
     } finally {
       setBackupsLoading(false);
-      setRevertiveisLoading(false);
     }
   }, [enabled]);
 
   const loadTudo = useCallback(async () => {
     if (!enabled) return;
-    await Promise.all([loadSyncs(), loadPendencias(), loadEventos(), loadRecuperacao(), loadEstadoAmbiente()]);
-  }, [enabled, loadSyncs, loadPendencias, loadEventos, loadRecuperacao, loadEstadoAmbiente]);
-
-  // Cargas: cada domínio reage a filtros/paginação via callback com deps
-  // (padrão useBackgroundJobsAdmin). Quando `enabled` cai, os callbacks
-  // retornam cedo e os domínios permanecem como estão (a página desmonta a
-  // seção junto — estado local do hook não é reaproveitado entre sessões).
+    await Promise.all([loadSyncs(), loadEventos(), loadRecuperacao(), loadEstadoAmbiente()]);
+  }, [enabled, loadSyncs, loadEventos, loadRecuperacao, loadEstadoAmbiente]);
 
   useEffect(() => {
     if (enabled) loadSyncs();
   }, [loadSyncs, enabled]);
-
-  useEffect(() => {
-    if (enabled) loadPendencias();
-  }, [loadPendencias, enabled]);
 
   useEffect(() => {
     if (enabled) loadEventos();
@@ -268,14 +197,10 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     if (enabled) loadEstadoAmbiente();
   }, [loadEstadoAmbiente, enabled]);
 
-  // Clamp de página após mudança de total (padrão useBackgroundJobsAdmin)
+  // Clamp de página após mudança de total
   useEffect(() => {
     if (syncsPage > syncsTotalPages) setSyncsPage(syncsTotalPages);
   }, [syncsPage, syncsTotalPages]);
-
-  useEffect(() => {
-    if (pendenciasPage > pendenciasTotalPages) setPendenciasPage(pendenciasTotalPages);
-  }, [pendenciasPage, pendenciasTotalPages]);
 
   useEffect(() => {
     if (eventosPage > eventosTotalPages) setEventosPage(eventosTotalPages);
@@ -291,22 +216,6 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
   const setSyncsPageSize = useCallback((size: number) => {
     setSyncsPageSizeState(size);
     setSyncsPage(1);
-  }, []);
-
-  const setPendenciasStatus = useCallback((status: FiltroStatusPendencia) => {
-    setPendenciasStatusState(status);
-    setPendenciasSyncIdState(null);
-    setPendenciasPage(1);
-  }, []);
-
-  const setPendenciasSyncId = useCallback((syncId: string | null) => {
-    setPendenciasSyncIdState(syncId);
-    setPendenciasPage(1);
-  }, []);
-
-  const setPendenciasPageSize = useCallback((size: number) => {
-    setPendenciasPageSizeState(size);
-    setPendenciasPage(1);
   }, []);
 
   const setEventosTipo = useCallback((tipo: FiltroTipoEvento) => {
@@ -330,94 +239,7 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     setEventosPage(1);
   }, []);
 
-  // ---------- Ações (RPCs M4/M5 + rota) ----------
-
-  const historicoPendencia = useCallback(
-    async (pendencia: PendenciaSyncDTO): Promise<PendenciaSyncDTO[]> => {
-      if (!enabled) return [];
-      try {
-        return await getHistoricoPendencia(pendencia);
-      } catch (err) {
-        const appError = toAppError(err, "Erro inesperado ao carregar histórico da divergência");
-        logger.error("Erro em useReferenciasSyncAdmin (histórico)", appError);
-        throw appError;
-      }
-    },
-    [enabled],
-  );
-
-  const decidirPendencia = useCallback(
-    async (pendenciaId: string, aprovar: boolean, motivo?: string) => {
-      const resultado = await decidirPendenciaReferencia(pendenciaId, aprovar, motivo);
-      await loadTudo();
-      return resultado;
-    },
-    [loadTudo],
-  );
-
-  const decidirPendenciasEmLote = useCallback(
-    async (
-      ids: string[],
-      aprovar: boolean,
-      motivo?: string,
-    ): Promise<{ sucessos: number; erros: Array<{ id: string; msg: string }> }> => {
-      const erros: Array<{ id: string; msg: string }> = [];
-      let sucessos = 0;
-      for (const id of ids) {
-        try {
-          await decidirPendenciaReferencia(id, aprovar, motivo);
-          sucessos++;
-        } catch (err) {
-          const appError = toAppError(err, "Erro ao registrar decisão");
-          erros.push({ id, msg: appError.message });
-        }
-      }
-      await loadTudo();
-      return { sucessos, erros };
-    },
-    [loadTudo],
-  );
-
-  const decidirTodasPendenciasAbertas = useCallback(
-    async (
-      aprovar: boolean,
-      motivo?: string,
-      syncId?: string,
-    ): Promise<{ sucessos: number; erros: Array<{ id: string; msg: string }> }> => {
-      const erros: Array<{ id: string; msg: string }> = [];
-      let sucessos = 0;
-      let page = 1;
-      const pageSize = 500;
-
-      while (true) {
-        const dados = await getPendenciasReferencia({ status: "open", syncId, page, pageSize });
-        for (const p of dados.items) {
-          try {
-            await decidirPendenciaReferencia(p.id, aprovar, motivo);
-            sucessos++;
-          } catch (err) {
-            const appError = toAppError(err, "Erro ao registrar decisão");
-            erros.push({ id: p.id, msg: appError.message });
-          }
-        }
-        if (page * pageSize >= dados.total) break;
-        page++;
-      }
-
-      await loadTudo();
-      return { sucessos, erros };
-    },
-    [loadTudo],
-  );
-
-  const reverterSync = useCallback(
-    async (syncId: string) => {
-      const resultado = await reverterSyncReferencias(syncId);
-      await loadTudo();
-      return resultado;
-    },
-    [loadTudo],
-  );
+  // ---------- Ações ----------
 
   const restaurarBackup = useCallback(
     async (backupId: string) => {
@@ -442,9 +264,7 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
   const reload = useCallback(() => loadTudo(), [loadTudo]);
 
   const resetaTrilhas = useCallback(() => {
-    setPendenciasSyncIdState(null);
     setEventosSyncIdState(null);
-    setPendenciasPage(1);
     setEventosPage(1);
   }, []);
 
@@ -469,21 +289,6 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     setSyncsStatus,
     setSyncsPage,
     setSyncsPageSize,
-    pendencias: {
-      items: pendencias,
-      total: pendenciasTotal,
-      page: pendenciasPage,
-      pageSize: pendenciasPageSize,
-      totalPages: pendenciasTotalPages,
-      loading: pendenciasLoading,
-      error: pendenciasError,
-    } as DominioPaginado<PendenciaSyncDTO>,
-    pendenciasStatus,
-    pendenciasSyncId,
-    setPendenciasStatus,
-    setPendenciasSyncId,
-    setPendenciasPage,
-    setPendenciasPageSize,
     eventos: {
       items: eventos,
       total: eventosTotal,
@@ -502,12 +307,6 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     setEventosPage,
     setEventosPageSize,
     backups: { items: backups, loading: backupsLoading, error: backupsError },
-    syncsRevertiveis: { items: syncsRevertiveis, loading: revertiveisLoading, error: revertiveisError },
-    historicoPendencia,
-    decidirPendencia,
-    decidirPendenciasEmLote,
-    decidirTodasPendenciasAbertas,
-    reverterSync,
     restaurarBackup,
     executarSync,
   };
