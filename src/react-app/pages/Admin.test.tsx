@@ -70,13 +70,6 @@ function syncAdminMock(overrides: Record<string, unknown> = {}) {
     setSyncsStatus: vi.fn(),
     setSyncsPage: vi.fn(),
     setSyncsPageSize: vi.fn(),
-    pendencias: dominioMock(),
-    pendenciasStatus: "open",
-    pendenciasSyncId: null,
-    setPendenciasStatus: vi.fn(),
-    setPendenciasSyncId: vi.fn(),
-    setPendenciasPage: vi.fn(),
-    setPendenciasPageSize: vi.fn(),
     eventos: dominioMock(),
     eventosTipo: "all",
     eventosSyncId: null,
@@ -87,12 +80,6 @@ function syncAdminMock(overrides: Record<string, unknown> = {}) {
     setEventosPage: vi.fn(),
     setEventosPageSize: vi.fn(),
     backups: { items: [], loading: false, error: null },
-    syncsRevertiveis: { items: [], loading: false, error: null },
-    historicoPendencia: vi.fn(),
-    decidirPendencia: vi.fn(),
-    decidirPendenciasEmLote: vi.fn(),
-    decidirTodasPendenciasAbertas: vi.fn(),
-    reverterSync: vi.fn(),
     restaurarBackup: vi.fn(),
     executarSync: vi.fn(),
     ...overrides,
@@ -149,12 +136,7 @@ function renderAdminComoAdmin(overrides: Record<string, unknown> = {}) {
   const syncMock = syncAdminMock(overrides);
   useReferenciasSyncAdminMock.mockReturnValue(syncMock);
   return syncMock as {
-    decidirPendencia: ReturnType<typeof vi.fn>;
-    decidirPendenciasEmLote: ReturnType<typeof vi.fn>;
-    decidirTodasPendenciasAbertas: ReturnType<typeof vi.fn>;
-    reverterSync: ReturnType<typeof vi.fn>;
     restaurarBackup: ReturnType<typeof vi.fn>;
-    setPendenciasSyncId: ReturnType<typeof vi.fn>;
     [chave: string]: unknown;
   };
 }
@@ -345,16 +327,15 @@ describe("Admin page", () => {
     environment: "dev",
     trigger_source: "cron",
     requested_by: null,
-    bootstrap: true,
-    status: "pending_review",
+    status: "success",
     started_at: "2026-09-01T10:00:00.000Z",
     finished_at: "2026-09-01T10:00:30.000Z",
     total_origem: 10,
     equivalentes: 8,
     criadas: 1,
     arquivadas: 0,
-    divergencias: 1,
-    message: "1 divergência aguardando curadoria.",
+    deletadas: 0,
+    message: "Sincronização concluída: 8 equivalentes, 1 criadas, 0 arquivadas, 0 deletadas.",
     details: { validacao: { ok: true } },
     alteracoes: [
       {
@@ -367,22 +348,6 @@ describe("Admin page", () => {
     created_at: "2026-09-01T10:00:00.000Z",
   };
 
-  const pendenciaFixture = {
-    id: "pend-1",
-    sync_id: "sync-1",
-    tipo: "substitution",
-    referencia_id: "ref-1",
-    proposta: { nome: "Novo", marca: "", fenil_mg_por_100g: 40 },
-    diff: [{ campo: "fenil_mg_por_100g", antes: 55, depois: 40 }],
-    status: "open",
-    motivo: null,
-    created_at: "2026-09-01T10:00:00.000Z",
-    decided_at: null,
-    decided_by: null,
-    sync: { started_at: "2026-09-01T10:00:00.000Z", status: "pending_review" },
-    referencia: { nome: "Atual", marca: "", fenil_mg_por_100g: 55 },
-  };
-
   it("renderiza a seção de sincronização com matching validado e botão manual em dev", () => {
     renderAdminComoAdmin({ matchingValidado: true });
 
@@ -391,18 +356,17 @@ describe("Admin page", () => {
     expect(screen.getByText("Sincronização de Referências")).toBeTruthy();
     expect(screen.getByText("Matching validado")).toBeTruthy();
     expect(screen.getByText("Histórico")).toBeTruthy();
-    expect(screen.getByText("Pendências de curadoria")).toBeTruthy();
     expect(screen.getByText("Auditoria")).toBeTruthy();
     // Revisão R4-1 (decisão 2026-09-08): botão manual disponível em dev E prod
     expect(screen.getByText("Executar sync agora")).toBeTruthy();
   });
 
-  it("aguarda bootstrap quando ainda não há sync validada", () => {
+  it("aguarda sync inicial quando ainda não há sync validada", () => {
     renderAdminComoAdmin({ matchingValidado: false });
 
     render(<Admin />);
 
-    expect(screen.getByText("Aguardando bootstrap")).toBeTruthy();
+    expect(screen.getByText("Aguardando sync inicial")).toBeTruthy();
   });
 
   it("só mostra a aba de recuperação para quem tem permissão", () => {
@@ -424,251 +388,10 @@ describe("Admin page", () => {
     render(<Admin />);
 
     expect(screen.getByText("Detalhes da sincronização")).toBeTruthy();
-    // Badges existem na tabela desktop e nos cards mobile (md:hidden fica no DOM)
-    expect(screen.getAllByText("1ª sync").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Em revisão").length).toBeGreaterThan(0);
+    // Badge de status visível na tabela e nos cards mobile
+    expect(screen.getAllByText("Sucesso").length).toBeGreaterThan(0);
     // Linha "Alterações aplicadas" com a operação registrada
     expect(screen.getByText(/1 operação/)).toBeTruthy();
-  });
-
-  it("link de divergências do histórico abre a trilha na aba de pendências", () => {
-    const syncMock = renderAdminComoAdmin({
-      syncs: dominioMock({ items: [syncFixture], total: 1 }),
-    });
-
-    render(<Admin />);
-
-    fireEvent.click(screen.getByText("1 divergência"));
-
-    expect(syncMock.setPendenciasSyncId).toHaveBeenCalledWith("sync-1");
-    expect(screen.getByText("Nenhuma pendência encontrada")).toBeTruthy();
-  });
-
-  it("abre o modal de rejeição e exige motivo antes de confirmar", async () => {
-    const syncMock = renderAdminComoAdmin({
-      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
-    });
-    syncMock.decidirPendencia.mockResolvedValue({
-      pendencia_id: "pend-1",
-      status: "rejected",
-      sync_id: "sync-1",
-      sync_status: "pending_review",
-    });
-
-    render(<Admin />);
-
-    fireEvent.click(screen.getByText("Pendências de curadoria"));
-    expect(screen.getByText("Substituição")).toBeTruthy();
-    // 55.00 aparece na referência atual e na linha removida do diff
-    expect(screen.getAllByText(/55\.00 mg\/100g/).length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByText("Rejeitar"));
-
-    expect(screen.getByText("Rejeitar mudança")).toBeTruthy();
-    const confirmar = screen.getByText("Confirmar rejeição") as HTMLButtonElement;
-    expect(confirmar.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText("Motivo da rejeição"), {
-      target: { value: "Proposta desatualizada." },
-    });
-    expect(confirmar.disabled).toBe(false);
-
-    fireEvent.click(confirmar);
-
-    await waitFor(() => {
-      expect(syncMock.decidirPendencia).toHaveBeenCalledWith("pend-1", false, "Proposta desatualizada.");
-    });
-    await waitFor(() => {
-      expect(screen.queryByText("Rejeitar mudança")).toBeNull();
-    });
-  });
-
-  it("aprovação chama a decisão sem motivo", async () => {
-    const syncMock = renderAdminComoAdmin({
-      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
-    });
-    syncMock.decidirPendencia.mockResolvedValue({
-      pendencia_id: "pend-1",
-      status: "approved",
-      sync_id: "sync-1",
-      sync_status: "success",
-    });
-
-    render(<Admin />);
-
-    fireEvent.click(screen.getByText("Pendências de curadoria"));
-    fireEvent.click(screen.getByText("Aprovar"));
-    fireEvent.click(screen.getByText("Confirmar aprovação"));
-
-    await waitFor(() => {
-      expect(syncMock.decidirPendencia).toHaveBeenCalledWith("pend-1", true, undefined);
-    });
-  });
-
-  it("recuperação exige confirmação forte (REVERTER) antes de chamar a RPC", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue(null);
-    const syncMock = renderAdminComoAdmin({
-      podeRecuperar: true,
-      syncsRevertiveis: { items: [syncFixture], loading: false, error: null },
-      backups: { items: [], loading: false, error: null },
-    });
-
-    render(<Admin />);
-
-    fireEvent.click(screen.getByText("Recuperação"));
-    expect(screen.getByText(/Rollback seletivo/)).toBeTruthy();
-
-    fireEvent.click(screen.getByText("Reverter sync"));
-    expect(confirmSpy).toHaveBeenCalled();
-
-    // Prompt cancelado: nenhuma chamada à RPC
-    expect(syncMock.reverterSync).not.toHaveBeenCalled();
-
-    // Confirmação digitada: a RPC roda e o resultado aparece inline
-    promptSpy.mockReturnValue("REVERTER");
-    syncMock.reverterSync.mockResolvedValue({
-      sync_id: "sync-1",
-      status: "reverted",
-      revertidas: 2,
-      preservadas: 1,
-      pendencias_canceladas: 0,
-    });
-
-    fireEvent.click(screen.getByText("Reverter sync"));
-
-    await waitFor(() => {
-      expect(syncMock.reverterSync).toHaveBeenCalledWith("sync-1");
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/Sincronização revertida: 2 operações desfeitas/)).toBeTruthy();
-    });
-  });
-
-  it("reverter sync sem alterações (bootstrap): sucesso com mensagem de nenhuma operação desfeita", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    vi.spyOn(window, "prompt").mockReturnValue("REVERTER");
-    const syncMock = renderAdminComoAdmin({
-      podeRecuperar: true,
-      syncsRevertiveis: { items: [syncFixture], loading: false, error: null },
-      backups: { items: [], loading: false, error: null },
-    });
-    // Revisão 2026-09-14 da RPC: sync sem alterações com pendências open →
-    // status reverted, 0 revertidas, N pendências canceladas (sem campo
-    // `revertida` — a UI decide sucesso por `status === "reverted"`).
-    syncMock.reverterSync.mockResolvedValue({
-      sync_id: "sync-1",
-      status: "reverted",
-      revertidas: 0,
-      preservadas: 0,
-      pendencias_canceladas: 2496,
-    });
-
-    render(<Admin />);
-
-    fireEvent.click(screen.getByText("Recuperação"));
-    fireEvent.click(screen.getByText("Reverter sync"));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Sincronização revertida: nenhuma operação desfeita \(a sync não aplicou alterações\), 2496 pendências canceladas\./)
-      ).toBeTruthy();
-    });
-  });
-
-  it("checkbox aparece em itens abertos e barra de seleção mostra o total", async () => {
-    renderAdminComoAdmin({
-      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
-    });
-
-    render(<Admin />);
-    fireEvent.click(screen.getByText("Pendências de curadoria"));
-
-    // "select all" + checkbox do item (só abertos recebem checkbox)
-    await waitFor(() => {
-      expect(screen.getAllByRole("checkbox").length).toBe(2);
-    });
-    expect(screen.getByText(/Selecionar todos/)).toBeTruthy();
-  });
-
-  it("aprovar em lote chama decidirPendenciasEmLote com os IDs selecionados", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const syncMock = renderAdminComoAdmin({
-      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
-    });
-    syncMock.decidirPendenciasEmLote.mockResolvedValue({ sucessos: 1, erros: [] });
-
-    render(<Admin />);
-    fireEvent.click(screen.getByText("Pendências de curadoria"));
-
-    // Seleciona via "Selecionar todos"
-    fireEvent.click(screen.getByText(/Selecionar todos/));
-    expect(screen.getByText("1 selecionado(s)")).toBeTruthy();
-
-    fireEvent.click(screen.getByText("Aprovar selecionados"));
-    expect(confirmSpy).toHaveBeenCalled();
-
-    await waitFor(() => {
-      expect(syncMock.decidirPendenciasEmLote).toHaveBeenCalledWith(["pend-1"], true);
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/1 decisão registrada com sucesso/)).toBeTruthy();
-    });
-  });
-
-  it("rejeitar em lote exige motivo no modal e chama decidirPendenciasEmLote", async () => {
-    const syncMock = renderAdminComoAdmin({
-      pendencias: dominioMock({ items: [pendenciaFixture], total: 1 }),
-    });
-    syncMock.decidirPendenciasEmLote.mockResolvedValue({ sucessos: 1, erros: [] });
-
-    render(<Admin />);
-    fireEvent.click(screen.getByText("Pendências de curadoria"));
-
-    fireEvent.click(screen.getByText(/Selecionar todos/));
-    fireEvent.click(screen.getByText("Rejeitar selecionados"));
-
-    expect(screen.getByText(/Rejeitar 1 pendência/)).toBeTruthy();
-    const confirmarBtn = screen.getByText("Confirmar rejeição") as HTMLButtonElement;
-    expect(confirmarBtn.disabled).toBe(true);
-
-    fireEvent.change(screen.getByLabelText("Motivo da rejeição"), {
-      target: { value: "Proposta de teste a rejeitar." },
-    });
-    expect(confirmarBtn.disabled).toBe(false);
-
-    fireEvent.click(confirmarBtn);
-
-    await waitFor(() => {
-      expect(syncMock.decidirPendenciasEmLote).toHaveBeenCalledWith(
-        ["pend-1"],
-        false,
-        "Proposta de teste a rejeitar.",
-      );
-    });
-  });
-
-  it("aprovar tudo chama decidirTodasPendenciasAbertas com total correto", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const syncMock = renderAdminComoAdmin({
-      pendencias: dominioMock({ items: [pendenciaFixture], total: 42 }),
-      pendenciasStatus: "open",
-      pendenciasSyncId: null,
-    });
-    syncMock.decidirTodasPendenciasAbertas.mockResolvedValue({ sucessos: 42, erros: [] });
-
-    render(<Admin />);
-    fireEvent.click(screen.getByText("Pendências de curadoria"));
-
-    fireEvent.click(screen.getByText(/Aprovar tudo \(42\)/));
-    expect(confirmSpy).toHaveBeenCalled();
-
-    await waitFor(() => {
-      expect(syncMock.decidirTodasPendenciasAbertas).toHaveBeenCalledWith(true, undefined, undefined);
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/42 decisões registradas com sucesso/)).toBeTruthy();
-    });
   });
 
   it("restauração por backup exige RESTAURAR e mostra o resultado inline", async () => {
@@ -676,7 +399,6 @@ describe("Admin page", () => {
     const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("RESTAURAR");
     const syncMock = renderAdminComoAdmin({
       podeRecuperar: true,
-      syncsRevertiveis: { items: [], loading: false, error: null },
       backups: {
         items: [
           {
