@@ -3,27 +3,21 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { extractPowerBiReport } from "../src/shared/powerbi/extract.js";
 import { validarExtracao, type ValidacaoExtracao } from "../src/shared/powerbi/validate.js";
 import type { LinhaOrigem } from "../src/shared/powerbi/types.js";
-import { derivarModoSync } from "../src/shared/referencias-sync/compare.js";
 import { construirPlanoSync } from "../src/shared/referencias-sync/engine.js";
 import type {
   ArquivadaGlobal,
-  DecisaoPendencia,
   GlobalAtiva,
-  IdentidadeReferencia,
-  ModoSync,
-  PendenciaAberta,
   PlanoSync,
 } from "../src/shared/referencias-sync/types.js";
 
 /**
  * Rota da sincronização de referências com a origem ANVISA/Power BI
- * (FEAT-0017, M4 — pipeline completo, estágios 1–8 do design §6.2: claim,
- * extração, validação, snapshot, backup, comparação, aplicação e conclusão).
- * A partir do M4 a sync aplica efeito real no catálogo global: compara o
- * estado com o motor puro (M3), aplica via RPC `aplicar_sync_referencias`
- * (transação única service_role-only) e conclui `success` (sem divergências)
- * ou `pending_review` (pendências de curadoria — decididas por admin via RPC
- * `decidir_pendencia_referencia`).
+ * (FEAT-0017/ENH-0009, M4 — pipeline completo, estágios 1–8 do design §6.2:
+ * claim, extração, validação, snapshot, backup, comparação, aplicação e
+ * conclusão). A partir do M4 a sync aplica efeito real no catálogo global:
+ * compara o estado com o motor puro (M3), aplica via RPC
+ * `aplicar_sync_referencias` (transação única service_role-only) e conclui
+ * sempre com status `success`.
  *
  * - GET  = cron (Vercel): Bearer CRON_SECRET, comparação timing-safe; a
  *   plataforma envia o header automaticamente quando a env existe. O cron só
@@ -119,29 +113,12 @@ type LinhaGlobalArquivada = LinhaGlobalAtiva & {
   referencia_eventos: LinhaEventoAuditoria[] | null;
 };
 
-type LinhaPendencia = {
-  tipo: string;
-  referencia_id: string | null;
-  proposta: IdentidadeReferencia | null;
-};
-
-type LinhaDecisao = LinhaPendencia & {
-  status: string;
-};
-
-type LinhaDecisao = {
-  tipo: string;
-  referencia_id: string | null;
-  proposta: IdentidadeReferencia | null;
-  status: string;
-};
-
 /** Resumo retornado pela RPC `aplicar_sync_referencias` (estágio 7/8). */
 type ResumoAplicacao = {
   equivalentes: number;
   criadas: number;
   arquivadas: number;
-  divergencias: number;
+  deletadas: number;
 };
 
 const STALE_APOS_MINUTOS = 25;
@@ -384,7 +361,7 @@ async function executarEstagio(
   }
 }
 
-type StatusFinalSync = "success" | "pending_review" | "origin_invalid" | "failure";
+type StatusFinalSync = "success" | "origin_invalid" | "failure";
 
 async function concluirSync(
   supabase: SupabaseClient,
@@ -392,8 +369,7 @@ async function concluirSync(
   status: StatusFinalSync,
   message: string,
   totalOrigem: number | null,
-  detalhes: DetalhesEvento,
-  bootstrap?: boolean
+  detalhes: DetalhesEvento
 ): Promise<void> {
   const { error } = await supabase
     .from("referencia_syncs")
@@ -403,7 +379,6 @@ async function concluirSync(
       total_origem: totalOrigem,
       finished_at: new Date().toISOString(),
       details: detalhes,
-      ...(bootstrap === undefined ? {} : { bootstrap }),
     })
     .eq("id", syncId);
 
@@ -423,79 +398,44 @@ function ordenarEventos(eventos: LinhaEventoAuditoria[]): LinhaEventoAuditoria[]
 }
 
 /**
- * Estágio 6 — estado do catálogo para o motor (design §7.3): globais ativas,
- * globais arquivadas com eventos de auditoria, pendências open de qualquer
- * sync (dedupe global D-6), decisões approved/rejected de absence/new_item em
- * ordem cronológica (a última vence) e o histórico de syncs do environment
- * para derivar o modo (bootstrap × pos_bootstrap, §14). Tudo via service_role.
+ * Estágio 6 — estado do catálogo para o motor (design §7.3/ENH-0009): globais
+ * ativas e globais arquivadas com eventos de auditoria. Tudo via service_role.
  * Consultas paginadas (`buscarTodasAsLinhas`) — o catálogo excede o teto de
  * 1000 linhas do PostgREST; sem paginação a comparação vê um retrato parcial.
  */
 async function consultarEstadoCatalogo(
-  supabase: SupabaseClient,
-  syncId: string
+  supabase: SupabaseClient
 ): Promise<{
   ativas: GlobalAtiva[];
   arquivadas: ArquivadaGlobal[];
-  pendenciasAbertas: PendenciaAberta[];
-  decisoes: DecisaoPendencia[];
-  modo: ModoSync;
 }> {
-  const [ativasBrutas, arquivadasBrutas, pendenciasAbertasBrutas, decisoesBrutas, resultadoHistorico] =
-    await Promise.all([
-      buscarTodasAsLinhas<LinhaGlobalAtiva>((from, to) =>
-        supabase
-          .from("referencias")
-          .select("id, nome, marca, fenil_mg_por_100g")
-          .eq("is_global", true)
-          .eq("is_ativa", true)
-          .range(from, to)
-      ),
-      buscarTodasAsLinhas<LinhaGlobalArquivada>((from, to) =>
-        supabase
-          .from("referencias")
-          .select(
-            "id, nome, marca, fenil_mg_por_100g, referencia_eventos(id, tipo, created_at)"
-          )
-          .eq("is_global", true)
-          .eq("is_ativa", false)
-          .range(from, to)
-      ),
-      buscarTodasAsLinhas<LinhaPendencia>((from, to) =>
-        supabase
-          .from("referencia_sync_pendencias")
-          .select("tipo, referencia_id, proposta")
-          .eq("status", "open")
-          .range(from, to)
-      ),
-      buscarTodasAsLinhas<LinhaDecisao>((from, to) =>
-        supabase
-          .from("referencia_sync_pendencias")
-          .select("tipo, referencia_id, proposta, status")
-          .in("tipo", ["absence", "new_item"])
-          .in("status", ["approved", "rejected"])
-          .order("decided_at", { ascending: true })
-          .range(from, to)
-      ),
+  const [ativasBrutas, arquivadasBrutas] = await Promise.all([
+    buscarTodasAsLinhas<LinhaGlobalAtiva>((from, to) =>
       supabase
-        .from("referencia_syncs")
-        .select("status")
-        .eq("environment", ambienteAlvo())
-        .neq("id", syncId),
-    ]);
+        .from("referencias")
+        .select("id, nome, marca, fenil_mg_por_100g")
+        .eq("is_global", true)
+        .eq("is_ativa", true)
+        .range(from, to)
+    ),
+    buscarTodasAsLinhas<LinhaGlobalArquivada>((from, to) =>
+      supabase
+        .from("referencias")
+        .select(
+          "id, nome, marca, fenil_mg_por_100g, referencia_eventos(id, tipo, created_at)"
+        )
+        .eq("is_global", true)
+        .eq("is_ativa", false)
+        .range(from, to)
+    ),
+  ]);
 
-  if (resultadoHistorico.error) {
-    throw resultadoHistorico.error;
-  }
-
-  const ativas: GlobalAtiva[] = ativasBrutas.map(
-    (linha) => ({
-      id: linha.id,
-      nome: linha.nome,
-      marca: linha.marca,
-      fenil_mg_por_100g: linha.fenil_mg_por_100g,
-    })
-  );
+  const ativas: GlobalAtiva[] = ativasBrutas.map((linha) => ({
+    id: linha.id,
+    nome: linha.nome,
+    marca: linha.marca,
+    fenil_mg_por_100g: linha.fenil_mg_por_100g,
+  }));
 
   const arquivadas: ArquivadaGlobal[] = arquivadasBrutas.map((linha) => ({
     nome: linha.nome,
@@ -507,23 +447,7 @@ async function consultarEstadoCatalogo(
     })),
   }));
 
-  const pendenciasAbertas: PendenciaAberta[] = pendenciasAbertasBrutas.map((pendencia) => ({
-    tipo: pendencia.tipo as PendenciaAberta["tipo"],
-    referencia_id: pendencia.referencia_id,
-    proposta: pendencia.proposta,
-  }));
-
-  const decisoes: DecisaoPendencia[] = decisoesBrutas.map((decisao) => ({
-    tipo: decisao.tipo as DecisaoPendencia["tipo"],
-    referencia_id: decisao.referencia_id,
-    proposta: decisao.proposta,
-    status: decisao.status as DecisaoPendencia["status"],
-  }));
-
-  const historico = (resultadoHistorico.data ?? []) as { status: string }[];
-  const modo = derivarModoSync(historico);
-
-  return { ativas, arquivadas, pendenciasAbertas, decisoes, modo };
+  return { ativas, arquivadas };
 }
 
 async function executarSync(
@@ -681,11 +605,10 @@ async function executarSync(
       detalhesEstagios
     );
 
-    // Estágio 6 — comparação (design §6.2/§7.3): consulta o estado do catálogo
-    // e monta o plano com o motor puro (M3). Sem evento de auditoria próprio
-    // (o resultado vive no detalhe do estágio e no payload da aplicação).
+    // Estágio 6 — comparação (design §6.2/§7.3/ENH-0009): consulta o estado do
+    // catálogo e monta o plano com o motor puro (M3). Sem evento de auditoria
+    // próprio (o resultado vive no detalhe do estágio e no payload da aplicação).
     let plano: PlanoSync | null = null;
-    let modo: ModoSync = "bootstrap";
 
     await executarEstagio(
       supabase,
@@ -693,29 +616,21 @@ async function executarSync(
       "comparison",
       null,
       async () => {
-        const estado = await consultarEstadoCatalogo(supabase, syncId);
-        modo = estado.modo;
+        const estado = await consultarEstadoCatalogo(supabase);
 
         const planoConstruido = construirPlanoSync({
           origem: rows,
           ativas: estado.ativas,
           arquivadas: estado.arquivadas,
-          pendenciasAbertas: estado.pendenciasAbertas,
-          decisoes: estado.decisoes,
-          modo: estado.modo,
         });
         plano = planoConstruido;
 
         return {
-          modo: estado.modo,
           ativas: estado.ativas.length,
           arquivadas: estado.arquivadas.length,
-          pendencias_abertas: estado.pendenciasAbertas.length,
-          decisoes_consideradas: estado.decisoes.length,
           plano: {
             criacoes: planoConstruido.criacoes.length,
             arquivamentos: planoConstruido.arquivamentos.length,
-            pendencias_novas: planoConstruido.pendencias.length,
             equivalentes: planoConstruido.resumo.equivalentes,
           },
         };
@@ -755,47 +670,38 @@ async function executarSync(
       detalhesEstagios
     );
 
-    // Estágio 8 — conclusão: o resumo retornado pela RPC decide o status
-    // (design §7.5 item 6): divergências (pendências) → pending_review
-    // (curadoria); sem divergências → success.
-    const divergencias = resumoAplicacao?.divergencias ?? 0;
-    const statusFinal: StatusFinalSync =
-      divergencias > 0 ? "pending_review" : "success";
-
+    // Estágio 8 — conclusão: a sync sempre conclui com status `success` após
+    // a aplicação (ENH-0009: sem curadoria, sem pending_review).
     const rejeitadasOrigem = validacao.rejeitadas.length;
     const sufixoRejeicoes =
       rejeitadasOrigem > 0
         ? ` ${rejeitadasOrigem} linha(s) da origem rejeitada(s) por dado inválido.`
         : "";
 
-    const mensagemBase =
-      statusFinal === "success"
-        ? `Sincronização concluída: ${resumoAplicacao?.equivalentes ?? 0} equivalentes, ` +
-          `${resumoAplicacao?.criadas ?? 0} criadas, ${resumoAplicacao?.arquivadas ?? 0} arquivadas, ` +
-          `sem divergências pendentes.`
-        : `Sincronização concluída com ${divergencias} divergência(s) pendente(s) de curadoria: ` +
-          `${resumoAplicacao?.equivalentes ?? 0} equivalentes, ` +
-          `${resumoAplicacao?.criadas ?? 0} criadas, ${resumoAplicacao?.arquivadas ?? 0} arquivadas.`;
-
-    const mensagemFinal = mensagemBase + sufixoRejeicoes;
+    const eq = resumoAplicacao?.equivalentes ?? 0;
+    const cr = resumoAplicacao?.criadas ?? 0;
+    const ar = resumoAplicacao?.arquivadas ?? 0;
+    const dl = resumoAplicacao?.deletadas ?? 0;
+    const mensagemFinal =
+      `Sincronização concluída: ${eq} equivalentes, ${cr} criadas, ` +
+      `${ar} arquivadas, ${dl} deletadas.` + sufixoRejeicoes;
 
     await concluirSync(
       supabase,
       syncId,
-      statusFinal,
+      "success",
       mensagemFinal,
       contagemOrigem,
-      { estagios: detalhesEstagios },
-      modo === "bootstrap"
+      { estagios: detalhesEstagios }
     );
 
     console.info(
       `[referencias-sync] ${triggerSource} sync ${syncId} ok em ` +
         `${Date.now() - inicioRun}ms (${contagemOrigem} linhas, ${rejeitadasOrigem} rejeitadas, ` +
-        `modo ${modo}, status ${statusFinal}, ${divergencias} divergências)`
+        `equivalentes ${eq}, criadas ${cr}, arquivadas ${ar}, deletadas ${dl})`
     );
 
-    responder(res, 200, { sync_id: syncId, status: statusFinal });
+    responder(res, 200, { sync_id: syncId, status: "success" });
   } catch (erro) {
     const message = erro instanceof Error ? erro.message : String(erro);
 
@@ -810,9 +716,8 @@ async function executarSync(
     if (syncId) {
       try {
         // Decisão 5 do M4: se a RPC de aplicação já retornou ok, as alterações
-        // SÃO fato (`alteracoes`/contadores gravados na sync) — a falha é da
-        // conclusão; a mensagem registra a verdade (rollback do M5 poderá
-        // reverter). Antes disso, nada foi aplicado (transação abortou).
+        // SÃO fato (contadores gravados na sync) — a falha é da conclusão;
+        // a mensagem registra a verdade. Antes disso, nada foi aplicado.
         const mensagemFalha = aplicado
           ? `Alterações aplicadas; falha ao finalizar a sync: ${message}`
           : message;

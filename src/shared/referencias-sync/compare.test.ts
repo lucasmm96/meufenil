@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { comparar, derivarModoSync, derivarOrigemArquivada } from "./compare";
+import { comparar, derivarOrigemArquivada } from "./compare";
 import type { EntradaComparacao } from "./compare";
-import type { ArquivadaGlobal, GlobalAtiva, IdentidadeReferencia, ModoSync } from "./types";
+import type { ArquivadaGlobal, GlobalAtiva, IdentidadeReferencia } from "./types";
 
 /**
- * Comparação §7.3 — matriz linha a linha: matched | novo | ausente |
- * substituição | reaparição | bloqueio manual | pendência aberta (D-6) |
- * re-apresentação pós-rejeição (decisão humana 2026-09-06) | bootstrap.
+ * Comparação §7.3 — matriz linha a linha (ENH-0009): matched | novo | ausente |
+ * substituição (auto-aplicada) | reaparição | bloqueio manual.
  */
 
-function base(modo: ModoSync = "pos_bootstrap"): EntradaComparacao {
-  return { origem: [], ativas: [], arquivadas: [], pendenciasAbertas: [], decisoes: [], modo };
+function base(): EntradaComparacao {
+  return { origem: [], ativas: [], arquivadas: [] };
 }
 
 function com(parcial: Partial<EntradaComparacao>): EntradaComparacao {
@@ -73,29 +72,6 @@ describe("derivarOrigemArquivada (B8(b), §6.4)", () => {
   });
 });
 
-describe("derivarModoSync (§14.1/§14.4 — 1ª sync × sync confiável)", () => {
-  it("nenhuma sync anterior → bootstrap", () => {
-    expect(derivarModoSync([])).toBe("bootstrap");
-  });
-
-  it("histórico sem extração válida concluída → bootstrap", () => {
-    expect(derivarModoSync([{ status: "failure" }])).toBe("bootstrap");
-    expect(derivarModoSync([{ status: "origin_invalid" }])).toBe("bootstrap");
-    expect(derivarModoSync([{ status: "running" }])).toBe("bootstrap");
-    expect(derivarModoSync([{ status: "failure" }, { status: "origin_invalid" }])).toBe(
-      "bootstrap",
-    );
-  });
-
-  it("sync anterior com extração válida concluída → pos_bootstrap", () => {
-    expect(derivarModoSync([{ status: "success" }])).toBe("pos_bootstrap");
-    expect(derivarModoSync([{ status: "pending_review" }])).toBe("pos_bootstrap");
-    expect(
-      derivarModoSync([{ status: "failure" }, { status: "origin_invalid" }, { status: "success" }]),
-    ).toBe("pos_bootstrap");
-  });
-});
-
 describe("comparar — matched e equivalentes", () => {
   it("matched: mesma identidade canônica nos dois lados → nada", () => {
     const resultado = comparar(
@@ -105,7 +81,6 @@ describe("comparar — matched e equivalentes", () => {
     expect(resultado.equivalentes).toBe(1);
     expect(resultado.itensParaCriar).toEqual([]);
     expect(resultado.ativasParaArquivar).toEqual([]);
-    expect(resultado.pendencias).toEqual([]);
   });
 
   it("matched com variação textual de marca/nome (§7.2 — matching é canônico)", () => {
@@ -117,7 +92,7 @@ describe("comparar — matched e equivalentes", () => {
     );
 
     expect(resultado.equivalentes).toBe(1);
-    expect(resultado.pendencias).toEqual([]);
+    expect(resultado.ativasParaArquivar).toEqual([]);
   });
 
   it("só o nome+marca canônico com fenil IGUAL é matched (184 ≡ 184.0)", () => {
@@ -133,37 +108,20 @@ describe("comparar — matched e equivalentes", () => {
 });
 
 describe("comparar — novo (matriz §7.3)", () => {
-  it("pós-bootstrap: item sem correspondência → criar", () => {
+  it("item sem correspondência na origem → criar automaticamente", () => {
     const resultado = comparar(com({ origem: [item("Cuscuz", "", 5)] }));
 
     expect(resultado.itensParaCriar).toEqual([item("Cuscuz", "", 5)]);
-    expect(resultado.pendencias).toEqual([]);
-  });
-
-  it("bootstrap: 1ª sync — zero auto, tudo vira pendência new_item", () => {
-    const resultado = comparar(com({ modo: "bootstrap", origem: [item("Cuscuz", "", 5)] }));
-
-    expect(resultado.itensParaCriar).toEqual([]);
-    expect(resultado.pendencias).toEqual([
-      { tipo: "new_item", referencia_id: null, proposta: item("Cuscuz", "", 5), diff: null },
-    ]);
+    expect(resultado.ativasParaArquivar).toEqual([]);
   });
 });
 
 describe("comparar — ausente (matriz §7.3)", () => {
-  it("pós-bootstrap: ativa sem correspondência na origem → arquivar", () => {
+  it("ativa sem correspondência na origem → arquivar com motivo='ausencia'", () => {
     const resultado = comparar(com({ ativas: [ativa("a1", "Feijão Preto", "", 150)] }));
 
-    expect(resultado.ativasParaArquivar).toEqual([ativa("a1", "Feijão Preto", "", 150)]);
-    expect(resultado.pendencias).toEqual([]);
-  });
-
-  it("bootstrap: ausência vira pendência, nunca auto-arquiva", () => {
-    const resultado = comparar(com({ modo: "bootstrap", ativas: [ativa("a1", "Feijão Preto", "", 150)] }));
-
-    expect(resultado.ativasParaArquivar).toEqual([]);
-    expect(resultado.pendencias).toEqual([
-      { tipo: "absence", referencia_id: "a1", proposta: null, diff: null },
+    expect(resultado.ativasParaArquivar).toEqual([
+      { ...ativa("a1", "Feijão Preto", "", 150), motivo: "ausencia" },
     ]);
   });
 
@@ -178,42 +136,28 @@ describe("comparar — ausente (matriz §7.3)", () => {
       }),
     );
 
-    expect(resultado.ativasParaArquivar).toEqual([ativa("a2", "Feijão", "", 200)]);
+    expect(resultado.ativasParaArquivar).toEqual([
+      { ...ativa("a2", "Feijão", "", 200), motivo: "ausencia" },
+    ]);
   });
 });
 
-describe("comparar — substituição (B7/§7.4: sempre pendência)", () => {
-  it("mesmo nome+marca, fenil diferente → pendência substitution nos DOIS modos", () => {
-    const resultadoPos = comparar(
+describe("comparar — substituição (ENH-0009: auto-aplicada, B7/§7.4)", () => {
+  it("mesmo nome+marca, fenil diferente → auto-arquiva com motivo='substituicao' e cria novo", () => {
+    const resultado = comparar(
       com({
         origem: [item("Arroz", "Marca A", 150)],
         ativas: [ativa("a1", "Arroz", "Marca A", 100)],
       }),
     );
-    const resultadoBootstrap = comparar(
-      com({
-        modo: "bootstrap",
-        origem: [item("Arroz", "Marca A", 150)],
-        ativas: [ativa("a1", "Arroz", "Marca A", 100)],
-      }),
-    );
 
-    const pendenciaEsperada = [
-      {
-        tipo: "substitution" as const,
-        referencia_id: "a1",
-        proposta: item("Arroz", "Marca A", 150),
-        diff: [{ campo: "fenil_mg_por_100g", antes: 100, depois: 150 }],
-      },
-    ];
-
-    expect(resultadoPos.itensParaCriar).toEqual([]);
-    expect(resultadoPos.ativasParaArquivar).toEqual([]);
-    expect(resultadoPos.pendencias).toEqual(pendenciaEsperada);
-    expect(resultadoBootstrap.pendencias).toEqual(pendenciaEsperada);
+    expect(resultado.itensParaCriar).toEqual([item("Arroz", "Marca A", 150)]);
+    expect(resultado.ativasParaArquivar).toEqual([
+      { ...ativa("a1", "Arroz", "Marca A", 100), motivo: "substituicao" },
+    ]);
   });
 
-  it("diff é verbatim (nome/marca raw) e o alvo não vira ausência", () => {
+  it("alvo da substituição não vira ausência paralela", () => {
     const resultado = comparar(
       com({
         origem: [item("Feijão", "", 150)],
@@ -221,18 +165,10 @@ describe("comparar — substituição (B7/§7.4: sempre pendência)", () => {
       }),
     );
 
-    expect(resultado.pendencias).toEqual([
-      {
-        tipo: "substitution",
-        referencia_id: "a1",
-        proposta: item("Feijão", "", 150),
-        diff: [
-          { campo: "marca", antes: "Produto In Natura", depois: "" },
-          { campo: "fenil_mg_por_100g", antes: 100, depois: 150 },
-        ],
-      },
+    expect(resultado.ativasParaArquivar).toEqual([
+      { ...ativa("a1", "Feijão", "Produto In Natura", 100), motivo: "substituicao" },
     ]);
-    expect(resultado.ativasParaArquivar).toEqual([]);
+    expect(resultado.itensParaCriar).toEqual([item("Feijão", "", 150)]);
   });
 
   it("candidatas múltiplas: alvo = menor distância de fenil; empate → menor id; demais seguem ausência", () => {
@@ -248,18 +184,12 @@ describe("comparar — substituição (B7/§7.4: sempre pendência)", () => {
     );
 
     // distâncias: a(90)=10, b(140)=40 → alvo "a"; "b" fica ausente; "c" ausente.
-    expect(resultado.pendencias).toEqual([
-      {
-        tipo: "substitution",
-        referencia_id: "a",
-        proposta: item("Arroz", "Marca A", 100),
-        diff: [{ campo: "fenil_mg_por_100g", antes: 90, depois: 100 }],
-      },
-    ]);
-    expect(resultado.ativasParaArquivar).toEqual([
-      ativa("b", "Arroz", "Marca A", 140),
-      ativa("c", "Outro Produto", "", 999),
-    ]);
+    const substituicao = resultado.ativasParaArquivar.find((x) => x.motivo === "substituicao");
+    const ausencias = resultado.ativasParaArquivar.filter((x) => x.motivo === "ausencia");
+
+    expect(substituicao?.id).toBe("a");
+    expect(ausencias.map((x) => x.id).sort()).toEqual(["b", "c"]);
+    expect(resultado.itensParaCriar).toEqual([item("Arroz", "Marca A", 100)]);
   });
 
   it("empate de distância: menor id vence (determinístico)", () => {
@@ -273,12 +203,13 @@ describe("comparar — substituição (B7/§7.4: sempre pendência)", () => {
       }),
     );
 
-    expect(resultado.pendencias[0]?.referencia_id).toBe("a");
+    const substituicao = resultado.ativasParaArquivar.find((x) => x.motivo === "substituicao");
+    expect(substituicao?.id).toBe("a");
   });
 });
 
 describe("comparar — reaparição e bloqueio manual (B8, §17)", () => {
-  it("arquivada_pela_origem que reaparece → recria (pós-bootstrap)", () => {
+  it("arquivada_pela_origem que reaparece → recria", () => {
     const resultado = comparar(
       com({
         origem: [item("Cuscuz", "", 5)],
@@ -289,24 +220,7 @@ describe("comparar — reaparição e bloqueio manual (B8, §17)", () => {
     );
 
     expect(resultado.itensParaCriar).toEqual([item("Cuscuz", "", 5)]);
-    expect(resultado.pendencias).toEqual([]);
-  });
-
-  it("bootstrap: reaparição segue o fluxo do novo (pendência, zero auto)", () => {
-    const resultado = comparar(
-      com({
-        modo: "bootstrap",
-        origem: [item("Cuscuz", "", 5)],
-        arquivadas: [
-          arquivada("Cuscuz", "", 5, [evento("referencia_arquivada", "2026-09-01T10:00:00Z")]),
-        ],
-      }),
-    );
-
-    expect(resultado.itensParaCriar).toEqual([]);
-    expect(resultado.pendencias).toEqual([
-      { tipo: "new_item", referencia_id: null, proposta: item("Cuscuz", "", 5), diff: null },
-    ]);
+    expect(resultado.ativasParaArquivar).toEqual([]);
   });
 
   it("reaparição com bloqueio manual posterior → silêncio (nunca recria)", () => {
@@ -323,7 +237,7 @@ describe("comparar — reaparição e bloqueio manual (B8, §17)", () => {
     );
 
     expect(resultado.itensParaCriar).toEqual([]);
-    expect(resultado.pendencias).toEqual([]);
+    expect(resultado.ativasParaArquivar).toEqual([]);
   });
 
   it("arquivada legada sem evento (default bloqueada_manual) e pre_sync_inativa → silêncio", () => {
@@ -336,7 +250,7 @@ describe("comparar — reaparição e bloqueio manual (B8, §17)", () => {
       );
 
       expect(resultado.itensParaCriar).toEqual([]);
-      expect(resultado.pendencias).toEqual([]);
+      expect(resultado.ativasParaArquivar).toEqual([]);
     }
   });
 
@@ -358,132 +272,5 @@ describe("comparar — reaparição e bloqueio manual (B8, §17)", () => {
 
     expect(resultado.itensParaCriar).toEqual([]);
     expect(resultado.ativasParaArquivar).toEqual([]);
-    expect(resultado.pendencias).toEqual([]);
-  });
-});
-
-describe("comparar — pendência aberta suprime (D-6)", () => {
-  it("absence open no alvo: sem auto-arquivo e sem pendência nova", () => {
-    const resultado = comparar(
-      com({
-        ativas: [ativa("a1", "Feijão Preto", "", 150)],
-        pendenciasAbertas: [{ tipo: "absence", referencia_id: "a1", proposta: null }],
-      }),
-    );
-
-    expect(resultado.ativasParaArquivar).toEqual([]);
-    expect(resultado.pendencias).toEqual([]);
-  });
-
-  it("new_item open com a MESMA proposta: sem criação e sem pendência nova", () => {
-    const proposta = item("Cuscuz", "", 5);
-    const resultado = comparar(
-      com({
-        origem: [proposta],
-        pendenciasAbertas: [{ tipo: "new_item", referencia_id: null, proposta }],
-      }),
-    );
-
-    expect(resultado.itensParaCriar).toEqual([]);
-    expect(resultado.pendencias).toEqual([]);
-  });
-
-  it("substitution open cobre o alvo: origem não gera nada; outras ausências seguem", () => {
-    const resultado = comparar(
-      com({
-        origem: [item("Arroz", "Marca A", 150)],
-        ativas: [
-          ativa("a1", "Arroz", "Marca A", 100),
-          ativa("c", "Outro Produto", "", 999),
-        ],
-        pendenciasAbertas: [{ tipo: "substitution", referencia_id: "a1", proposta: item("Arroz", "Marca A", 150) }],
-      }),
-    );
-
-    expect(resultado.itensParaCriar).toEqual([]);
-    expect(resultado.pendencias).toEqual([]);
-    expect(resultado.ativasParaArquivar).toEqual([ativa("c", "Outro Produto", "", 999)]);
-  });
-
-  it("pendência aberta de outra divergência não suprime esta", () => {
-    const resultado = comparar(
-      com({
-        origem: [item("Cuscuz", "", 5)],
-        pendenciasAbertas: [{ tipo: "new_item", referencia_id: null, proposta: item("Outro", "", 7) }],
-      }),
-    );
-
-    expect(resultado.itensParaCriar).toEqual([item("Cuscuz", "", 5)]);
-  });
-});
-
-describe("comparar — re-apresentação pós-rejeição (decisão humana 2026-09-06)", () => {
-  it("ausência rejeitada: nunca auto-arquiva; divergência volta como pendência", () => {
-    const resultado = comparar(
-      com({
-        ativas: [ativa("a1", "Feijão Preto", "", 150)],
-        decisoes: [{ tipo: "absence", referencia_id: "a1", proposta: null, status: "rejected" }],
-      }),
-    );
-
-    expect(resultado.ativasParaArquivar).toEqual([]);
-    expect(resultado.pendencias).toEqual([
-      { tipo: "absence", referencia_id: "a1", proposta: null, diff: null },
-    ]);
-  });
-
-  it("new_item rejeitado: nunca cria automático; divergência volta como pendência", () => {
-    const proposta = item("Cuscuz", "", 5);
-    const resultado = comparar(
-      com({
-        origem: [proposta],
-        decisoes: [{ tipo: "new_item", referencia_id: null, proposta, status: "rejected" }],
-      }),
-    );
-
-    expect(resultado.itensParaCriar).toEqual([]);
-    expect(resultado.pendencias).toEqual([
-      { tipo: "new_item", referencia_id: null, proposta, diff: null },
-    ]);
-  });
-
-  it("decisão approved não suprime auto (sem memória especial de aprovado)", () => {
-    const resultado = comparar(
-      com({
-        ativas: [ativa("a1", "Feijão Preto", "", 150)],
-        decisoes: [{ tipo: "absence", referencia_id: "a1", proposta: null, status: "approved" }],
-      }),
-    );
-
-    expect(resultado.ativasParaArquivar).toEqual([ativa("a1", "Feijão Preto", "", 150)]);
-    expect(resultado.pendencias).toEqual([]);
-  });
-
-  it("rejeição de outra divergência não suprime esta", () => {
-    const resultado = comparar(
-      com({
-        ativas: [ativa("a1", "Feijão Preto", "", 150)],
-        decisoes: [
-          { tipo: "absence", referencia_id: "a2", proposta: null, status: "rejected" },
-        ],
-      }),
-    );
-
-    expect(resultado.ativasParaArquivar).toEqual([ativa("a1", "Feijão Preto", "", 150)]);
-  });
-
-  it("última decisão cronológica vence (approved depois de rejected reautoriza)", () => {
-    const resultado = comparar(
-      com({
-        ativas: [ativa("a1", "Feijão Preto", "", 150)],
-        decisoes: [
-          { tipo: "absence", referencia_id: "a1", proposta: null, status: "rejected" },
-          { tipo: "absence", referencia_id: "a1", proposta: null, status: "approved" },
-        ],
-      }),
-    );
-
-    expect(resultado.ativasParaArquivar).toEqual([ativa("a1", "Feijão Preto", "", 150)]);
-    expect(resultado.pendencias).toEqual([]);
   });
 });
