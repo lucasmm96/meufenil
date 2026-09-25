@@ -36,6 +36,10 @@ const SYNC_FIELDS = `
   created_at
 `;
 
+// ENH-0009 removeu a FK referencia_eventos.referencia_id → referencias; o embed
+// "referencias ( nome, marca )" não funciona mais sem FK no PostgREST. O nome da
+// referência é derivado de detalhes (identidade gravada nos eventos de criação/
+// arquivamento/deleção). Para is_ativa_manual (detalhes = {de, para}), referencia = null.
 const EVENTO_FIELDS = `
   id,
   sync_id,
@@ -45,8 +49,7 @@ const EVENTO_FIELDS = `
   actor_id,
   detalhes,
   created_at,
-  referencia_syncs ( started_at, status ),
-  referencias ( nome, marca )
+  referencia_syncs ( started_at, status )
 `;
 
 const BACKUP_FIELDS = `
@@ -68,7 +71,6 @@ interface EventoRow {
   detalhes: unknown;
   created_at: string;
   referencia_syncs: { started_at: string; status: SyncStatus } | null;
-  referencias: { nome: string; marca: string } | null;
 }
 
 interface BackupRow {
@@ -146,6 +148,11 @@ function parseSyncRow(row: Record<string, unknown>): ReferenciaSyncDTO {
 }
 
 function toEventoDTO(row: EventoRow): EventoSyncDTO {
+  const detalhes = parseDetails(row.detalhes);
+  const referencia =
+    typeof detalhes.nome === "string" && detalhes.nome !== ""
+      ? { nome: detalhes.nome, marca: typeof detalhes.marca === "string" ? detalhes.marca : "" }
+      : null;
   return {
     id: row.id,
     sync_id: row.sync_id,
@@ -153,12 +160,12 @@ function toEventoDTO(row: EventoRow): EventoSyncDTO {
     referencia_id: row.referencia_id,
     tipo: row.tipo,
     actor_id: row.actor_id,
-    detalhes: parseDetails(row.detalhes),
+    detalhes,
     created_at: row.created_at,
     sync: row.referencia_syncs
       ? { started_at: row.referencia_syncs.started_at, status: row.referencia_syncs.status }
       : null,
-    referencia: row.referencias,
+    referencia,
   };
 }
 
@@ -283,7 +290,8 @@ export async function getEventosReferencia(filters: {
 
   const termo = termoReferencia?.trim();
   if (termo) {
-    query = query.ilike("referencias.nome", `%${termo}%`);
+    // ENH-0009: FK removida → filtra pelo nome gravado em detalhes (jsonb ->>)
+    query = query.ilike("detalhes->>nome", `%${termo}%`);
   }
 
   const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);

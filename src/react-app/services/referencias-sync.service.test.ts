@@ -195,10 +195,10 @@ describe("referencias-sync.service", () => {
       referencia_id: "ref-1",
       tipo: "mudanca_aprovada",
       actor_id: "admin-1",
-      detalhes: { tipo: "substitution", motivo: null },
+      // ENH-0009: sem embed referencias (FK removida); nome/marca ficam em detalhes
+      detalhes: { nome: "Arroz Integral", marca: "Marca X", tipo: "substitution", motivo: null },
       created_at: "2026-09-06T12:00:00.000Z",
       referencia_syncs: { started_at: "2026-09-06T12:00:00.000Z", status: "success" },
-      referencias: { nome: "Arroz Integral", marca: "Marca X" },
     };
 
     it("aplica filtros de tipo, sync e termo no nome da referência", async () => {
@@ -219,7 +219,7 @@ describe("referencias-sync.service", () => {
       expect(from).toHaveBeenCalledWith("referencia_eventos");
       expect(b.eq).toHaveBeenCalledWith("tipo", "mudanca_aprovada");
       expect(b.eq).toHaveBeenCalledWith("sync_id", "sync-1");
-      expect(b.ilike).toHaveBeenCalledWith("referencias.nome", "%Arroz%");
+      expect(b.ilike).toHaveBeenCalledWith("detalhes->>nome", "%Arroz%");
 
       expect(page.items[0]).toMatchObject({
         tipo: "mudanca_aprovada",
