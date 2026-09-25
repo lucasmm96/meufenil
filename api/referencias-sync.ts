@@ -152,10 +152,11 @@ type LinhaEventoAuditoria = {
 // os eventos são buscados separadamente e incluem referencia_id para agrupamento.
 type LinhaEventoArquivada = LinhaEventoAuditoria & { referencia_id: string };
 
-/** Linha de evento de remoção lida no estágio audit (ENH-0010). */
+/** Linha de evento de remoção lida no estágio audit (ENH-0010/ENH-0011). */
 type LinhaEventoRemocao = {
   tipo: string;
   referencia_id: string;
+  /** Desde ENH-0011: inclui `motivo` ('ausencia'|'substituicao'|'sweep'). Eventos históricos: motivo ausente. */
   detalhes: Record<string, unknown> | null;
 };
 
@@ -771,11 +772,17 @@ async function executarSync(
         detalhesEstagios.push({
           estagio: "audit",
           status: "ok",
-          alteracoes: eventosRemocao.map((ev) => ({
-            tipo: ev.tipo,
-            referencia_id: ev.referencia_id,
-            identidade: ev.detalhes,
-          })),
+          // ENH-0011: motivo extraído de detalhes como campo separado de identidade.
+          // Eventos históricos sem motivo resultam em motivo: null.
+          alteracoes: eventosRemocao.map((ev) => {
+            const { motivo = null, ...identidade } = ev.detalhes ?? {};
+            return {
+              tipo: ev.tipo,
+              referencia_id: ev.referencia_id,
+              identidade,
+              motivo: motivo as string | null,
+            };
+          }),
         });
       } catch (erroAudit) {
         console.error(

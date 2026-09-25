@@ -1,6 +1,6 @@
 # Tabela public.referencia_eventos
 
-**Última verificação:** 2026-09-24 (ENH-0009 — `referencia_deletada` adicionado ao enum; FK `pendencia_id` → `referencia_sync_pendencias` removida (tabela dropped); seed `pre_sync_inativa` removido. Antes: 2026-09-07 — FEAT-0017 M1–M6)
+**Última verificação:** 2026-09-25 (ENH-0011 — `detalhes` dos eventos `referencia_arquivada`/`referencia_deletada` gerados por `aplicar_sync_referencias` passam a incluir `motivo` ('ausencia'|'substituicao'|'sweep'); campo opcional — eventos históricos sem motivo coexistem. Antes: 2026-09-24 — ENH-0009 — `referencia_deletada` adicionado ao enum; FK `pendencia_id` removida; seed `pre_sync_inativa` removido)
 **DDL versionado em:** `supabase/migrations/20260905000000_referencias_sync_tabelas.sql` (tabela, linhas 131–155) e `20260905010000_referencias_sync_auditoria_is_ativa.sql` (trigger de auditoria manual)
 
 ## Propósito
@@ -65,7 +65,7 @@ Notas factuais:
 
 ## Lifecycle
 
-- **Criação (ENH-0009):** rota `api/referencias-sync.ts` (service_role) — `sync_started`, `extraction`, `validation`, `snapshot_created`, `backup_created`; RPCs SECURITY DEFINER — `aplicar_sync_referencias` (`referencia_criada`/`referencia_arquivada`/`referencia_deletada` com actor Sistema; sem `pre_sync_inativa` — seed removido), `restaurar_referencias_de_backup` (`restore`); trigger `trg_auditar_is_ativa_manual` (`is_ativa_manual` por admin autenticado). **ENH-0009 removeu:** `decidir_pendencia_referencia` (`mudanca_aprovada`/`mudanca_rejeitada`), `reverter_sync_referencias` (`rollback`/`pendencia_cancelada`) `[CONFIRMED: migrations 20260905000000/20260905010000/20260906000000/20260906010000/20260923000000]`.
+- **Criação (ENH-0009/ENH-0011):** rota `api/referencias-sync.ts` (service_role) — `sync_started`, `extraction`, `validation`, `snapshot_created`, `backup_created`; RPCs SECURITY DEFINER — `aplicar_sync_referencias` (`referencia_criada`/`referencia_arquivada`/`referencia_deletada` com actor Sistema; sem `pre_sync_inativa` — seed removido; **ENH-0011:** `detalhes` dos eventos de remoção incluem `motivo`), `restaurar_referencias_de_backup` (`restore`); trigger `trg_auditar_is_ativa_manual` (`is_ativa_manual` por admin autenticado). **ENH-0009 removeu:** `decidir_pendencia_referencia` (`mudanca_aprovada`/`mudanca_rejeitada`), `reverter_sync_referencias` (`rollback`/`pendencia_cancelada`) `[CONFIRMED: migrations 20260905000000/20260905010000/20260906000000/20260906010000/20260923000000/20260925000000]`.
 - **Atualização/exclusão:** não suportadas — trilha imutável (sem política; sem canal) `[CONFIRMED: database]`.
 - **Leitura:** admin (RLS); UI do Admin (M6) exibe a linha do tempo `[CONFIRMED: code]`.
 
@@ -85,7 +85,7 @@ Notas factuais:
 
 - E1 — DDL, enum, índices e RLS: migration 20260905000000 `[CONFIRMED: migration]`
 - E2 — Trigger de auditoria manual + GUC: migration 20260905010000 `[CONFIRMED: migration]`
-- E3 — Escritas pelos RPCs e seed: migrations 20260906000000/20260906010000/20260907000000; ENH-0009: migration 20260923000000 (`referencia_deletada`; FK `pendencia_id` removida; seed suprimido) `[CONFIRMED: migration]`
+- E3 — Escritas pelos RPCs e seed: migrations 20260906000000/20260906010000/20260907000000; ENH-0009: migration 20260923000000 (`referencia_deletada`; FK `pendencia_id` removida; seed suprimido); ENH-0011: migration 20260925000000 (`motivo` em `detalhes` dos eventos de remoção gerados pela RPC) `[CONFIRMED: migration]`
 
 ## Veja também
 

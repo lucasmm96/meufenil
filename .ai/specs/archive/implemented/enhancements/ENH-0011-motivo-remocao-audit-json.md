@@ -1,7 +1,7 @@
 # ENH-0011 — Motivo de remoção no evento e no audit JSON
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Motivo de remoção no evento e no audit JSON
 **Issue:** #95
 **Created on:** 2026-09-25
@@ -107,6 +107,7 @@ Nenhuma.
 **C — Não implementar:** Manter o estado atual. Não escolhida.
 
 **Decision:** Alternativa B — **Approved by:** Lucas Martins Menezes — **Approved on:** 2026-09-25
+**Implemented Through:** migration `20260925000000_enh_0011_motivo_remocao_audit.sql` + `api/referencias-sync.ts` (audit stage) — dev 2026-09-25
 
 ## Open Questions
 

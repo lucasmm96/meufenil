@@ -3,7 +3,7 @@
 **ID:** FEAT-0017
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-25 (ENH-0009: curadoria/rollback/bootstrap/seed removidos — deleção física integrada ao sync; ENH-0010: estágio audit adicionado após o apply)
+**Última verificação:** 2026-09-25 (ENH-0011: `motivo` adicionado a `detalhes` dos eventos de remoção na RPC e surfaçado como campo separado no audit JSON; ENH-0009: curadoria/rollback/bootstrap/seed removidos; ENH-0010: estágio audit adicionado após o apply)
 
 ## Purpose
 
@@ -28,8 +28,8 @@ Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is
 4. Snapshot (estágio 4): payload decodificado **das linhas válidas** gravado em `referencia_snapshots` com sha256 e contagem + evento `snapshot_created` `[CONFIRMED: code]`.
 5. Backup (estágio 5): estado pré-aplicação de `referencias` (globais) em `referencia_backups` com sha256 e contagem + evento `backup_created` `[CONFIRMED: code]`.
 6. Comparação (estágio 6, motor M3 — simplificado pelo ENH-0009): `canonical.ts`/`compare.ts` (matching determinístico; consulta ativas e arquivadas globais) geram o plano `{ versao, criacoes, arquivamentos }` — `arquivamentos[].motivo: "ausencia"|"substituicao"`; substituições auto-aplicadas `[CONFIRMED: code — compare.ts; migration 20260923000000 (ENH-0009)]`.
-7. Aplicação (estágio 7, RPC M4 — reescrita pelo ENH-0009): `aplicar_sync_referencias` (RPC, service_role): criações, arquivamentos e **deleção física** (FK violation → degradação a arquivamento), **sweep retroativo** de até 100 globais inativas sem relacionamentos — tudo na mesma transação; guardas de estado (23505 → rollback total). Retorna `{ sync_id, equivalentes, criadas, arquivadas, deletadas }` `[CONFIRMED: code; migration 20260923000000 (ENH-0009)]`.
-7.5. Audit (ENH-0010): quando `arquivadas > 0 || deletadas > 0`, a rota lê `referencia_eventos` para o sync atual (`tipo IN ('referencia_deletada', 'referencia_arquivada')`) e adiciona `{ estagio: 'audit', status: 'ok', alteracoes: [{ tipo, referencia_id, identidade }] }` em `details.estagios`; identidade lida de `referencia_eventos.detalhes` (gravada pela RPC no apply); isolado em try/catch — falha não impede conclusão `[CONFIRMED: code — api/referencias-sync.ts]`.
+7. Aplicação (estágio 7, RPC M4 — reescrita pelo ENH-0009/ENH-0011): `aplicar_sync_referencias` (RPC, service_role): criações, arquivamentos e **deleção física** (FK violation → degradação a arquivamento), **sweep retroativo** de até 100 globais inativas sem relacionamentos — tudo na mesma transação; guardas de estado (23505 → rollback total). **ENH-0011:** eventos de remoção têm `detalhes = {nome, marca, fenil_mg_por_100g, motivo}` (`ausencia`|`substituicao`|`sweep`). Retorna `{ sync_id, equivalentes, criadas, arquivadas, deletadas }` `[CONFIRMED: code; migration 20260923000000 (ENH-0009); migration 20260925000000 (ENH-0011)]`.
+7.5. Audit (ENH-0010/ENH-0011): quando `arquivadas > 0 || deletadas > 0`, a rota lê `referencia_eventos` para o sync atual (`tipo IN ('referencia_deletada', 'referencia_arquivada')`) e adiciona `{ estagio: 'audit', status: 'ok', alteracoes: [{ tipo, referencia_id, identidade, motivo }] }` em `details.estagios`; **ENH-0011:** `motivo` extraído de `ev.detalhes` como campo separado de `identidade = {nome, marca, fenil_mg_por_100g}` (eventos históricos: `motivo: null`); isolado em try/catch — falha não impede conclusão `[CONFIRMED: code — api/referencias-sync.ts; migration 20260925000000]`.
 8. Conclusão (estágio 8 — simplificado pelo ENH-0009): rota finaliza a sync sempre como `success` (sem pendências/curadoria); `failure` apenas em erro técnico `[CONFIRMED: code — rota]`.
 
 ## Alternative Flows
@@ -113,6 +113,7 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - E5 — Suítes REAL M1–M6 executadas contra dev; M1–M6 em prod desde a release v1.11.0 (2026-09-10) `[CONFIRMED: database — catálogo prod 2026-09-11]`
 - E6 — ENH-0009: migration 20260923000000 (deleção física + simplificação — dev 2026-09-24, prod release v1.15.0) `[CONFIRMED: migration]`
 - E7 — ENH-0010: `api/referencias-sync.ts` (estágio audit) — dev 2026-09-25, prod release v1.15.1 `[CONFIRMED: code]`
+- E8 — ENH-0011: migration 20260925000000 + `api/referencias-sync.ts` (audit stage motivo) — dev 2026-09-25 `[CONFIRMED: migration, code]`
 
 ## Unknowns
 
