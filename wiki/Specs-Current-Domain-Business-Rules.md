@@ -1,6 +1,6 @@
 # Business Rules — MeuFenil
 
-**Última verificação:** 2026-09-07 (FEAT-0017 M1–M6 — seção Sincronização BR-038–047; ressalvas BR-023/024/026/027; migrations 20260905*/20260906*/20260907000000 aplicadas em dev)
+**Última verificação:** 2026-09-24 (ENH-0009 — BR-037/039/040/043/045/046/047 revisadas; BR-043 revogada; migration 20260923000000; FEAT-0017 M1–M6 — seção Sincronização BR-038–047; ressalvas BR-023/024/026/027; migrations 20260905*/20260906*/20260907000000 aplicadas em dev)
 
 Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o formato: Given / When / Then + Evidence + Implementation + Tests + Related Specs + Status. Status: `Confirmed + tested` · `Confirmed + partially tested` · `Confirmed + untested` · `Inferred` · `Unknown`. Regras em que a evidência não permite confirmação NÃO são listadas como fatos.
 
@@ -334,14 +334,14 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tests:** sem teste dedicado `[CONFIRMED: ausência]`
 - **Status:** Confirmed + untested
 
-### BR-037 — Globais nunca são excluídas fisicamente pela aplicação
+### BR-037 — Globais só são excluídas fisicamente pelo processo de sync; remoção manual sempre arquiva
 - **Tipo:** lifecycle
 - **Given:** referência global (`is_global = true`)
-- **When:** remoção via RPC `remover_ou_desativar_referencia` (única via da aplicação)
-- **Then:** SEMPRE arquivamento — `is_ativa = false`, `updated_at = now()`, retorna `'deactivated'` — inclusive quando não há registros vinculados; nunca DELETE físico pela aplicação; reativação de global apenas por admin
-- **Evidence:** `[CONFIRMED: migration 20260904000000 (linhas 96-164); migration 20260905020000 (guarda de reativação global — FEAT-0017 M1/R4-3); code — referencias.service.ts:323-338]`
-- **Tests:** T3.7 de `src/shared/security/rpc-remover-referencia.test.ts` (condicionado a `isEnh0004MigrationApplied`); T2.6–T2.8 de `rpc-ativar-referencia.test.ts` (guarda de reativação — condicionado a `isFeat0017M1Applied`) `[CONFIRMED: test]`
-- **Status:** Confirmed + tested
+- **When:** remoção via RPC `remover_ou_desativar_referencia` (única via da aplicação) **OU** sync detecta ausência na origem
+- **Then:** via `remover_ou_desativar_referencia` → SEMPRE arquivamento (`is_ativa = false`) — nunca DELETE físico; via sync (`aplicar_sync_referencias`) → global ausente SEM `registros` e SEM `referencias_favoritas` → DELETE físico (`referencia_deletada`); ausente COM qualquer relacionamento → `is_ativa = false`; o ENH-0009 (migration 20260923000000) criou a exceção de sync: a RPC `remover_ou_desativar_referencia` ainda nunca deleta fisicamente; reativação de global apenas por admin
+- **Evidence:** `[CONFIRMED: migration 20260904000000 (linhas 96-164); migration 20260905020000 (guarda de reativação global); migration 20260923000000 (aplicar_sync_referencias — deleção física + race condition degradation); code — referencias.service.ts:323-338]`
+- **Tests:** T3.7 de `src/shared/security/rpc-remover-referencia.test.ts`; T2.6–T2.8 de `rpc-ativar-referencia.test.ts`; suíte REAL `rpc-referencias-sync.test.ts` (ENH-0009) `[CONFIRMED: test]`
+- **Status:** Confirmed + partially tested
 
 ## Sincronização de referências com a origem (FEAT-0017 — 2026-09-06/07)
 
@@ -350,35 +350,35 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 ### BR-038 — Sincronização controla apenas referências globais
 - **Tipo:** escopo
 - **Given:** sincronização (sync) com a origem
-- **When:** qualquer estágio (comparação, aplicação, curadoria, rollback, restauração)
-- **Then:** somente o conjunto `is_global = true` é avaliado/alterado; referências pessoais (`is_global = false`) nunca são criadas, arquivadas, reativadas ou tocadas pela infraestrutura de sync — restauração de backup explicita "pessoais nunca tocadas"
-- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/engine.ts:9-19, compare.ts:35-39 ("nunca toca is_global = false"); migration 20260906000000 (aplicar: INSERTs sempre is_global = true); migration 20260906010000 (restaurar filtra is_global = true no payload)]`
-- **Tests:** suítes do motor (53) + REAL M4–M6 `[CONFIRMED: test]`
+- **When:** qualquer estágio (comparação, aplicação, restauração)
+- **Then:** somente o conjunto `is_global = true` é avaliado/alterado; referências pessoais (`is_global = false`) nunca são criadas, arquivadas, reativadas, deletadas ou tocadas pela infraestrutura de sync — restauração de backup explicita "pessoais nunca tocadas"
+- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/engine.ts, compare.ts ("nunca toca is_global = false"); migration 20260906010000 (restaurar filtra is_global = true no payload); migration 20260923000000 (ENH-0009: deleção física e sweep só em is_global = true)]`
+- **Tests:** suítes do motor + REAL ENH-0009 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-039 — Sync não confiável jamais cria, arquiva ou altera referências
-- **Tipo:** lifecycle (segurança do bootstrap)
+### BR-039 — Sync com extração/validação inválida aborta sem efeito; proteção pré-sync por backup
+- **Tipo:** lifecycle (segurança da aplicação)
 - **Given:** execução de sync
-- **When:** o modo do ambiente ainda é `bootstrap` (nenhuma sync anterior `success`/`pending_review` no histórico) OU a extração/validação falhou (origem inválida/não confiável)
-- **Then:** zero alterações automáticas no catálogo — divergências viram pendências de curadoria (bootstrap) ou a sync aborta antes de qualquer efeito (validação B9: estrutura inesperada ou nenhuma linha válida restante; duplicidade conflitante rejeita o par inteiro — BR-044); o modo passa a `pos_bootstrap` somente quando existe sync anterior confiável concluída (`derivarModoSync`)
-- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts:117-122 (derivarModoSync), src/shared/powerbi/validate.ts (checks 1/2 abortam; check 3 rejeita linha a linha; check 4 rejeita grupos conflitantes inteiros); migration 20260907000000 header ("o motor nunca emite bootstrap com efeito automático")]`
-- **Tests:** `compare.test.ts` (bootstrap = zero auto), `engine.test.ts` (falha em cada estágio — nada aplicado), `validate.test.ts` (24), `referencias-sync.test.ts`, REAL M4 `[CONFIRMED: test]`
+- **When:** a extração/validação falhou (origem inválida/não confiável) OU a sync ainda não foi validada no ambiente (primeira sync)
+- **Then:** sync com falha de extração/validação aborta antes de qualquer efeito (validação B9: estrutura inesperada ou nenhuma linha válida restante; duplicidade conflitante rejeita o par inteiro — BR-044); ENH-0009 removeu a distinção bootstrap/pos_bootstrap (`derivarModoSync` removido — columna `bootstrap` dropada) — toda sync confiável aplica automaticamente; proteção da 1ª sync: backup completo é criado ANTES de `aplicar_sync_referencias` (integridade garantida por sha256), possibilitando restauração se o resultado for indesejado
+- **Evidence:** `[CONFIRMED: code — src/shared/powerbi/validate.ts (checks 1/2 abortam; check 3 rejeita linha a linha; check 4 rejeita grupos conflitantes inteiros); migration 20260923000000 (ENH-0009: DROP COLUMN bootstrap; ausência de derivarModoSync no motor)]`
+- **Tests:** `engine.test.ts` (falha em cada estágio — nada aplicado), `validate.test.ts`, REAL ENH-0009 `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-040 — Mudança substantiva na origem = arquivar + criar, somente por curadoria
+### BR-040 — Mudança substantiva na origem = arquivar + criar, auto-aplicada (ENH-0009)
 - **Tipo:** lifecycle
-- **Given:** divergência substantiva (nome/marca/fenil) entre a origem e uma global ativa
+- **Given:** divergência substantiva (`fenil_mg_por_100g` diferente, mesma identidade `nome+marca`) entre a origem e uma global ativa
 - **When:** sincronização detecta a mudança
-- **Then:** a alteração NUNCA é aplicada por UPDATE in-place — vira pendência `substitution` com diff estruturado; aprovar = arquivar a atual + criar a nova a partir da proposta; rejeitar = nenhuma alteração de dados; guardas de estado abortam com ROLLBACK total se a linha mudou entre comparação e aplicação (23505/estado → exceção)
-- **Evidence:** `[CONFIRMED: migration 20260906000000 (aplicar/decidir — sem UPDATE substantivo; guardas de estado linhas 104-152, 323-377)]`
-- **Tests:** suíte REAL `rpc-referencias-sync.test.ts` (M4) `[CONFIRMED: test]`
+- **Then:** a alteração NUNCA é aplicada por UPDATE in-place — convertida automaticamente em dois passos: archive (fenil antigo, `detalhes.motivo='substituicao'`) + create (fenil atualizado, ator Sistema); a origem é sempre fonte da verdade para `fenil_mg_por_100g`; sem revisão humana (ENH-0009 revogou curadoria — BR-043 removida); guardas de estado abortam com ROLLBACK total se a linha mudou entre comparação e aplicação (23505/estado → exceção)
+- **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/compare.ts (substitution → archive+create), engine.ts (construirPlanoSync); migration 20260923000000 (ENH-0009: auto-aplicação de substitutions; motivo nos eventos)]`
+- **Tests:** `compare.test.ts` (4 substituição); `engine.test.ts` (construirPlanoSync); suíte REAL `rpc-referencias-sync.test.ts` (ENH-0009) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-041 — Matching determinístico decide identidade; similaridade só auxilia
 - **Tipo:** matching
 - **Given:** comparação origem × catálogo
 - **When:** identidade precisa ser decidida
-- **Then:** chave canônica `(nome, marca, fenil_mg_por_100g)` normalizada de forma determinística (mesma do índice único de identidade ativa da ENH-0004); similaridade/heurística e IA/LLM nunca decidem identidade — no máximo auxílio de curadoria (fora do escopo M1–M7, sem implementação)
+- **Then:** chave canônica `(nome, marca, fenil_mg_por_100g)` normalizada de forma determinística (mesma do índice único de identidade ativa da ENH-0004); similaridade/heurística e IA/LLM nunca decidem identidade
 - **Evidence:** `[CONFIRMED: code — src/shared/referencias-sync/canonical.ts (chaveRef), compare.ts; ausência — sem IA/similaridade no motor]`
 - **Tests:** `canonical.test.ts` `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
@@ -387,19 +387,16 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tipo:** lifecycle (B8 — derivação por eventos)
 - **Given:** global inativa (`is_global = true, is_ativa = false`) e presença na origem
 - **When:** sincronização compara
-- **Then:** arquivada-pela-origem (evento `referencia_arquivada`) reaparecendo → tratada como referência NOVA (recriação com id novo, mesmo fluxo de inclusão); bloqueada-manual (global inativa com evento `is_ativa_manual`/`pre_sync_inativa` ou sem evento de arquivamento por sync) → presença na origem é silenciosa, nunca auto-reativa; a distinção é derivada dos eventos de auditoria (B8 — sem coluna nova em `referencias`); globais inativas legadas sem evento recebem 1 evento `pre_sync_inativa` (seed) na 1ª sync confiável do ambiente; reativações por rollback/restauração são a EXCEÇÃO auditada (evento `rollback`/`restore`, nunca tipo `ativar`/`is_ativa_manual` — GUC `app.audit_origin`)
+- **Then:** arquivada-pela-origem (evento `referencia_arquivada`) reaparecendo → tratada como referência NOVA (recriação com id novo, mesmo fluxo de inclusão); bloqueada-manual (global inativa com evento `is_ativa_manual`/`pre_sync_inativa` ou sem evento de arquivamento por sync) → presença na origem é silenciosa, nunca auto-reativa; a distinção é derivada dos eventos de auditoria (B8 — sem coluna nova em `referencias`); ENH-0009 removeu o seed de `pre_sync_inativa` (`derivarModoSync` e coluna `bootstrap` dropados — globais legadas sem evento agora entram como candidatas ao sweep retroativo); reativações por restauração são a EXCEÇÃO auditada (evento `restore`, nunca tipo `ativar`/`is_ativa_manual` — GUC `app.audit_origin`)
 - **Evidence:** `[CONFIRMED: code — compare.ts:30-33 (reaparição de bloqueio manual → silêncio), src/shared/referencias-sync/compare.ts; migration 20260907000000 (seed pre_sync_inativa, actor NULL, só em bootstrap); migration 20260906010000 (reativações auditadas com evento rollback/restore)]`
 - **Tests:** `compare.test.ts` (reaparição origem×manual, com e sem seed); suíte REAL `rpc-referencias-sync-seed.test.ts` (6 testes) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-043 — Curadoria independente por sync; rejeição exige motivo e vira divergência conhecida
-- **Tipo:** curadoria
-- **Given:** pendência `open` de uma sync
-- **When:** admin decide (aprovar/rejeitar)
-- **Then:** aprovar executa a mudança da pendência (por tipo: `absence` arquiva; `new_item` cria a proposta; `substitution` arquiva + cria — ator Sistema nas criações, admin como actor dos eventos); rejeitar exige motivo (CHECK + guarda) e não altera dados — a divergência vira conhecida e deliberada, reapresentada em syncs seguintes até decisão; a decisão vale SÓ para a sync da pendência (não cria regra permanente); pendência terminal não recebe nova decisão; a última pendência `open` da sync decidida → sync `success` ("sincronizado" = sem divergências desconhecidas)
-- **Evidence:** `[CONFIRMED: migration 20260906000000 (decidir_pendencia_referencia linhas 226-450; lock de linha; motivo obrigatório; última open → success linhas 424-437)]`
-- **Tests:** suíte REAL `rpc-referencias-sync.test.ts` (aprovar por tipo/rejeitar/terminal) `[CONFIRMED: test]`
-- **Status:** Confirmed + tested
+### BR-043 — ~~Curadoria~~ REVOGADO pelo ENH-0009 (2026-09-24)
+- **Tipo:** curadoria (REVOGADA)
+- **Revogação:** ENH-0009 (migration 20260923000000) removeu integralmente o mecanismo de curadoria: `referencia_sync_pendencias`, `decidir_pendencia_referencia` e a lógica de pendências foram dropados. Substitutions agora são auto-aplicadas (BR-040). Regra sem implementação ativa — mantida no histórico para rastreabilidade.
+- **Evidence:** `[CONFIRMED: migration 20260923000000 — DROP TABLE referencia_sync_pendencias CASCADE; DROP FUNCTION decidir_pendencia_referencia]`
+- **Status:** Revoked (ENH-0009)
 
 ### BR-044 — Duplicidade conflitante na origem rejeita o par inteiro
 - **Tipo:** validação
@@ -410,29 +407,29 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **Tests:** `validate.test.ts` (par conflitante rejeitado inteiro com sync seguindo; conflito aponta linhas originais; marca nula × vazia; tripla) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-045 — Sync é unidade com ID único; single-flight; pendências canceladas/revertidas sem nova decisão
+### BR-045 — Sync é unidade com ID único; single-flight
 - **Tipo:** lifecycle (concorrência)
 - **Given:** execução de sincronização
-- **When:** qualquer escrita de sync/curadoria
-- **Then:** cada sync é linha própria (`referencia_syncs`) com ID único rastreando eventos, pendências, snapshots e backups; no máximo UMA sync `running` por environment (índice único parcial — segunda simultânea viola 23505 e a rota responde 409 sem registrar linha); decisões/rollback/restauração serializam com locks na ordem pendências → syncs; pendências canceladas (rollback/restauração) permanecem no histórico com evento `pendencia_cancelada` e nunca recebem nova decisão
-- **Evidence:** `[CONFIRMED: migration 20260905000000 (tabelas linhas 58-190; single-flight linhas 90-92); migration 20260906010000 (locks e cancelação de pendências linhas 280-297, 563-581)]`
-- **Tests:** REAL M1.1–M1.5 (RLS/single-flight), M4 (concorrência) `[CONFIRMED: test]`
+- **When:** qualquer escrita de sync
+- **Then:** cada sync é linha própria (`referencia_syncs`) com ID único rastreando eventos, snapshots e backups; no máximo UMA sync `running` por environment (índice único parcial — segunda simultânea viola 23505 e a rota responde 409 sem registrar linha); ENH-0009 removeu pendências e rollback seletivo — restauração (`restaurar_referencias_de_backup`) não cancela pendências (`pendencias_canceladas = 0` sempre)
+- **Evidence:** `[CONFIRMED: migration 20260905000000 (tabelas; single-flight linhas 90-92); migration 20260923000000 (ENH-0009: pendências removidas; restaurar retorna pendencias_canceladas=0)]`
+- **Tests:** REAL M1.1–M1.5 (RLS/single-flight); suíte REAL `rpc-referencias-sync-rollback.test.ts` (restaurar) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
-### BR-046 — Backup pré-aplicação com retenção própria de 12 meses; rollback seletivo preserva alterações posteriores
+### BR-046 — Backup pré-aplicação com retenção própria de 12 meses; restauração excepcional como única via de rollback
 - **Tipo:** retenção/recuperação
-- **Given:** sync com extração válida (backup criado no estágio 5, antes de aplicar) / incidente que exige desfazer uma sync
-- **When:** backup/reversão/restauração
-- **Then:** backup completo de `referencias` (payload + sha256, contagem) é gravado por sync com retenção FIXADA de 12 meses (trigger próprio — fora do trim 365d da BR-027, que continua valendo só para `background_job_executions`); rollback seletivo (`reverter_sync_referencias`) desfaz SOMENTE as alterações da sync escolhida em ordem reversa, com guarda por operação que PRESERVA alterações posteriores (referência já mudada/reativada/recriada → skip registrado com motivo; nunca DELETE); **revisão 2026-09-14 (migration 20260914000000):** sync sem alterações COM pendências open (caso bootstrap) cancela as pendências e marca a sync `reverted` — sem alterações E sem pendências mantém o no-op informativo; restauração excepcional (`restaurar_referencias_de_backup`) verifica o sha256 do payload antes de qualquer efeito (digest via `extensions.digest`), devolve o conjunto global a refletir o backup, cancela TODAS as pendências open, não cria linha de sync (evento único `restore` com ids) e nunca apaga histórico
-- **Evidence:** `[CONFIRMED: migration 20260905000000 (tabelas de backup linhas 177-190; trigger linhas 260-279); migration 20260906010000 (reverter linhas 103-317; restaurar linhas 345-608 — integridade sha256 linhas 434-437; decisões humanas de 2026-09-06 no header); migration 20260914000000 (no-op revisado do reverter — decisão do usuário 2026-09-14)]`
-- **Tests:** suíte REAL `rpc-referencias-sync-rollback.test.ts` (18 testes — reverter 12/restaurar 6) `[CONFIRMED: test]`
+- **Given:** sync com extração válida (backup criado no estágio 5, antes de aplicar) / incidente que exige reverter o catálogo
+- **When:** backup/restauração
+- **Then:** backup completo de `referencias` (payload + sha256, contagem) é gravado por sync com retenção FIXADA de 12 meses (trigger próprio — fora do trim 365d da BR-027, que continua valendo só para `background_job_executions`); ENH-0009 (migration 20260923000000) removeu `reverter_sync_referencias` (rollback seletivo) — recuperação feita EXCLUSIVAMENTE via `restaurar_referencias_de_backup`; restauração verifica o sha256 do payload antes de qualquer efeito (digest via `extensions.digest`), devolve o conjunto global a refletir o backup, não cancela pendências (removidas pelo ENH-0009 — `pendencias_canceladas = 0`), não cria linha de sync (evento único `restore` com ids) e nunca apaga histórico; referências fisicamente deletadas que existem no backup são recriadas por INSERT com UUID original
+- **Evidence:** `[CONFIRMED: migration 20260905000000 (backup trigger linhas 260-279); migration 20260906010000 (restaurar — integridade sha256); migration 20260923000000 (ENH-0009: DROP FUNCTION reverter_sync_referencias; restaurar reescrita — pendencias_canceladas=0)]`
+- **Tests:** suíte REAL `rpc-referencias-sync-rollback.test.ts` (6 testes — restaurar) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
 
 ### BR-047 — Auditoria de sync/curadoria e de alteração manual de is_ativa; fronteira OQ4 preservada
 - **Tipo:** auditoria
 - **Given:** eventos de sincronização/curadoria ou UPDATE de `is_ativa` por admin
 - **When:** escrita ocorre
-- **Then:** tabela única `referencia_eventos` (RLS admin-only, escritas via service_role/RPCs SECURITY DEFINER) registra o catálogo mínimo (sync iniciada, extração, validação, snapshot/backup, referência criada/arquivada, mudança aprovada/rejeitada + motivo, rollback, restauração, pendência cancelada, `pre_sync_inativa`); alteração manual de `is_ativa` por admin é sempre auditada (`trg_auditar_is_ativa_manual` — evento `is_ativa_manual`, GUC `app.audit_origin='curadoria'` suprime o trigger quando a RPC já registra evento específico); escritas de sync usam o ator Sistema (`sistema@meufenil.local` — resolvido por email, ausente → fail-high) nas criações; operações manuais atuais fora do sync (RPCs de remoção/ativação, criação/edição admin) NÃO ganham nova infra de auditoria (fronteira OQ4)
+- **Then:** tabela única `referencia_eventos` (RLS admin-only, escritas via service_role/RPCs SECURITY DEFINER) registra o catálogo mínimo (sync iniciada, extração, validação, snapshot/backup, referência criada/arquivada/deletada, mudança aprovada/rejeitada + motivo, restauração); ENH-0009 adicionou `referencia_deletada` ao enum e removeu `pendencia_cancelada` e `rollback` como tipos gerados ativamente (permanecem no enum como histórico); alteração manual de `is_ativa` por admin é sempre auditada (`trg_auditar_is_ativa_manual` — evento `is_ativa_manual`, GUC `app.audit_origin` suprime o trigger quando a RPC já registra evento específico); escritas de sync usam o ator Sistema (`sistema@meufenil.local` — resolvido por email, ausente → fail-high) nas criações; operações manuais fora do sync (RPCs de remoção/ativação, criação/edição admin) NÃO ganham nova infra de auditoria (fronteira OQ4)
 - **Evidence:** `[CONFIRMED: migration 20260905000000 (tabela eventos linhas 131-155; RLS linhas 198-252); migration 20260905010000 (trigger/GUC); migration 20260906000000 (actor Sistema — resolução por email linhas 75-93, 343-352)]`
 - **Tests:** suítes REAL M1–M6 verificam eventos e GUC (ex.: `rpc-referencias-sync-rollback.test.ts:423` — flips não viraram `is_ativa_manual`) `[CONFIRMED: test]`
 - **Status:** Confirmed + tested
