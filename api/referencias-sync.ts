@@ -94,6 +94,45 @@ async function buscarTodasAsLinhas<T>(
   return linhas;
 }
 
+/**
+ * Busca eventos de auditoria para um conjunto de referências arquivadas.
+ * Utiliza `.in("referencia_id", lote)` em batches de 200 IDs para evitar URLs
+ * muito longas. Pagina com `buscarTodasAsLinhas` dentro de cada batch.
+ *
+ * A FK referencia_eventos.referencia_id → referencias foi removida no ENH-0009,
+ * impossibilitando o embed PostgREST "referencia_eventos(...)". Este helper
+ * substitui o embed com duas consultas sequenciais (refs → eventos por lote).
+ */
+const LOTE_IDS_EVENTOS = 200;
+
+async function buscarEventosDasArquivadas(
+  supabase: SupabaseClient,
+  ids: string[]
+): Promise<Map<string, LinhaEventoAuditoria[]>> {
+  const mapa = new Map<string, LinhaEventoAuditoria[]>();
+  if (ids.length === 0) return mapa;
+
+  for (let i = 0; i < ids.length; i += LOTE_IDS_EVENTOS) {
+    const lote = ids.slice(i, i + LOTE_IDS_EVENTOS);
+
+    const eventos = await buscarTodasAsLinhas<LinhaEventoArquivada>((from, to) =>
+      supabase
+        .from("referencia_eventos")
+        .select("id, tipo, created_at, referencia_id")
+        .in("referencia_id", lote)
+        .range(from, to)
+    );
+
+    for (const ev of eventos) {
+      const lista = mapa.get(ev.referencia_id) ?? [];
+      lista.push({ id: ev.id, tipo: ev.tipo, created_at: ev.created_at });
+      mapa.set(ev.referencia_id, lista);
+    }
+  }
+
+  return mapa;
+}
+
 // Linhas do estado consultado no estágio 6 (service_role; shape do PostgREST —
 // a rota não usa os tipos gerados do Supabase, tipa o contrato que consome).
 type LinhaGlobalAtiva = {
@@ -109,9 +148,9 @@ type LinhaEventoAuditoria = {
   created_at: string;
 };
 
-type LinhaGlobalArquivada = LinhaGlobalAtiva & {
-  referencia_eventos: LinhaEventoAuditoria[] | null;
-};
+// ENH-0009 removeu a FK referencia_eventos.referencia_id → referencias;
+// os eventos são buscados separadamente e incluem referencia_id para agrupamento.
+type LinhaEventoArquivada = LinhaEventoAuditoria & { referencia_id: string };
 
 /** Resumo retornado pela RPC `aplicar_sync_referencias` (estágio 7/8). */
 type ResumoAplicacao = {
@@ -452,12 +491,11 @@ async function consultarEstadoCatalogo(
         .eq("is_ativa", true)
         .range(from, to)
     ),
-    buscarTodasAsLinhas<LinhaGlobalArquivada>((from, to) =>
+    // ENH-0009: sem o embed referencia_eventos — FK removida. Eventos buscados abaixo.
+    buscarTodasAsLinhas<LinhaGlobalAtiva>((from, to) =>
       supabase
         .from("referencias")
-        .select(
-          "id, nome, marca, fenil_mg_por_100g, referencia_eventos(id, tipo, created_at)"
-        )
+        .select("id, nome, marca, fenil_mg_por_100g")
         .eq("is_global", true)
         .eq("is_ativa", false)
         .range(from, to)
@@ -471,11 +509,14 @@ async function consultarEstadoCatalogo(
     fenil_mg_por_100g: linha.fenil_mg_por_100g,
   }));
 
+  const arquivadaIds = arquivadasBrutas.map((r) => r.id);
+  const eventosPorRef = await buscarEventosDasArquivadas(supabase, arquivadaIds);
+
   const arquivadas: ArquivadaGlobal[] = arquivadasBrutas.map((linha) => ({
     nome: linha.nome,
     marca: linha.marca,
     fenil_mg_por_100g: linha.fenil_mg_por_100g,
-    eventos: ordenarEventos(linha.referencia_eventos ?? []).map((evento) => ({
+    eventos: ordenarEventos(eventosPorRef.get(linha.id) ?? []).map((evento) => ({
       tipo: evento.tipo,
       criadoEm: evento.created_at,
     })),
