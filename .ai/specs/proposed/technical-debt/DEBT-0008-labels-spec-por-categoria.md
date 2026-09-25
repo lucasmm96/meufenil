@@ -3,7 +3,7 @@
 **Type:** DEBT
 **Status:** PROPOSED
 **Title:** Labels de spec por categoria em vez de labels por ID
-**Issue:** TBD
+**Issue:** #94
 **Created on:** 2026-09-25
 
 ## Problem
