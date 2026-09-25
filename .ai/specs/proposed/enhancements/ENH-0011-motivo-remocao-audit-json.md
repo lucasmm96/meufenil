@@ -1,9 +1,9 @@
 # ENH-0011 — Motivo de remoção no evento e no audit JSON
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Motivo de remoção no evento e no audit JSON
-**Issue:** TBD
+**Issue:** #95
 **Created on:** 2026-09-25
 
 ## Problem
@@ -33,7 +33,10 @@ Adicionar `motivo` ao JSONB `referencia_eventos.detalhes` nos eventos de remoç�
 
 `detalhes` passaria a ser `{nome, marca, fenil_mg_por_100g, motivo}` para estes eventos.
 
-O audit stage (ENH-0010) lê `ev.detalhes` e o expõe como `identidade` — `motivo` apareceria naturalmente em `identidade.motivo` no JSON da sync **sem alterar o TypeScript**, a menos que se prefira surfacear `motivo` como campo separado na struct (ver Alternativas).
+O audit stage (ENH-0010) é atualizado para surfaçar `motivo` como campo separado na struct `LinhaEventoRemocao`, alinhado ao padrão histórico de `mudanca_rejeitada` (campo de primeiro nível em `detalhes`). Resultado no JSON da sync:
+```json
+{ "tipo": "referencia_deletada", "referencia_id": "...", "identidade": { "nome": "...", "marca": "...", "fenil_mg_por_100g": 100 }, "motivo": "ausencia" }
+```
 
 ## Motivation
 
@@ -42,8 +45,6 @@ O audit stage (ENH-0010) lê `ev.detalhes` e o expõe como `identidade` — `mot
 `[FACTUAL]` O sweep retroativo (seção D) não tem motivo associado atualmente; um valor canônico `"sweep"` distingue essas deleções das deleções do plano corrente.
 
 `[FACTUAL]` A informação de motivo tem valor de rastreabilidade: um admin pode determinar se uma referência foi removida porque sumiu da origem, porque foi substituída por versão diferente, ou porque era resíduo de syncs anteriores — distinções operacionalmente relevantes para diagnóstico.
-
-`[ASSUMPTION]` O campo `motivo` dentro de `identidade` no JSON de audit é suficientemente claro; não é necessário reestruturar a `LinhaEventoRemocao` para surfaçá-lo como campo de primeiro nível (depende de decisão de UX).
 
 ## Evidence
 
@@ -56,7 +57,7 @@ O audit stage (ENH-0010) lê `ev.detalhes` e o expõe como `identidade` — `mot
 - Nova migration que reescreve `aplicar_sync_referencias`:
   - Seção C: acrescenta `'motivo', v_motivo` ao `jsonb_build_object` de `v_identidade` para eventos `referencia_arquivada`/`referencia_deletada`.
   - Seção D (sweep): acrescenta `'motivo', 'sweep'` ao `jsonb_build_object` do evento `referencia_deletada`.
-- (Opcional — depende de decisão de UX) Ajuste em `api/referencias-sync.ts` (`LinhaEventoRemocao`) para surfaçar `motivo` como campo separado em vez de deixá-lo dentro de `identidade`.
+- Ajuste em `api/referencias-sync.ts`: `LinhaEventoRemocao` ganha campo `motivo: string | null` separado de `identidade`; mapeamento no audit stage lê `ev.detalhes.motivo` e `ev.detalhes` (sem `motivo`) separadamente.
 - Atualização de specs afetadas: `rpc.md`, `api-referencias-sync.md`, `referencia_eventos.md`.
 - Atualização de testes: `rpc-referencias-sync.test.ts` (verificar que `detalhes` do evento inclui `motivo`).
 
@@ -81,8 +82,8 @@ N/A (sem nova decisão arquitetural).
 
 ## Impacted Frontend / Backend / Database / Security / Tests
 
-- **Frontend:** N/A — o `JsonCodeBlock` do Admin exibe `selecionada.details` como JSON bruto; `motivo` aparecerá automaticamente em `identidade.motivo`.
-- **Backend:** `api/referencias-sync.ts` — `LinhaEventoRemocao` e mapeamento do audit stage, se opção B for escolhida (ver Alternativas).
+- **Frontend:** N/A — o `JsonCodeBlock` do Admin exibe `selecionada.details` como JSON bruto; `motivo` aparecerá como campo de primeiro nível em cada entrada de `alteracoes[]`.
+- **Backend:** `api/referencias-sync.ts` — `LinhaEventoRemocao` ganha `motivo: string | null`; mapeamento do audit stage lê `ev.detalhes.motivo` e constrói `identidade` sem o campo `motivo`.
 - **Database:** `aplicar_sync_referencias` (RPC) — nova migration que altera o `jsonb_build_object` em dois pontos; sem mudança de schema.
 - **Security:** N/A — sem alteração de RLS, ACL ou SECURITY DEFINER.
 - **Tests:** `rpc-referencias-sync.test.ts` — asserts sobre `detalhes` dos eventos de remoção precisam incluir `motivo`.
@@ -99,33 +100,27 @@ Nenhuma.
 
 ## Alternatives
 
-**A — Motivo dentro de `identidade` (proposta principal):** Acrescenta `motivo` ao `jsonb_build_object` existente. Sem mudança no TypeScript. No JSON de audit, `motivo` aparece em `identidade.motivo` — semanticamente misto (identidade + razão de remoção no mesmo objeto), mas simples de implementar.
+**A — Motivo dentro de `identidade`:** Acrescenta `motivo` ao `jsonb_build_object` existente. Sem mudança no TypeScript. No JSON de audit, `motivo` aparece em `identidade.motivo` — semanticamente misto (identidade + razão de remoção no mesmo objeto). Não escolhida.
 
-**B — Motivo como campo separado na `LinhaEventoRemocao`:** Além da mudança na RPC, atualiza `LinhaEventoRemocao` para `{ tipo, referencia_id, identidade: {nome, marca, fenil}, motivo: string | null }` e ajusta o mapeamento no audit stage. Separação semântica mais limpa; exige mudança em TypeScript + testes de integração.
+**B — Motivo como campo separado na `LinhaEventoRemocao` (escolhida):** Além da mudança na RPC, atualiza `LinhaEventoRemocao` para `{ tipo, referencia_id, identidade: {nome, marca, fenil}, motivo: string | null }` e ajusta o mapeamento no audit stage. Separação semântica limpa; padrão consistente com `mudanca_rejeitada` histórico (campo de primeiro nível em `detalhes`). Exige mudança em TypeScript + testes de integração.
 
-**C — Não implementar:** Manter o estado atual; `tipo` do evento distingue archive de delete; motivo fica implícito nos dados do plano (não auditável no JSON de sync). Custo zero.
+**C — Não implementar:** Manter o estado atual. Não escolhida.
 
-**Decision:** TBD — **Approved by:** — **Approved on:** —
+**Decision:** Alternativa B — **Approved by:** Lucas Martins Menezes — **Approved on:** 2026-09-25
 
 ## Open Questions
 
-1. A opção A (motivo dentro de `identidade`) é suficiente, ou a separação semântica da opção B justifica o custo adicional em TypeScript/testes?
-2. O valor `"sweep"` para deleções retroativas é claro suficiente, ou seria melhor `"sweep_retroativo"` / `"inativa_retroativa"`?
+Nenhuma — decisão registrada (Alternativa B; valores `ausencia`/`substituicao`/`sweep` confirmados).
 
 ## Acceptance Criteria
 
-*(Condicionais à alternativa escolhida)*
-
-**Comum às opções A e B:**
-- [ ] Migration que reescreve `aplicar_sync_referencias`: seção C inclui `motivo` (`ausencia`/`substituicao`) em `detalhes` do evento; seção D inclui `motivo: 'sweep'`.
-- [ ] Eventos `referencia_arquivada` e `referencia_deletada` gerados após a migration têm `detalhes.motivo` preenchido.
+- [ ] Migration que reescreve `aplicar_sync_referencias`: seção C inclui `'motivo', v_motivo` em `detalhes` dos eventos `referencia_arquivada`/`referencia_deletada`; seção D inclui `'motivo', 'sweep'` no evento `referencia_deletada`.
+- [ ] Eventos `referencia_arquivada` e `referencia_deletada` gerados após a migration têm `detalhes.motivo` preenchido (`ausencia`, `substituicao` ou `sweep`).
 - [ ] Eventos históricos sem `motivo` tratados como `null`/`undefined` (não quebram leitores).
+- [ ] `LinhaEventoRemocao` em `api/referencias-sync.ts` tem `motivo: string | null` como campo separado de `identidade`.
+- [ ] Audit JSON de sync tem `{ tipo, referencia_id, identidade: {nome, marca, fenil_mg_por_100g}, motivo }` (motivo de primeiro nível em cada entrada de `alteracoes[]`).
 - [ ] `rpc-referencias-sync.test.ts` verifica `detalhes.motivo` nos eventos de archive/delete.
-- [ ] Specs atualizadas: `rpc.md`, `api-referencias-sync.md`, `referencia_eventos.md`.
-
-**Se opção B (adicional):**
-- [ ] `LinhaEventoRemocao` em `api/referencias-sync.ts` tem campo `motivo` separado de `identidade`.
-- [ ] Audit JSON de sync tem `{ tipo, referencia_id, identidade: {nome, marca, fenil}, motivo }` (motivo de primeiro nível).
+- [ ] Specs atualizadas: `rpc.md`, `api-referencias-sync.md`, `referencia_eventos.md`, `FEAT-0017`.
 
 ## References
 
