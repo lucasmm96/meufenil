@@ -152,6 +152,13 @@ type LinhaEventoAuditoria = {
 // os eventos são buscados separadamente e incluem referencia_id para agrupamento.
 type LinhaEventoArquivada = LinhaEventoAuditoria & { referencia_id: string };
 
+/** Linha de evento de remoção lida no estágio audit (ENH-0010). */
+type LinhaEventoRemocao = {
+  tipo: string;
+  referencia_id: string;
+  detalhes: Record<string, unknown> | null;
+};
+
 /** Resumo retornado pela RPC `aplicar_sync_referencias` (estágio 7/8). */
 type ResumoAplicacao = {
   equivalentes: number;
@@ -744,6 +751,44 @@ async function executarSync(
       },
       detalhesEstagios
     );
+
+    // Estágio audit — ENH-0010: identidade das referências removidas (AC-4:
+    // isolado em try/catch — falha não impede a conclusão do sync).
+    const arAudit = resumoAplicacao?.arquivadas ?? 0;
+    const dlAudit = resumoAplicacao?.deletadas ?? 0;
+
+    if (arAudit > 0 || dlAudit > 0) {
+      try {
+        const eventosRemocao = await buscarTodasAsLinhas<LinhaEventoRemocao>((from, to) =>
+          supabase
+            .from("referencia_eventos")
+            .select("tipo, referencia_id, detalhes")
+            .eq("sync_id", syncId)
+            .in("tipo", ["referencia_deletada", "referencia_arquivada"])
+            .range(from, to)
+        );
+
+        detalhesEstagios.push({
+          estagio: "audit",
+          status: "ok",
+          alteracoes: eventosRemocao.map((ev) => ({
+            tipo: ev.tipo,
+            referencia_id: ev.referencia_id,
+            identidade: ev.detalhes,
+          })),
+        });
+      } catch (erroAudit) {
+        console.error(
+          `[referencias-sync] audit stage falhou (sync ${syncId}): ` +
+            `${erroAudit instanceof Error ? erroAudit.message : String(erroAudit)}`
+        );
+        detalhesEstagios.push({
+          estagio: "audit",
+          status: "erro",
+          erro: erroAudit instanceof Error ? erroAudit.message : String(erroAudit),
+        });
+      }
+    }
 
     // Estágio 8 — conclusão: a sync sempre conclui com status `success` após
     // a aplicação (ENH-0009: sem curadoria, sem pending_review).
