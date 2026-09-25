@@ -254,10 +254,10 @@ export function useReferenciasSyncAdmin(usuarioId?: string, enabled = false) {
     try {
       setExecutandoSync(true);
       const resultado = await executarSyncManual();
-      await loadTudo();
       return resultado;
     } finally {
       setExecutandoSync(false);
+      await loadTudo();
     }
   }, [loadTudo]);
 

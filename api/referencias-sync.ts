@@ -319,6 +319,33 @@ async function reclamarSync(
 }
 
 /**
+ * Extrai mensagem legível de qualquer valor lançável.
+ * Cobre Error, PostgrestError (objeto simples com .message) e primitivos.
+ */
+function mensagemErro(erro: unknown): string {
+  if (erro instanceof Error) return erro.message;
+  if (erro !== null && typeof erro === "object" && "message" in erro) {
+    const msg = (erro as { message: unknown }).message;
+    return typeof msg === "string" && msg !== "" ? msg : JSON.stringify(erro);
+  }
+  return String(erro);
+}
+
+/**
+ * Extrai campos de diagnóstico adicionais (PostgrestError: code, hint, details).
+ * Retorna undefined quando não há nada além da mensagem.
+ */
+function contextoErro(erro: unknown): Record<string, unknown> | undefined {
+  if (!erro || typeof erro !== "object" || erro instanceof Error) return undefined;
+  const obj = erro as Record<string, unknown>;
+  const ctx: Record<string, unknown> = {};
+  if (obj.code !== undefined && obj.code !== null) ctx.code = obj.code;
+  if (typeof obj.hint === "string" && obj.hint) ctx.hint = obj.hint;
+  if (typeof obj.details === "string" && obj.details) ctx.details = obj.details;
+  return Object.keys(ctx).length > 0 ? ctx : undefined;
+}
+
+/**
  * Executa o estágio, cronometra e registra no `details.estagios` — com evento
  * de auditoria quando `tipoEvento` é informado (design §6.2). Comparação e
  * aplicação NÃO têm evento no catálogo §11.1 (a aplicação gera os eventos de
@@ -347,12 +374,19 @@ async function executarEstagio(
 
     return { ...detalhes, duration_ms: Date.now() - inicio };
   } catch (erro) {
-    const message = erro instanceof Error ? erro.message : String(erro);
-    estagiosGravados.push({ estagio: nome, status: "erro", erro: message });
+    const message = mensagemErro(erro);
+    const ctx = contextoErro(erro);
+    estagiosGravados.push({
+      estagio: nome,
+      status: "erro",
+      erro: message,
+      ...(ctx ? { contexto_erro: ctx } : {}),
+    });
 
     if (tipoEvento) {
       await registrarEvento(supabase, syncId, tipoEvento, {
         erro: message,
+        ...(ctx ? { contexto_erro: ctx } : {}),
         duration_ms: Date.now() - inicio,
       });
     }
@@ -703,7 +737,7 @@ async function executarSync(
 
     responder(res, 200, { sync_id: syncId, status: "success" });
   } catch (erro) {
-    const message = erro instanceof Error ? erro.message : String(erro);
+    const message = mensagemErro(erro);
 
     if (erro instanceof SyncEmAndamento) {
       responder(res, 409, { error: "Sync já em andamento para este ambiente." });
@@ -781,7 +815,7 @@ export default async function handler(req: SyncRequest, res: SyncResponse) {
       return;
     }
 
-    const message = erro instanceof Error ? erro.message : String(erro);
+    const message = mensagemErro(erro);
 
     console.error(`[referencias-sync] falha inesperada: ${message}`);
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type JSX } from "react";
 import Layout from "@/react-app/components/Layout";
 import {
   Users,
@@ -20,6 +20,10 @@ import {
   ScrollText,
   ArchiveRestore,
   X,
+  Copy,
+  Check,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { useAuth } from "@/react-app/context/AuthContext";
@@ -1113,6 +1117,88 @@ function BotaoExecutarSync({ data }: { data: SyncAdminData }) {
   );
 }
 
+/** Tokeniza o JSON formatado e devolve spans coloridos por tipo de token. */
+function highlightJson(json: string) {
+  // Grupos: 1=chave ("foo":)  2=string-valor  3=boolean  4=null  5=número
+  const re =
+    /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(true|false)|(null)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+  const parts: JSX.Element[] = [];
+  let lastIndex = 0;
+  let k = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = re.exec(json)) !== null) {
+    if (m.index > lastIndex) {
+      parts.push(<span key={k++}>{json.slice(lastIndex, m.index)}</span>);
+    }
+    if (m[1] !== undefined) {
+      // chave: colorir só a parte quoted, manter ":" sem cor
+      const colon = m[1].lastIndexOf(":");
+      parts.push(<span key={k++} className="text-blue-300">{m[1].slice(0, colon)}</span>);
+      parts.push(<span key={k++}>{m[1].slice(colon)}</span>);
+    } else if (m[2] !== undefined) {
+      parts.push(<span key={k++} className="text-amber-300">{m[2]}</span>);
+    } else if (m[3] !== undefined) {
+      parts.push(<span key={k++} className="text-violet-300">{m[3]}</span>);
+    } else if (m[4] !== undefined) {
+      parts.push(<span key={k++} className="text-rose-400">{m[4]}</span>);
+    } else if (m[5] !== undefined) {
+      parts.push(<span key={k++} className="text-emerald-400">{m[5]}</span>);
+    }
+    lastIndex = m.index + m[0].length;
+  }
+  if (lastIndex < json.length) {
+    parts.push(<span key={k++}>{json.slice(lastIndex)}</span>);
+  }
+  return <>{parts}</>;
+}
+
+/** Bloco de código JSON com syntax highlight, botão copiar e toggle de altura. */
+function JsonCodeBlock({ value }: { value: unknown }) {
+  const [expandido, setExpandido] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const json = useMemo(() => JSON.stringify(value, null, 2), [value]);
+
+  function copiar() {
+    navigator.clipboard.writeText(json).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  }
+
+  return (
+    <div className="relative group">
+      <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={copiar}
+          title="Copiar JSON"
+          className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+        >
+          {copiado
+            ? <Check className="w-3.5 h-3.5 text-emerald-400" />
+            : <Copy className="w-3.5 h-3.5" />}
+        </button>
+        <button
+          onClick={() => setExpandido((e) => !e)}
+          title={expandido ? "Recolher" : "Expandir"}
+          className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+        >
+          {expandido
+            ? <Minimize2 className="w-3.5 h-3.5" />
+            : <Maximize2 className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+      <pre
+        className={`text-xs bg-gray-950 text-gray-100 rounded-2xl p-4 pr-16 overflow-auto whitespace-pre-wrap break-words transition-all duration-200 ${
+          expandido ? "max-h-[70vh]" : "max-h-64"
+        }`}
+      >
+        {highlightJson(json)}
+      </pre>
+    </div>
+  );
+}
+
 function AbaHistoricoSync({ data }: { data: SyncAdminData }) {
   const [syncSelecionadaId, setSyncSelecionadaId] = useState<string | null>(null);
   const [alteracoesAbertas, setAlteracoesAbertas] = useState(false);
@@ -1292,9 +1378,7 @@ function AbaHistoricoSync({ data }: { data: SyncAdminData }) {
 
                   <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
                     <h5 className="text-sm font-semibold text-gray-900 mb-3">Detalhes técnicos (estágios)</h5>
-                    <pre className="text-xs bg-gray-950 text-gray-100 rounded-2xl p-4 overflow-auto max-h-64 whitespace-pre-wrap break-words">
-                      {JSON.stringify(selecionada.details, null, 2)}
-                    </pre>
+                    <JsonCodeBlock value={selecionada.details} />
 
                     <h5 className="text-sm font-semibold text-gray-900 mt-5 mb-3">Alterações aplicadas</h5>
                     {selecionada.alteracoes.length === 0 ? (
