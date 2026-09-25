@@ -324,6 +324,9 @@ describe("referencias-sync handler", () => {
       { data: ativas.slice(1000, 2000), error: null }, // estágio 6 — ativas P2
       { data: ativas.slice(2000), error: null }, // estágio 6 — ativas P3
     ];
+    // ENH-0009: buscarEventosDasArquivadas consulta referencia_eventos separadamente
+    // (FK removida, embed quebrado). 50 arquivadas cabem num único lote; sem eventos.
+    filas.referencia_eventos.push({ data: [], error: null });
 
     const origem = ativas.map((a) => ({
       "Nome do Produto": a.nome,
