@@ -17,6 +17,7 @@
 - [ENH-0006-espelho-specs-wiki](Specs-Archive-Implemented-Enhancements-ENH-0006-Espelho-Specs-Wiki)
 - [ENH-0007-compatibilidade-multi-ferramenta-ai-tooling](Specs-Archive-Implemented-Enhancements-ENH-0007-Compatibilidade-Multi-Ferramenta-Ai-Tooling)
 - [ENH-0009-delecao-fisica-integrada-sync-simplificacao](Specs-Archive-Implemented-Enhancements-ENH-0009-Delecao-Fisica-Integrada-Sync-Simplificacao)
+- [ENH-0010-identidade-referencias-removidas-detalhes-sync](Specs-Archive-Implemented-Enhancements-ENH-0010-Identidade-Referencias-Removidas-Detalhes-Sync)
 
 ### Features
 
@@ -40,8 +41,4 @@
 ### Testing
 
 - [TEST-0001-testes-paginas-componentes](Specs-Archive-Implemented-Testing-TEST-0001-Testes-Paginas-Componentes)
-- [TEST-0002-suites-seguranca-policies](Specs-Archive-Implemented-Testing-TEST-0002-Suites-Seguranca-Policies)
-- [TEST-0003-testes-server-side](Specs-Archive-Implemented-Testing-TEST-0003-Testes-Server-Side)
-- [TEST-0004-testes-services-faltantes](Specs-Archive-Implemented-Testing-TEST-0004-Testes-Services-Faltantes)
-- [TEST-0005-determinismo-testes-seguranca](Specs-Archive-Implemented-Testing-TEST-0005-Determinismo-Testes-Seguranca)
 
