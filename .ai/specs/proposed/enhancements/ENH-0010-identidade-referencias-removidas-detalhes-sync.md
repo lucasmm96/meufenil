@@ -1,7 +1,10 @@
 # ENH-0010 — Identidade das referências removidas nos detalhes técnicos do sync
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
+**Decision:** Alternativa A (estágio `audit` separado). OQ-1: apenas `referencia_deletada` + `referencia_arquivada`. OQ-2: sem LIMIT.
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-09-25
 **Title:** Identidade das referências removidas nos detalhes técnicos do sync
 **Issue:** #91
 **Created on:** 2026-09-25
@@ -90,12 +93,11 @@ Nenhuma. ENH-0009 é pré-requisito já IMPLEMENTED.
 - **B:** Enriquecer o estágio `apply` existente com os dados (em vez de criar `audit` separado).
 - **C:** Não alterar a rota; expor os dados via endpoint separado ou query dedicada na UI.
 
-**Decision:** TBD — escolha entre A, B e C é humana; A é a abordagem preferida por separar concerns.
+**Decision:** Alternativa A — estágio `audit` separado após `apply`. OQ-1: apenas `referencia_deletada` + `referencia_arquivada`. OQ-2: sem LIMIT. Aprovado por Lucas Martins Menezes em 2026-09-25.
 
 ## Open Questions
 
-- **OQ-1:** Incluir somente `referencia_deletada` + `referencia_arquivada`, ou também `referencia_criada`? (O estágio `apply` já mostra o contador de `criadas`; identidade de novas refs é menos crítica para auditoria.)
-- **OQ-2:** Aplicar LIMIT na query? Se sim, qual valor (200 proposto)?
+Nenhuma — todas resolvidas na aprovação (2026-09-25).
 
 ## Acceptance Criteria
 

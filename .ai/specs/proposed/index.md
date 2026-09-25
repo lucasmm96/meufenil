@@ -12,7 +12,7 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
-| [ENH-0010](enhancements/ENH-0010-identidade-referencias-removidas-detalhes-sync.md) | ENH | Identidade das referências removidas nos detalhes técnicos do sync | PROPOSED | #91 | sessão meuFenil017 (2026-09-25) — pedido pós-deploy ENH-0009 |
+| [ENH-0010](enhancements/ENH-0010-identidade-referencias-removidas-detalhes-sync.md) | ENH | Identidade das referências removidas nos detalhes técnicos do sync | ACCEPTED | #91 | sessão meuFenil017 (2026-09-25) — pedido pós-deploy ENH-0009 |
 | [ENH-0009](../archive/implemented/enhancements/ENH-0009-delecao-fisica-integrada-sync-simplificacao.md) | ENH | Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017) | IMPLEMENTED | #88 | sessão meuFenil014 (2026-09-18 a 2026-09-20) — PR #89 (squash merge `3255c11`, 2026-09-24) |
 | [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | #87 | sessão meuFenil013 (2026-09-18) — inconsistência ALL CAPS × Sentence Case confirmada |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
