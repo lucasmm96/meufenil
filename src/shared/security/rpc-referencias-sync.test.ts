@@ -451,13 +451,23 @@ describeOrSkip("RPC ENH-0009: aplicar_sync_referencias (Abordagem B)", () => {
       });
 
       expect(error).toBeNull();
-      expect(data).toMatchObject({ deletadas: 1, arquivadas: 0 });
+      // deletadas >= 1: o sweep pode apagar stale refs do banco de teste
+      expect((data as { deletadas: number }).deletadas).toBeGreaterThanOrEqual(1);
+      expect((data as { arquivadas: number }).arquivadas).toBe(0);
 
       const eventos = await eventosPorSync(syncId);
+      // Evento específico do plano (por referencia_id) tem motivo 'ausencia'
       const evDelPlano = eventos.find(
         (e) => e.tipo === "referencia_deletada" && e.referencia_id === semVinculos.id
       );
       expect(evDelPlano?.detalhes?.motivo).toBe("ausencia");
+      // Eventos de sweep têm motivo 'sweep'
+      const eventosSweep = eventos.filter(
+        (e) => e.tipo === "referencia_deletada" && e.referencia_id !== semVinculos.id
+      );
+      for (const evSweep of eventosSweep) {
+        expect(evSweep.detalhes?.motivo).toBe("sweep");
+      }
     });
 
     it("authenticated (admin) NÃO pode aplicar plano — exclusivo service_role", async () => {
