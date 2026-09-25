@@ -66,14 +66,14 @@ const EXTRACAO_MARCA_NULA = [
 ];
 
 /**
- * Resumo que a RPC devolveria para o plano bootstrap da `EXTRACAO_VALIDA`
- * sobre catálogo vazio: nada criado/arquivado, 2 pendências new_item.
+ * Resumo que a RPC devolveria para o plano da `EXTRACAO_VALIDA`
+ * sobre catálogo vazio: 2 criações, sem arquivamentos nem deleções.
  */
-const RESUMO_DIVERGENCIAS_2 = {
+const RESUMO_CRIADAS_2 = {
   equivalentes: 0,
-  criadas: 0,
+  criadas: 2,
   arquivadas: 0,
-  divergencias: 2,
+  deletadas: 0,
 };
 
 /** Globais ativas espelhando a `EXTRACAO_VALIDA` (identidade canônica). */
@@ -200,20 +200,17 @@ function criarSupabaseMock(
 }
 
 /**
- * Filas do caminho feliz com origem válida e catálogo vazio. Histórico sem
- * sync confiável → modo bootstrap: o motor não sugere nenhuma operação e o
- * plano sai só com pendências new_item (2) — a RPC responde 2 divergências.
- * Ordem de consumo por tabela (estágios 1–8): syncs = stale, claim, histórico
- * (estágio 6), UPDATE final; referencias = backup (estágio 5), ativas,
- * arquivadas; pendencias = abertas, decisões; eventos/snapshots/backups
- * = inserts únicos.
+ * Filas do caminho feliz com origem válida e catálogo vazio. ENH-0009:
+ * sem histórico nem pendências — o motor compara direto e produz criacoes.
+ * Ordem de consumo por tabela (estágios 1–8): syncs = stale, claim, UPDATE
+ * final; referencias = backup (estágio 5), ativas, arquivadas;
+ * eventos/snapshots/backups = inserts únicos.
  */
 function filasBootstrap(): Record<string, ResultadoMock[]> {
   return {
     referencia_syncs: [
       { data: null, error: null }, // stale recovery
       { data: { id: "sync-1" }, error: null }, // claim INSERT ... single
-      { data: [], error: null }, // estágio 6 — histórico (nenhuma → bootstrap)
       { data: null, error: null }, // UPDATE final
     ],
     referencia_eventos: [
@@ -229,10 +226,6 @@ function filasBootstrap(): Record<string, ResultadoMock[]> {
       { data: [{ id: "referencia-1", nome: "Arroz", marca: "", fenil_mg_por_100g: 0 }], error: null }, // backup
       { data: [], error: null }, // estágio 6 — ativas
       { data: [], error: null }, // estágio 6 — arquivadas
-    ],
-    referencia_sync_pendencias: [
-      { data: [], error: null }, // estágio 6 — open
-      { data: [], error: null }, // estágio 6 — decisões
     ],
   };
 }
@@ -331,6 +324,9 @@ describe("referencias-sync handler", () => {
       { data: ativas.slice(1000, 2000), error: null }, // estágio 6 — ativas P2
       { data: ativas.slice(2000), error: null }, // estágio 6 — ativas P3
     ];
+    // ENH-0009: buscarEventosDasArquivadas consulta referencia_eventos separadamente
+    // (FK removida, embed quebrado). 50 arquivadas cabem num único lote; sem eventos.
+    filas.referencia_eventos.push({ data: [], error: null });
 
     const origem = ativas.map((a) => ({
       "Nome do Produto": a.nome,
@@ -349,7 +345,7 @@ describe("referencias-sync handler", () => {
         equivalentes: TOTAL_ATIVAS,
         criadas: 0,
         arquivadas: 0,
-        divergencias: 0,
+        deletadas: 0,
       })
     );
     const res = createResponse();
@@ -363,12 +359,14 @@ describe("referencias-sync handler", () => {
     expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "success" });
 
     // Regressão do teto de 1000 linhas: sem paginação, 1500 ativas ficariam
-    // invisíveis para a comparação e virariam falsas pendências new_item.
+    // invisíveis para a comparação e virariam falsas criações.
     const plano = chamadaRpc(mock)?.p_plano as {
-      pendencias: unknown[];
+      criacoes: unknown[];
+      arquivamentos: unknown[];
       resumo: { equivalentes: number };
     };
-    expect(plano.pendencias).toHaveLength(0);
+    expect(plano.criacoes).toHaveLength(0);
+    expect(plano.arquivamentos).toHaveLength(0);
     expect(plano.resumo.equivalentes).toBe(TOTAL_ATIVAS);
 
     // Estágios gravados com o retrato completo (backup + comparação).
@@ -383,7 +381,7 @@ describe("referencias-sync handler", () => {
     expect(comparacao?.ativas).toBe(TOTAL_ATIVAS);
   });
 
-  it("cron feliz: bootstrap (sem histórico) → plano só com pendências → pending_review", async () => {
+  it("cron feliz: catálogo vazio → 2 criações → success", async () => {
     setAmbiente();
     extractMock.mockResolvedValue({
       rows: EXTRACAO_VALIDA,
@@ -391,7 +389,7 @@ describe("referencias-sync handler", () => {
       contagem: 2,
     });
 
-    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_CRIADAS_2));
     const res = createResponse();
 
     await handler(
@@ -400,7 +398,7 @@ describe("referencias-sync handler", () => {
     );
 
     expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "pending_review" });
+    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "success" });
 
     expect(extractMock).toHaveBeenCalledWith({ resourceKey: "resource-key-teste" });
 
@@ -426,10 +424,9 @@ describe("referencias-sync handler", () => {
 
     const final = chamadasSyncs.find((c) => c.operacao === "update" && c !== chamadasSyncs[0]);
     expect(final?.argumentos[0]).toMatchObject({
-      status: "pending_review",
+      status: "success",
       total_origem: 2,
-      bootstrap: true,
-      message: expect.stringContaining("2 divergência(s) pendente(s) de curadoria"),
+      message: expect.stringContaining("2 criadas"),
     });
 
     // Estágios 6–8 registrados em details (comparison/apply não têm evento).
@@ -484,28 +481,16 @@ describe("referencias-sync handler", () => {
       contagem: 1,
     });
 
-    // Plano do motor entregue à RPC: bootstrap, só pendências new_item.
+    // Plano do motor entregue à RPC: catálogo vazio → 2 criações, 0 arquivamentos.
     const chamadaRpcAplicar = chamadaRpc(mock);
     expect(chamadaRpcAplicar?.p_sync_id).toBe("sync-1");
     expect(chamadaRpcAplicar?.p_plano).toMatchObject({
       versao: 1,
-      modo: "bootstrap",
-      criacoes: [],
-      arquivamentos: [],
-      pendencias: [
-        {
-          tipo: "new_item",
-          referencia_id: null,
-          proposta: { nome: "Arroz", marca: "Marca A", fenil_mg_por_100g: 8 },
-          diff: null,
-        },
-        {
-          tipo: "new_item",
-          referencia_id: null,
-          proposta: { nome: "Feijão", marca: "Marca B", fenil_mg_por_100g: 12 },
-          diff: null,
-        },
+      criacoes: [
+        { op: "create", identidade: { nome: "Arroz", marca: "Marca A", fenil_mg_por_100g: 8 } },
+        { op: "create", identidade: { nome: "Feijão", marca: "Marca B", fenil_mg_por_100g: 12 } },
       ],
+      arquivamentos: [],
     });
     expect(mock.chamadas.filter((c) => c.tabela === "rpc:aplicar_sync_referencias")).toHaveLength(1);
   });
@@ -519,7 +504,7 @@ describe("referencias-sync handler", () => {
       contagem: EXTRACAO_COM_ARTEFATO.length,
     });
 
-    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_CRIADAS_2));
     const res = createResponse();
 
     await handler(
@@ -529,7 +514,7 @@ describe("referencias-sync handler", () => {
 
     // Artefato rejeitado → validação passa → sync NÃO aborta com origin_invalid.
     expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "pending_review" });
+    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "success" });
 
     const chamadasSyncs = mock.chamadas.filter((c) => c.tabela === "referencia_syncs");
     const final = chamadasSyncs.find((c) => c.operacao === "update" && c !== chamadasSyncs[0]);
@@ -574,7 +559,7 @@ describe("referencias-sync handler", () => {
       contagem: 2,
     });
 
-    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_CRIADAS_2));
     const res = createResponse();
 
     await handler(
@@ -599,27 +584,35 @@ describe("referencias-sync handler", () => {
     expect(snapshot?.argumentos[0]).toMatchObject({ payload_sha256: shaEsperado, contagem: 2 });
   });
 
-  it("pos_bootstrap (histórico com success) → aplicação automática → success", async () => {
+  it("item ausente da origem → arquivamento por ausência → success", async () => {
     setAmbiente();
+    // Origem: Arroz + Feijão. Catálogo tem Leite Marca X ativo →
+    // motor: 2 criações + 1 arquivamento motivo:ausencia.
     extractMock.mockResolvedValue({
       rows: EXTRACAO_VALIDA,
       patchAplicado: true,
       contagem: 2,
     });
 
+    const leite = { id: "ref-x", nome: "Leite", marca: "Marca X", fenil_mg_por_100g: 5 };
+
     const filas = {
       ...filasBootstrap(),
       referencia_syncs: [
         { data: null, error: null }, // stale recovery
         { data: { id: "sync-2" }, error: null }, // claim
-        { data: [{ status: "success" }], error: null }, // histórico confiável
         { data: null, error: null }, // UPDATE final success
+      ],
+      referencias: [
+        { data: [leite], error: null }, // backup
+        { data: [leite], error: null }, // estágio 6 — ativas
+        { data: [], error: null }, // estágio 6 — arquivadas
       ],
     };
 
     const mock = prepararHandler(
       filas,
-      filasRpcAplicar({ equivalentes: 0, criadas: 2, arquivadas: 0, divergencias: 0 })
+      filasRpcAplicar({ equivalentes: 0, criadas: 2, arquivadas: 1, deletadas: 0 })
     );
     const res = createResponse();
 
@@ -631,29 +624,24 @@ describe("referencias-sync handler", () => {
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-2", status: "success" });
 
-    // Modo pos_bootstrap: o motor sugere as 2 criações (auto-apply).
+    // Motor: 2 criações + 1 arquivamento motivo:ausencia.
     const chamadaRpcAplicar = chamadaRpc(mock);
     expect(chamadaRpcAplicar?.p_plano).toMatchObject({
       versao: 1,
-      modo: "pos_bootstrap",
-      pendencias: [],
+      criacoes: [
+        { op: "create", identidade: { nome: "Arroz", marca: "Marca A", fenil_mg_por_100g: 8 } },
+        { op: "create", identidade: { nome: "Feijão", marca: "Marca B", fenil_mg_por_100g: 12 } },
+      ],
+      arquivamentos: [
+        { op: "archive", referencia_id: "ref-x", identidade: { nome: "Leite", marca: "Marca X", fenil_mg_por_100g: 5 }, motivo: "ausencia" },
+      ],
     });
-    const plano = chamadaRpcAplicar?.p_plano as {
-      criacoes: { op: string; identidade: unknown }[];
-      arquivamentos: unknown[];
-    };
-    expect(plano.criacoes).toEqual([
-      { op: "create", identidade: { nome: "Arroz", marca: "Marca A", fenil_mg_por_100g: 8 } },
-      { op: "create", identidade: { nome: "Feijão", marca: "Marca B", fenil_mg_por_100g: 12 } },
-    ]);
-    expect(plano.arquivamentos).toEqual([]);
 
     const final = updatesSync(mock)[1];
     expect(final.argumentos[0]).toMatchObject({
       status: "success",
       total_origem: 2,
-      bootstrap: false,
-      message: expect.stringContaining("2 criadas, 0 arquivadas, sem divergências pendentes"),
+      message: expect.stringContaining("1 arquivadas"),
     });
   });
 
@@ -676,7 +664,7 @@ describe("referencias-sync handler", () => {
 
     const mock = prepararHandler(
       filas,
-      filasRpcAplicar({ equivalentes: 2, criadas: 0, arquivadas: 0, divergencias: 0 })
+      filasRpcAplicar({ equivalentes: 2, criadas: 0, arquivadas: 0, deletadas: 0 })
     );
     const res = createResponse();
 
@@ -692,7 +680,6 @@ describe("referencias-sync handler", () => {
     expect(chamadaRpcAplicar?.p_plano).toMatchObject({
       criacoes: [],
       arquivamentos: [],
-      pendencias: [],
       resumo: { totalOrigem: 2, equivalentes: 2 },
     });
 
@@ -720,7 +707,6 @@ describe("referencias-sync handler", () => {
       referencia_syncs: [
         { data: null, error: null }, // stale recovery
         { data: { id: "sync-3" }, error: null }, // claim
-        { data: [], error: null }, // histórico
         { data: null, error: null }, // UPDATE final failure (catch)
       ],
     };
@@ -774,13 +760,12 @@ describe("referencias-sync handler", () => {
       referencia_syncs: [
         { data: null, error: null }, // stale recovery
         { data: { id: "sync-4" }, error: null }, // claim
-        { data: [], error: null }, // histórico
         { data: null, error: new Error(erroFinal) }, // UPDATE final (estágio 8) — falha
         { data: null, error: null }, // UPDATE final failure (catch)
       ],
     };
 
-    const mock = prepararHandler(filas, filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const mock = prepararHandler(filas, filasRpcAplicar(RESUMO_CRIADAS_2));
     const res = createResponse();
 
     await handler(
@@ -798,9 +783,8 @@ describe("referencias-sync handler", () => {
     const updates = updatesSync(mock);
     expect(updates).toHaveLength(3); // stale + tentativa do estágio 8 + failure
     expect(updates[1].argumentos[0]).toMatchObject({
-      status: "pending_review",
+      status: "success",
       total_origem: 2,
-      bootstrap: true,
     });
 
     // Decisão 5 do M4: a RPC já retornou ok → as alterações são fato; a
@@ -1050,7 +1034,7 @@ describe("referencias-sync handler", () => {
       contagem: 2,
     });
 
-    const mock = criarSupabaseMock(filasBootstrap(), filasRpcAplicar(RESUMO_DIVERGENCIAS_2));
+    const mock = criarSupabaseMock(filasBootstrap(), filasRpcAplicar(RESUMO_CRIADAS_2));
     mock.getUserMock.mockResolvedValue({
       data: { user: { id: "usuario-admin" } },
       error: null,
@@ -1080,7 +1064,7 @@ describe("referencias-sync handler", () => {
     );
 
     expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "pending_review" });
+    expect(JSON.parse(res.body)).toEqual({ sync_id: "sync-1", status: "success" });
 
     const claim = mock.chamadas.find(
       (c) => c.tabela === "referencia_syncs" && c.operacao === "insert"

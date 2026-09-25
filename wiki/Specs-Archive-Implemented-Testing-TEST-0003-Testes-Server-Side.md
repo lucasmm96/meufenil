@@ -1,9 +1,10 @@
 # TEST-0003 — Testes server-side (edge functions, triggers, CLI)
 
 **Type:** TEST
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #17
 **Title:** Testes server-side (edge functions, triggers, CLI)
+**Implemented Through:** testes de integração real para edge functions `delegar-acesso` (9 testes, 1 skip por design) e `delete-account` (2 testes) via `supabase.functions.invoke()` + fix de bug na action `listar` (queries desacopladas); triggers `on_auth_user_created` e `auditar_is_ativa` com testes contra banco dev — GAP-005/008 encerrados; GAP-006 (CLI) permanece em aberto (fora do escopo desta implementação) — PR #86, merge em `development` — 2026-09-19
 
 ## Problem
 
@@ -48,7 +49,7 @@ Testes de edge functions exigem ambiente Deno/mocks; testes de trigger exigem ba
 ## Alternatives
 
 A — testes unitários com mocks (Deno/vitest) · B — testes de integração das edge functions contra Supabase real · C — manter status quo
-**Decision:** TBD
+**Decision:** B — testes de integração das edge functions contra Supabase real (Abordagem B); triggers por integração contra banco dev; CLI fora do escopo desta implementação
 
 ## Open Questions
 

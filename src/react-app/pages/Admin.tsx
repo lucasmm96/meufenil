@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type JSX } from "react";
 import Layout from "@/react-app/components/Layout";
 import {
   Users,
@@ -17,14 +17,13 @@ import {
   MessageSquare,
   Play,
   History,
-  ClipboardList,
   ScrollText,
   ArchiveRestore,
-  Undo2,
   X,
-  GitCompareArrows,
-  CheckCircle2,
-  XCircle,
+  Copy,
+  Check,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { useAuth } from "@/react-app/context/AuthContext";
@@ -40,13 +39,8 @@ import {
 } from "@/react-app/services/dtos/background-jobs.dto";
 import type {
   BackupSyncDTO,
-  DiffCampoSyncDTO,
   EventoSyncDTO,
-  PendenciaSyncDTO,
-  ReferenciaSyncDTO,
   SyncEventoTipo,
-  SyncPendenciaStatus,
-  SyncPendenciaTipo,
   SyncStatus,
 } from "@/react-app/services/dtos/referencias-sync.dto";
 
@@ -803,7 +797,7 @@ function DetailItem({
 // Seção "Sincronização de Referências" (FEAT-0017 M6 — design §15)
 // ===========================================================================
 
-type AbaSincronizacao = "historico" | "pendencias" | "auditoria" | "recuperacao";
+type AbaSincronizacao = "historico" | "auditoria" | "recuperacao";
 
 type SyncAdminData = ReturnType<typeof useReferenciasSyncAdmin>;
 
@@ -811,7 +805,6 @@ type IdentidadeSync = { nome: string; marca: string; fenil_mg_por_100g: number }
 
 const ABAS_SINCRONIZACAO: Array<{ id: AbaSincronizacao; label: string }> = [
   { id: "historico", label: "Histórico" },
-  { id: "pendencias", label: "Pendências de curadoria" },
   { id: "auditoria", label: "Auditoria" },
   { id: "recuperacao", label: "Recuperação" },
 ];
@@ -854,43 +847,6 @@ function syncStatusStyles(status: SyncStatus) {
   }
 }
 
-const PENDENCIA_STATUS_LABELS: Record<SyncPendenciaStatus, string> = {
-  open: "Aberta",
-  approved: "Aprovada",
-  rejected: "Rejeitada",
-  cancelled: "Cancelada",
-};
-
-function pendenciaStatusStyles(status: SyncPendenciaStatus) {
-  switch (status) {
-    case "open":
-      return "bg-blue-100 text-blue-800";
-    case "approved":
-      return "bg-emerald-100 text-emerald-800";
-    case "rejected":
-      return "bg-red-100 text-red-800";
-    case "cancelled":
-      return "bg-gray-100 text-gray-700";
-  }
-}
-
-const PENDENCIA_TIPO_LABELS: Record<SyncPendenciaTipo, string> = {
-  substitution: "Substituição",
-  absence: "Ausência",
-  new_item: "Novo item",
-};
-
-function pendenciaTipoStyles(tipo: SyncPendenciaTipo) {
-  switch (tipo) {
-    case "substitution":
-      return "bg-amber-100 text-amber-800";
-    case "absence":
-      return "bg-red-100 text-red-800";
-    case "new_item":
-      return "bg-emerald-100 text-emerald-800";
-  }
-}
-
 const EVENTO_TIPO_LABELS: Record<SyncEventoTipo, string> = {
   sync_started: "Sincronização iniciada",
   extraction: "Extração",
@@ -899,6 +855,7 @@ const EVENTO_TIPO_LABELS: Record<SyncEventoTipo, string> = {
   backup_created: "Backup criado",
   referencia_criada: "Referência criada",
   referencia_arquivada: "Referência arquivada",
+  referencia_deletada: "Referência deletada fisicamente",
   mudanca_aprovada: "Mudança aprovada",
   mudanca_rejeitada: "Mudança rejeitada",
   is_ativa_manual: "Ativação alterada manualmente",
@@ -906,12 +863,6 @@ const EVENTO_TIPO_LABELS: Record<SyncEventoTipo, string> = {
   restore: "Restauração",
   pendencia_cancelada: "Pendência cancelada",
   pre_sync_inativa: "Inativa pré-sincronização",
-};
-
-const DIFF_CAMPO_LABELS: Record<DiffCampoSyncDTO["campo"], string> = {
-  nome: "Nome",
-  marca: "Marca",
-  fenil_mg_por_100g: "Fenilalanina (mg/100g)",
 };
 
 function idCurto(id?: string | null) {
@@ -926,10 +877,6 @@ function nomeComMarcaSync(nome: string, marca?: string | null) {
 function identidadeResumoSync(ident: IdentidadeSync | null | undefined) {
   if (!ident) return "—";
   return `${nomeComMarcaSync(ident.nome, ident.marca)} · ${ident.fenil_mg_por_100g.toFixed(2)} mg/100g`;
-}
-
-function valorDiffSync(campo: DiffCampoSyncDTO["campo"], valor: string | number) {
-  return campo === "fenil_mg_por_100g" ? `${Number(valor).toFixed(2)} mg/100g` : String(valor);
 }
 
 function tempoExecucaoSync(startedAt: string, finishedAt: string | null) {
@@ -1053,13 +1000,6 @@ function TrilhaSyncChip({
 function SecaoSincronizacaoReferencias({ data }: { data: SyncAdminData }) {
   const [aba, setAba] = useState<AbaSincronizacao>("historico");
 
-  // Pontes entre sub-abas: o histórico abre a trilha de uma sync nas
-  // pendências; o chip de trilha volta ao histórico.
-  function irParaPendenciasDaSync(syncId: string) {
-    setAba("pendencias");
-    data.setPendenciasSyncId(syncId);
-  }
-
   function irParaHistorico() {
     setAba("historico");
   }
@@ -1071,8 +1011,7 @@ function SecaoSincronizacaoReferencias({ data }: { data: SyncAdminData }) {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Sincronização de Referências</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Histórico das sincronizações com a tabela oficial de fenilalanina (ANVISA), curadoria
-              das divergências e recuperação excepcional.
+              Histórico das sincronizações com a tabela oficial de fenilalanina (ANVISA) e recuperação excepcional.
             </p>
           </div>
 
@@ -1099,7 +1038,7 @@ function SecaoSincronizacaoReferencias({ data }: { data: SyncAdminData }) {
                 ? "Verificando estado..."
                 : data.matchingValidado
                   ? "Matching validado"
-                  : "Aguardando bootstrap"}
+                  : "Aguardando sync inicial"}
             </span>
 
             <BotaoExecutarSync data={data} />
@@ -1129,8 +1068,7 @@ function SecaoSincronizacaoReferencias({ data }: { data: SyncAdminData }) {
         })}
       </div>
 
-      {aba === "historico" && <AbaHistoricoSync data={data} onIrParaPendencias={irParaPendenciasDaSync} />}
-      {aba === "pendencias" && <AbaPendenciasSync data={data} onIrParaHistorico={irParaHistorico} />}
+      {aba === "historico" && <AbaHistoricoSync data={data} />}
       {aba === "auditoria" && <AbaAuditoriaSync data={data} onIrParaHistorico={irParaHistorico} />}
       {aba === "recuperacao" && <AbaRecuperacaoSync data={data} />}
     </section>
@@ -1179,13 +1117,89 @@ function BotaoExecutarSync({ data }: { data: SyncAdminData }) {
   );
 }
 
-function AbaHistoricoSync({
-  data,
-  onIrParaPendencias,
-}: {
-  data: SyncAdminData;
-  onIrParaPendencias: (syncId: string) => void;
-}) {
+/** Tokeniza o JSON formatado e devolve spans coloridos por tipo de token. */
+function highlightJson(json: string) {
+  // Grupos: 1=chave ("foo":)  2=string-valor  3=boolean  4=null  5=número
+  const re =
+    /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(true|false)|(null)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+  const parts: JSX.Element[] = [];
+  let lastIndex = 0;
+  let k = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = re.exec(json)) !== null) {
+    if (m.index > lastIndex) {
+      parts.push(<span key={k++}>{json.slice(lastIndex, m.index)}</span>);
+    }
+    if (m[1] !== undefined) {
+      // chave: colorir só a parte quoted, manter ":" sem cor
+      const colon = m[1].lastIndexOf(":");
+      parts.push(<span key={k++} className="text-blue-300">{m[1].slice(0, colon)}</span>);
+      parts.push(<span key={k++}>{m[1].slice(colon)}</span>);
+    } else if (m[2] !== undefined) {
+      parts.push(<span key={k++} className="text-amber-300">{m[2]}</span>);
+    } else if (m[3] !== undefined) {
+      parts.push(<span key={k++} className="text-violet-300">{m[3]}</span>);
+    } else if (m[4] !== undefined) {
+      parts.push(<span key={k++} className="text-rose-400">{m[4]}</span>);
+    } else if (m[5] !== undefined) {
+      parts.push(<span key={k++} className="text-emerald-400">{m[5]}</span>);
+    }
+    lastIndex = m.index + m[0].length;
+  }
+  if (lastIndex < json.length) {
+    parts.push(<span key={k++}>{json.slice(lastIndex)}</span>);
+  }
+  return <>{parts}</>;
+}
+
+/** Bloco de código JSON com syntax highlight, botão copiar e toggle de altura. */
+function JsonCodeBlock({ value }: { value: unknown }) {
+  const [expandido, setExpandido] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const json = useMemo(() => JSON.stringify(value, null, 2), [value]);
+
+  function copiar() {
+    navigator.clipboard.writeText(json).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  }
+
+  return (
+    <div className="relative group">
+      <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={copiar}
+          title="Copiar JSON"
+          className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+        >
+          {copiado
+            ? <Check className="w-3.5 h-3.5 text-emerald-400" />
+            : <Copy className="w-3.5 h-3.5" />}
+        </button>
+        <button
+          onClick={() => setExpandido((e) => !e)}
+          title={expandido ? "Recolher" : "Expandir"}
+          className="p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+        >
+          {expandido
+            ? <Minimize2 className="w-3.5 h-3.5" />
+            : <Maximize2 className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+      <pre
+        className={`text-xs bg-gray-950 text-gray-100 rounded-2xl p-4 pr-16 overflow-auto whitespace-pre-wrap break-words transition-all duration-200 ${
+          expandido ? "max-h-[70vh]" : "max-h-64"
+        }`}
+      >
+        {highlightJson(json)}
+      </pre>
+    </div>
+  );
+}
+
+function AbaHistoricoSync({ data }: { data: SyncAdminData }) {
   const [syncSelecionadaId, setSyncSelecionadaId] = useState<string | null>(null);
   const [alteracoesAbertas, setAlteracoesAbertas] = useState(false);
 
@@ -1239,9 +1253,8 @@ function AbaHistoricoSync({
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Início</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Origem</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bootstrap</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Totais</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Divergências</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deletadas</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mensagem</th>
                   </tr>
                 </thead>
@@ -1268,36 +1281,14 @@ function AbaHistoricoSync({
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {sync.trigger_source === "cron" ? "Cron" : "Manual"}
                       </td>
-                      <td className="px-6 py-4">
-                        {sync.bootstrap ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">
-                            1ª sync
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <div>{sync.total_origem ?? "—"} origem</div>
                         <div className="text-xs text-gray-500">
                           {sync.equivalentes ?? "—"} eq · {sync.criadas ?? "—"} criadas · {sync.arquivadas ?? "—"} arquivadas
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        {sync.divergencias ? (
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onIrParaPendencias(sync.id);
-                            }}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
-                          >
-                            <GitCompareArrows className="w-3.5 h-3.5" />
-                            {contagemLabel(sync.divergencias, "divergência", "divergências")}
-                          </button>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {sync.deletadas != null ? sync.deletadas : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-6 py-4 max-w-xs">
                         <span className="block text-sm text-gray-600 truncate">{sync.message ?? "—"}</span>
@@ -1328,10 +1319,9 @@ function AbaHistoricoSync({
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
                     <span>{sync.trigger_source === "cron" ? "Cron" : "Manual"}</span>
-                    {sync.bootstrap && <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">1ª sync</span>}
                     <span>{sync.total_origem ?? "—"} origem</span>
-                    {sync.divergencias ? (
-                      <span className="text-indigo-600 font-medium">{sync.divergencias} pendências</span>
+                    {sync.deletadas != null && sync.deletadas > 0 ? (
+                      <span className="text-red-600 font-medium">{sync.deletadas} deletadas</span>
                     ) : null}
                   </div>
                 </button>
@@ -1370,12 +1360,11 @@ function AbaHistoricoSync({
                       <DetailItem label="Início" value={formatAdminDateTime(selecionada.started_at)} />
                       <DetailItem label="Fim" value={formatAdminDateTime(selecionada.finished_at)} />
                       <DetailItem label="Duração" value={tempoExecucaoSync(selecionada.started_at, selecionada.finished_at)} />
-                      <DetailItem label="Bootstrap" value={selecionada.bootstrap ? "Sim (1ª sync do ambiente)" : "Não"} />
                       <DetailItem label="Origem (linhas)" value={selecionada.total_origem?.toString() ?? "—"} />
                       <DetailItem label="Equivalentes" value={selecionada.equivalentes?.toString() ?? "—"} />
                       <DetailItem label="Criadas" value={selecionada.criadas?.toString() ?? "—"} />
                       <DetailItem label="Arquivadas" value={selecionada.arquivadas?.toString() ?? "—"} />
-                      <DetailItem label="Divergências" value={selecionada.divergencias?.toString() ?? "—"} />
+                      <DetailItem label="Deletadas" value={selecionada.deletadas?.toString() ?? "—"} />
                       <DetailItem label="Sync ID completo" value={selecionada.id} mono />
                     </dl>
 
@@ -1389,9 +1378,7 @@ function AbaHistoricoSync({
 
                   <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
                     <h5 className="text-sm font-semibold text-gray-900 mb-3">Detalhes técnicos (estágios)</h5>
-                    <pre className="text-xs bg-gray-950 text-gray-100 rounded-2xl p-4 overflow-auto max-h-64 whitespace-pre-wrap break-words">
-                      {JSON.stringify(selecionada.details, null, 2)}
-                    </pre>
+                    <JsonCodeBlock value={selecionada.details} />
 
                     <h5 className="text-sm font-semibold text-gray-900 mt-5 mb-3">Alterações aplicadas</h5>
                     {selecionada.alteracoes.length === 0 ? (
@@ -1430,617 +1417,6 @@ function AbaHistoricoSync({
             )}
           </>
         )}
-      </div>
-    </div>
-  );
-}
-
-function labelDecisoes(n: number) {
-  return n === 1 ? "1 decisão registrada" : `${n} decisões registradas`;
-}
-
-function AbaPendenciasSync({
-  data,
-  onIrParaHistorico,
-}: {
-  data: SyncAdminData;
-  onIrParaHistorico: () => void;
-}) {
-  const [decisao, setDecisao] = useState<{ pendencia: PendenciaSyncDTO; aprovar: boolean } | null>(null);
-  const [historicoId, setHistoricoId] = useState<string | null>(null);
-  const [historicoLinhas, setHistoricoLinhas] = useState<PendenciaSyncDTO[]>([]);
-  const [historicoErro, setHistoricoErro] = useState<string | null>(null);
-  const [historicoLoadingId, setHistoricoLoadingId] = useState<string | null>(null);
-
-  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
-  const [processandoBulk, setProcessandoBulk] = useState(false);
-  const [resultadoBulk, setResultadoBulk] = useState<{ sucessos: number; erros: Array<{ id: string; msg: string }> } | null>(null);
-  const [modalBulkRejeitar, setModalBulkRejeitar] = useState(false);
-
-  useEffect(() => {
-    setSelecionados(new Set());
-  }, [data.pendencias.items]);
-
-  const itensAbertos = data.pendencias.items.filter((p) => p.status === "open");
-  const todosSelecionados = itensAbertos.length > 0 && itensAbertos.every((p) => selecionados.has(p.id));
-  const alguemSelecionado = selecionados.size > 0;
-
-  function toggleItem(id: string) {
-    setSelecionados((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleTodos() {
-    setSelecionados(todosSelecionados ? new Set() : new Set(itensAbertos.map((p) => p.id)));
-  }
-
-  async function aprovarEmLote() {
-    if (!window.confirm(`Aprovar ${selecionados.size} pendência(s) selecionada(s)?`)) return;
-    setProcessandoBulk(true);
-    try {
-      const resultado = await data.decidirPendenciasEmLote([...selecionados], true);
-      setResultadoBulk(resultado);
-    } finally {
-      setProcessandoBulk(false);
-    }
-  }
-
-  async function rejeitarEmLote(motivo: string) {
-    setProcessandoBulk(true);
-    try {
-      const resultado = await data.decidirPendenciasEmLote([...selecionados], false, motivo);
-      setResultadoBulk(resultado);
-    } finally {
-      setProcessandoBulk(false);
-    }
-  }
-
-  async function aprovarTodasEmLote() {
-    if (!window.confirm(`Aprovar todas as ${data.pendencias.total} pendências abertas?`)) return;
-    setProcessandoBulk(true);
-    try {
-      const resultado = await data.decidirTodasPendenciasAbertas(
-        true,
-        undefined,
-        data.pendenciasSyncId ?? undefined,
-      );
-      setResultadoBulk(resultado);
-    } finally {
-      setProcessandoBulk(false);
-    }
-  }
-
-  async function carregarHistorico(pendencia: PendenciaSyncDTO) {
-    if (historicoId === pendencia.id) {
-      setHistoricoId(null);
-      setHistoricoLinhas([]);
-      return;
-    }
-    setHistoricoErro(null);
-    setHistoricoLoadingId(pendencia.id);
-    try {
-      const linhas = await data.historicoPendencia(pendencia);
-      setHistoricoId(pendencia.id);
-      setHistoricoLinhas(linhas);
-    } catch (err) {
-      setHistoricoErro(err instanceof Error ? err.message : "Erro ao carregar o histórico.");
-    } finally {
-      setHistoricoLoadingId(null);
-    }
-  }
-
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="w-full sm:w-56">
-            <SelectField
-              label="Status"
-              value={data.pendenciasStatus}
-              onChange={(value) => data.setPendenciasStatus(value as SyncPendenciaStatus | "all")}
-              options={[
-                { value: "open", label: "Abertas" },
-                { value: "approved", label: "Aprovadas" },
-                { value: "rejected", label: "Rejeitadas" },
-                { value: "cancelled", label: "Canceladas" },
-                { value: "all", label: "Todas" },
-              ]}
-            />
-          </div>
-          <TrilhaSyncChip
-            syncId={data.pendenciasSyncId}
-            onLimpar={() => data.setPendenciasSyncId(null)}
-            onVerHistorico={onIrParaHistorico}
-          />
-        </div>
-
-        {resultadoBulk && (
-          <div className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-sm ${
-            resultadoBulk.erros.length === 0
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-amber-50 border-amber-200 text-amber-800"
-          }`}>
-            <span>
-              {resultadoBulk.erros.length === 0
-                ? `${labelDecisoes(resultadoBulk.sucessos)} com sucesso.`
-                : `${labelDecisoes(resultadoBulk.sucessos)} de ${resultadoBulk.sucessos + resultadoBulk.erros.length}. ${resultadoBulk.erros.length === 1 ? "1 erro" : `${resultadoBulk.erros.length} erros`}.`}
-            </span>
-            <button onClick={() => setResultadoBulk(null)} aria-label="Fechar resultado" className="text-gray-500 hover:text-gray-700">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {data.pendencias.error ? (
-          <BlocoErroSecao title="Erro ao carregar as pendências" message={data.pendencias.error.message} />
-        ) : data.pendencias.items.length === 0 && !data.pendencias.loading ? (
-          <div className="p-8 text-center bg-white border border-gray-200 rounded-2xl">
-            <ClipboardList className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <h4 className="font-semibold text-gray-900">Nenhuma pendência encontrada</h4>
-            <p className="text-sm text-gray-600 mt-1">
-              Divergências das sincronizações aparecem aqui para curadoria manual.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {itensAbertos.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={todosSelecionados}
-                    onChange={toggleTodos}
-                    className="w-4 h-4 rounded accent-indigo-600"
-                  />
-                  <span className="text-sm font-medium text-indigo-700">
-                    {todosSelecionados ? "Desmarcar todos" : `Selecionar todos (${itensAbertos.length})`}
-                  </span>
-                </label>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {alguemSelecionado && (
-                    <>
-                      <span className="text-xs text-indigo-600 font-medium">{selecionados.size} selecionado(s)</span>
-                      <button
-                        onClick={aprovarEmLote}
-                        disabled={processandoBulk}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Aprovar selecionados
-                      </button>
-                      <button
-                        onClick={() => setModalBulkRejeitar(true)}
-                        disabled={processandoBulk}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        Rejeitar selecionados
-                      </button>
-                      {data.pendenciasStatus === "open" && (
-                        <div className="h-4 w-px bg-indigo-300 hidden sm:block" />
-                      )}
-                    </>
-                  )}
-                  {data.pendenciasStatus === "open" && (
-                    <button
-                      onClick={aprovarTodasEmLote}
-                      disabled={processandoBulk}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Aprovar tudo ({data.pendencias.total})
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {data.pendencias.items.map((pendencia) => (
-              <PendenciaCardSync
-                key={pendencia.id}
-                pendencia={pendencia}
-                onAbrirDecisao={(aprovar) => setDecisao({ pendencia, aprovar })}
-                historicoAberto={historicoId === pendencia.id}
-                historicoLinhas={historicoLinhas}
-                historicoErro={historicoErro}
-                historicoLoading={historicoLoadingId === pendencia.id}
-                onAlternarHistorico={() => carregarHistorico(pendencia)}
-                checked={pendencia.status === "open" ? selecionados.has(pendencia.id) : undefined}
-                onToggle={pendencia.status === "open" ? () => toggleItem(pendencia.id) : undefined}
-              />
-            ))}
-
-            <PaginacaoSync
-              page={data.pendencias.page}
-              totalPages={data.pendencias.totalPages}
-              totalLabel={contagemLabel(data.pendencias.total, "pendência", "pendências")}
-              loading={data.pendencias.loading}
-              onPrev={() => data.setPendenciasPage(Math.max(1, data.pendencias.page - 1))}
-              onNext={() => data.setPendenciasPage(Math.min(data.pendencias.totalPages, data.pendencias.page + 1))}
-              pageSize={data.pendencias.pageSize}
-              onPageSize={data.setPendenciasPageSize}
-              selectId="page-size-pendencias"
-            />
-          </div>
-        )}
-      </div>
-
-      {decisao && (
-        <ModalDecisaoPendencia
-          pendencia={decisao.pendencia}
-          aprovar={decisao.aprovar}
-          onClose={() => setDecisao(null)}
-          onDecidir={(aprovar, motivo) => data.decidirPendencia(decisao.pendencia.id, aprovar, motivo)}
-        />
-      )}
-
-      {modalBulkRejeitar && (
-        <ModalDecisaoBulkRejeitar
-          count={selecionados.size}
-          onClose={() => setModalBulkRejeitar(false)}
-          onRejeitar={rejeitarEmLote}
-        />
-      )}
-    </div>
-  );
-}
-
-function PendenciaCardSync({
-  pendencia,
-  onAbrirDecisao,
-  historicoAberto,
-  historicoLinhas,
-  historicoErro,
-  historicoLoading,
-  onAlternarHistorico,
-  checked,
-  onToggle,
-}: {
-  pendencia: PendenciaSyncDTO;
-  onAbrirDecisao: (aprovar: boolean) => void;
-  historicoAberto: boolean;
-  historicoLinhas: PendenciaSyncDTO[];
-  historicoErro: string | null;
-  historicoLoading: boolean;
-  onAlternarHistorico: () => void;
-  checked?: boolean;
-  onToggle?: () => void;
-}) {
-  const referencia = pendencia.referencia;
-  const proposta = pendencia.proposta;
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {onToggle !== undefined && (
-            <input
-              type="checkbox"
-              checked={checked ?? false}
-              onChange={onToggle}
-              className="w-4 h-4 rounded accent-indigo-600 cursor-pointer flex-shrink-0"
-              aria-label="Selecionar pendência"
-            />
-          )}
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${pendenciaTipoStyles(pendencia.tipo)}`}>
-            {PENDENCIA_TIPO_LABELS[pendencia.tipo]}
-          </span>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${pendenciaStatusStyles(pendencia.status)}`}>
-            {PENDENCIA_STATUS_LABELS[pendencia.status]}
-          </span>
-          <span className="text-xs text-gray-500">
-            Sync <span className="font-mono">{idCurto(pendencia.sync_id)}</span> · {formatAdminDateTime(pendencia.created_at)}
-          </span>
-        </div>
-
-        {pendencia.status === "open" && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => onAbrirDecisao(true)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Aprovar
-            </button>
-            <button
-              onClick={() => onAbrirDecisao(false)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              Rejeitar
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-            {pendencia.tipo === "new_item" ? "Proposta (nova referência)" : "Referência atual"}
-          </p>
-          {referencia ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-              <p className="font-medium text-gray-900">{nomeComMarcaSync(referencia.nome, referencia.marca)}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{referencia.fenil_mg_por_100g.toFixed(2)} mg/100g</p>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-3">
-              {pendencia.tipo === "absence" ? "Referência removida fisicamente" : "—"}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
-            {pendencia.tipo === "absence" ? "Origem (sem correspondência)" : "Proposta da origem"}
-          </p>
-          {proposta ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-              <p className="font-medium text-gray-900">{nomeComMarcaSync(proposta.nome, proposta.marca)}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{proposta.fenil_mg_por_100g.toFixed(2)} mg/100g</p>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-3">—</p>
-          )}
-        </div>
-      </div>
-
-      {pendencia.diff && pendencia.diff.length > 0 && (
-        <div className="bg-gray-950 rounded-xl p-3 font-mono text-xs overflow-x-auto">
-          <p className="text-gray-400 mb-2 text-[10px] uppercase tracking-wide font-sans">Mudanças propostas</p>
-          {pendencia.diff.map((d) => (
-            <div key={d.campo} className="space-y-0.5 py-0.5">
-              <p className="text-gray-500 font-sans text-[10px]">{DIFF_CAMPO_LABELS[d.campo]}</p>
-              <p className="text-red-400">- {valorDiffSync(d.campo, d.antes)}</p>
-              <p className="text-emerald-400">+ {valorDiffSync(d.campo, d.depois)}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {pendencia.status !== "open" && (
-        <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1">
-          {pendencia.motivo && (
-            <p><span className="font-semibold text-gray-700">Motivo: </span>{pendencia.motivo}</p>
-          )}
-          <p>
-            {pendencia.decided_at
-              ? `Decidida em ${formatAdminDateTime(pendencia.decided_at)}`
-              : "Decisão de sincronização (sem registro manual)"}
-            {pendencia.decided_by ? ` por admin ${idCurto(pendencia.decided_by)}` : ""}
-          </p>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onAlternarHistorico}
-          disabled={historicoLoading}
-          className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline disabled:opacity-50"
-        >
-          <History className="w-3.5 h-3.5" />
-          {historicoLoading
-            ? "Carregando histórico..."
-            : historicoAberto
-              ? "Ocultar ocorrências anteriores"
-              : "Ver ocorrências desta divergência"}
-        </button>
-        {pendencia.sync && (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${syncStatusStyles(pendencia.sync.status)}`}>
-            Sync: {SYNC_STATUS_LABELS[pendencia.sync.status]}
-          </span>
-        )}
-      </div>
-
-      {historicoErro && <p className="text-sm text-red-700">{historicoErro}</p>}
-
-      {historicoAberto && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-          {historicoLinhas.length === 0 ? (
-            <p className="text-sm text-gray-600">Nenhuma ocorrência anterior registrada para esta divergência.</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {historicoLinhas.map((linha) => (
-                <li key={linha.id} className="flex flex-wrap items-center gap-2 text-gray-700">
-                  <span className="font-medium">
-                    {linha.id === pendencia.id ? "Ocorrência atual" : formatAdminDateTime(linha.created_at)}
-                  </span>
-                  {linha.id === pendencia.id && (
-                    <span className="text-xs text-gray-500">({formatAdminDateTime(linha.created_at)})</span>
-                  )}
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${pendenciaStatusStyles(linha.status)}`}>
-                    {PENDENCIA_STATUS_LABELS[linha.status]}
-                  </span>
-                  {linha.motivo && <span className="text-xs text-gray-600">— {linha.motivo}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ModalDecisaoPendencia({
-  pendencia,
-  aprovar,
-  onClose,
-  onDecidir,
-}: {
-  pendencia: PendenciaSyncDTO;
-  aprovar: boolean;
-  onClose: () => void;
-  onDecidir: (aprovar: boolean, motivo?: string) => Promise<unknown>;
-}) {
-  const [motivo, setMotivo] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
-
-  async function confirmar() {
-    setErro(null);
-    setEnviando(true);
-    try {
-      await onDecidir(aprovar, aprovar ? undefined : motivo.trim());
-      onClose();
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro inesperado ao registrar a decisão.");
-      setEnviando(false);
-    }
-  }
-
-  const descricao = pendencia.proposta
-    ? identidadeResumoSync(pendencia.proposta)
-    : pendencia.referencia
-      ? identidadeResumoSync(pendencia.referencia)
-      : "—";
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">
-            {aprovar ? "Aprovar mudança" : "Rejeitar mudança"}
-          </h2>
-          <button onClick={onClose} aria-label="Fechar" className="text-gray-400 hover:text-gray-700">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-3 text-sm text-gray-700">
-          <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${pendenciaTipoStyles(pendencia.tipo)}`}>
-              {PENDENCIA_TIPO_LABELS[pendencia.tipo]}
-            </span>
-            <p className="mt-2">{descricao}</p>
-          </div>
-
-          <p className="text-sm">
-            {aprovar
-              ? "Aprovar aplica a mudança proposta na próxima sincronização confiável — a referência atual será arquivada e a proposta passará a valer."
-              : "Rejeitar mantém a referência atual e registra a divergência como conhecida. O motivo é obrigatório."}
-          </p>
-
-          {!aprovar && (
-            <label className="block">
-              <span className="block text-sm font-medium text-gray-700 mb-1">Motivo da rejeição</span>
-              <textarea
-                value={motivo}
-                onChange={(event) => setMotivo(event.target.value)}
-                rows={3}
-                required
-                placeholder="Ex.: a proposta está desatualizada; conferir com a fonte."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </label>
-          )}
-
-          {erro && <p className="text-sm text-red-700 bg-red-50 rounded-xl p-3 border border-red-200">{erro}</p>}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={enviando}
-              className="px-4 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={confirmar}
-              disabled={enviando || (!aprovar && !motivo.trim())}
-              className={`px-4 py-2 text-sm rounded-lg font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed ${
-                aprovar ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"
-              }`}
-            >
-              {enviando ? "Registrando..." : aprovar ? "Confirmar aprovação" : "Confirmar rejeição"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ModalDecisaoBulkRejeitar({
-  count,
-  onClose,
-  onRejeitar,
-}: {
-  count: number;
-  onClose: () => void;
-  onRejeitar: (motivo: string) => Promise<void>;
-}) {
-  const [motivo, setMotivo] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
-
-  async function confirmar() {
-    setErro(null);
-    setEnviando(true);
-    try {
-      await onRejeitar(motivo.trim());
-      onClose();
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro inesperado ao registrar as rejeições.");
-      setEnviando(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">
-            Rejeitar {count} pendência{count !== 1 ? "s" : ""}
-          </h2>
-          <button onClick={onClose} aria-label="Fechar" className="text-gray-400 hover:text-gray-700">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-3 text-sm text-gray-700">
-          <p>
-            O mesmo motivo será aplicado a {count === 1 ? "a pendência selecionada" : `todas as ${count} pendências selecionadas`}. A rejeição mantém a referência atual e registra a divergência como conhecida.
-          </p>
-
-          <label className="block">
-            <span className="block text-sm font-medium text-gray-700 mb-1">Motivo da rejeição</span>
-            <textarea
-              value={motivo}
-              onChange={(event) => setMotivo(event.target.value)}
-              rows={3}
-              required
-              placeholder="Ex.: a proposta está desatualizada; conferir com a fonte."
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </label>
-
-          {erro && <p className="text-sm text-red-700 bg-red-50 rounded-xl p-3 border border-red-200">{erro}</p>}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={enviando}
-              className="px-4 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={confirmar}
-              disabled={enviando || !motivo.trim()}
-              className="px-4 py-2 text-sm rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {enviando ? "Rejeitando..." : "Confirmar rejeição"}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -2206,29 +1582,6 @@ function AbaRecuperacaoSync({ data }: { data: SyncAdminData }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function reverter(sync: ReferenciaSyncDTO) {
-    if (!confirm(`Reverter a sincronização ${idCurto(sync.id)}?`)) return;
-    const palavra = prompt('Digite "REVERTER" para confirmar a reversão:');
-    if (palavra !== "REVERTER") return;
-    setResultado(null);
-    try {
-      const res = await data.reverterSync(sync.id);
-      // Sucesso = status 'reverted' (a resposta de sucesso da RPC não traz o
-      // campo `revertida` — só o no-op antigo o trazia; correção 2026-09-14).
-      const sucesso = res.status === "reverted";
-      mostrarResultado(
-        sucesso,
-        sucesso
-          ? res.revertidas
-            ? `Sincronização revertida: ${res.revertidas} operações desfeitas, ${res.preservadas ?? 0} posteriores preservadas, ${res.pendencias_canceladas ?? 0} pendências canceladas.`
-            : `Sincronização revertida: nenhuma operação desfeita (a sync não aplicou alterações), ${res.pendencias_canceladas ?? 0} pendências canceladas.`
-          : `Não foi possível reverter: ${res.motivo ?? "motivo não informado."}`,
-      );
-    } catch (err) {
-      mostrarResultado(false, err instanceof Error ? err.message : "Erro inesperado ao reverter a sincronização.");
-    }
-  }
-
   async function restaurar(backup: BackupSyncDTO) {
     if (!confirm(`Restaurar o catálogo a partir do backup de ${formatAdminDateTime(backup.created_at)}?`)) return;
     const palavra = prompt('Digite "RESTAURAR" para confirmar a restauração:');
@@ -2270,60 +1623,11 @@ function AbaRecuperacaoSync({ data }: { data: SyncAdminData }) {
         </div>
       )}
 
-      {data.syncsRevertiveis.error && (
-        <BlocoErroSecao title="Erro ao carregar as sincronizações revertíveis" message={data.syncsRevertiveis.error.message} />
-      )}
       {data.backups.error && (
         <BlocoErroSecao title="Erro ao carregar os backups" message={data.backups.error.message} />
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div className="px-5 pt-5 pb-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <Undo2 className="w-4 h-4 text-gray-600" /> Rollback seletivo de sincronização
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Desfaz as operações aplicadas por uma sync concluída. Alterações de syncs posteriores são
-              preservadas pela guarda de integridade; pendências abertas da sync são canceladas.
-            </p>
-          </div>
-
-          {data.syncsRevertiveis.items.length === 0 && !data.syncsRevertiveis.loading ? (
-            <p className="p-6 text-sm text-gray-600">
-              Nenhuma sincronização revertível (status success ou pending_review) encontrada.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {data.syncsRevertiveis.items.map((sync) => (
-                <li key={sync.id} className="px-5 py-4 space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="font-mono text-xs font-medium text-gray-700">{idCurto(sync.id)}</span>
-                      <span className="text-gray-500">{formatAdminDateTime(sync.started_at)}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${syncStatusStyles(sync.status)}`}>
-                        {SYNC_STATUS_LABELS[sync.status]}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => reverter(sync)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 rounded-lg transition-colors"
-                    >
-                      Reverter sync
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    {sync.alteracoes.length === 0
-                      ? "Nenhuma operação aplicada (nada a reverter)."
-                      : `${sync.alteracoes.length} ${sync.alteracoes.length === 1 ? "operação registrada" : "operações registradas"} (${sync.criadas ?? "—"} criadas · ${sync.arquivadas ?? "—"} arquivadas).`}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <div className="px-5 pt-5 pb-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <ArchiveRestore className="w-4 h-4 text-gray-600" /> Restauração excepcional por backup
@@ -2360,7 +1664,6 @@ function AbaRecuperacaoSync({ data }: { data: SyncAdminData }) {
               ))}
             </ul>
           )}
-        </div>
       </div>
     </div>
   );

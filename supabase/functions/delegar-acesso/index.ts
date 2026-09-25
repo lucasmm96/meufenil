@@ -77,37 +77,56 @@ serve(async (req) => {
      * LISTAR
      * ====================================================== */
     if (acao === "listar") {
-      const [concedidos, recebidos] = await Promise.all([
+      const [concedidosResult, recebidosResult] = await Promise.all([
         supabaseAdmin
           .from("delegacoes_acesso")
-          .select(`
-            id,
-            created_at,
-            usuario_destino:usuarios!delegacoes_acesso_delegado_id_fkey (
-              id, nome, email
-            )
-          `)
+          .select("id, created_at, delegado_id")
           .eq("concedente_id", userId)
           .is("revoked_at", null),
-
         supabaseAdmin
           .from("delegacoes_acesso")
-          .select(`
-            id,
-            created_at,
-            usuario_origem:usuarios!delegacoes_acesso_concedente_id_fkey (
-              id, nome, email
-            )
-          `)
+          .select("id, created_at, concedente_id")
           .eq("delegado_id", userId)
           .is("revoked_at", null),
       ]);
 
+      const delegadoIds = (concedidosResult.data ?? []).map((d) => d.delegado_id);
+      const concedenteIds = (recebidosResult.data ?? []).map((d) => d.concedente_id);
+
+      const [delegadosResult, concedentesResult] = await Promise.all([
+        delegadoIds.length > 0
+          ? supabaseAdmin.from("usuarios").select("id, nome, email").in("id", delegadoIds)
+          : Promise.resolve({ data: [] }),
+        concedenteIds.length > 0
+          ? supabaseAdmin.from("usuarios").select("id, nome, email").in("id", concedenteIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const delegadosMap = Object.fromEntries(
+        (delegadosResult.data ?? []).map((u: { id: string; nome: string | null; email: string | null }) => [u.id, u])
+      );
+      const concedentesMap = Object.fromEntries(
+        (concedentesResult.data ?? []).map((u: { id: string; nome: string | null; email: string | null }) => [u.id, u])
+      );
+
+      const concedidos = (concedidosResult.data ?? []).map(
+        (d: { id: string; created_at: string; delegado_id: string }) => ({
+          id: d.id,
+          created_at: d.created_at,
+          usuario_destino: delegadosMap[d.delegado_id] ?? null,
+        })
+      );
+
+      const recebidos = (recebidosResult.data ?? []).map(
+        (d: { id: string; created_at: string; concedente_id: string }) => ({
+          id: d.id,
+          created_at: d.created_at,
+          usuario_origem: concedentesMap[d.concedente_id] ?? null,
+        })
+      );
+
       return new Response(
-        JSON.stringify({
-          concedidos: concedidos.data ?? [],
-          recebidos: recebidos.data ?? [],
-        }),
+        JSON.stringify({ concedidos, recebidos }),
         { status: 200, headers: corsHeaders }
       );
     }

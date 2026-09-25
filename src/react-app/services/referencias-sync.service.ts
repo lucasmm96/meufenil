@@ -7,26 +7,21 @@ import {
   EventoSyncDTO,
   EventosSyncPageDTO,
   IdentidadeReferenciaSyncDTO,
-  PendenciaSyncDTO,
-  PendenciasSyncPageDTO,
   ReferenciaSyncDTO,
   ReferenciaSyncsPageDTO,
   ResultadoRestaurarBackupDTO,
-  ResultadoReverterSyncDTO,
   ResultadoSyncManualDTO,
   SyncStatus,
 } from "./dtos/referencias-sync.dto";
 
 const DEFAULT_PAGE_SIZE = 3;
 const DEFAULT_BACKUPS_LIMIT = 25;
-const DEFAULT_REVERTIVEIS_LIMIT = 50;
 
 const SYNC_FIELDS = `
   id,
   environment,
   trigger_source,
   requested_by,
-  bootstrap,
   status,
   started_at,
   finished_at,
@@ -34,29 +29,17 @@ const SYNC_FIELDS = `
   equivalentes,
   criadas,
   arquivadas,
-  divergencias,
+  deletadas,
   message,
   details,
   alteracoes,
   created_at
 `;
 
-const PENDENCIA_FIELDS = `
-  id,
-  sync_id,
-  tipo,
-  referencia_id,
-  proposta,
-  diff,
-  status,
-  motivo,
-  created_at,
-  decided_at,
-  decided_by,
-  referencia_syncs ( started_at, status ),
-  referencias ( nome, marca, fenil_mg_por_100g )
-`;
-
+// ENH-0009 removeu a FK referencia_eventos.referencia_id → referencias; o embed
+// "referencias ( nome, marca )" não funciona mais sem FK no PostgREST. O nome da
+// referência é derivado de detalhes (identidade gravada nos eventos de criação/
+// arquivamento/deleção). Para is_ativa_manual (detalhes = {de, para}), referencia = null.
 const EVENTO_FIELDS = `
   id,
   sync_id,
@@ -66,8 +49,7 @@ const EVENTO_FIELDS = `
   actor_id,
   detalhes,
   created_at,
-  referencia_syncs ( started_at, status ),
-  referencias ( nome, marca )
+  referencia_syncs ( started_at, status )
 `;
 
 const BACKUP_FIELDS = `
@@ -79,23 +61,6 @@ const BACKUP_FIELDS = `
   referencia_syncs ( started_at )
 `;
 
-/** Linha crua do banco — embeds em posição fixa (sem DTO tipado do gerador). */
-interface PendenciaRow {
-  id: string;
-  sync_id: string;
-  tipo: PendenciaSyncDTO["tipo"];
-  referencia_id: string | null;
-  proposta: unknown;
-  diff: unknown;
-  status: PendenciaSyncDTO["status"];
-  motivo: string | null;
-  created_at: string;
-  decided_at: string | null;
-  decided_by: string | null;
-  referencia_syncs: { started_at: string; status: SyncStatus } | null;
-  referencias: { nome: string; marca: string; fenil_mg_por_100g: number } | null;
-}
-
 interface EventoRow {
   id: string;
   sync_id: string | null;
@@ -106,7 +71,6 @@ interface EventoRow {
   detalhes: unknown;
   created_at: string;
   referencia_syncs: { started_at: string; status: SyncStatus } | null;
-  referencias: { nome: string; marca: string } | null;
 }
 
 interface BackupRow {
@@ -130,7 +94,6 @@ function parseDetails(details: unknown): Record<string, unknown> {
   return {};
 }
 
-/** jsonb `antes`/`depois` das operações — null quando não é objeto. */
 function parseIdentidade(value: unknown): IdentidadeReferenciaSyncDTO | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -163,31 +126,12 @@ function parseAlteracoes(alteracoes: unknown): AlteracaoSyncDTO[] {
     }));
 }
 
-function parseProposta(proposta: unknown): IdentidadeReferenciaSyncDTO | null {
-  return parseIdentidade(proposta);
-}
-
-function parseDiff(diff: unknown): PendenciaSyncDTO["diff"] {
-  if (!Array.isArray(diff)) {
-    return null;
-  }
-
-  return diff
-    .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
-    .map((item) => ({
-      campo: item.campo as "nome" | "marca" | "fenil_mg_por_100g",
-      antes: item.antes as string | number,
-      depois: item.depois as string | number,
-    }));
-}
-
 function parseSyncRow(row: Record<string, unknown>): ReferenciaSyncDTO {
   return {
     id: String(row.id),
     environment: String(row.environment),
     trigger_source: String(row.trigger_source),
     requested_by: typeof row.requested_by === "string" ? row.requested_by : null,
-    bootstrap: row.bootstrap === true,
     status: row.status as SyncStatus,
     started_at: String(row.started_at),
     finished_at: typeof row.finished_at === "string" ? row.finished_at : null,
@@ -195,7 +139,7 @@ function parseSyncRow(row: Record<string, unknown>): ReferenciaSyncDTO {
     equivalentes: typeof row.equivalentes === "number" ? row.equivalentes : null,
     criadas: typeof row.criadas === "number" ? row.criadas : null,
     arquivadas: typeof row.arquivadas === "number" ? row.arquivadas : null,
-    divergencias: typeof row.divergencias === "number" ? row.divergencias : null,
+    deletadas: typeof row.deletadas === "number" ? row.deletadas : null,
     message: typeof row.message === "string" ? row.message : null,
     details: parseDetails(row.details),
     alteracoes: parseAlteracoes(row.alteracoes),
@@ -203,27 +147,12 @@ function parseSyncRow(row: Record<string, unknown>): ReferenciaSyncDTO {
   };
 }
 
-function toPendenciaDTO(row: PendenciaRow): PendenciaSyncDTO {
-  return {
-    id: row.id,
-    sync_id: row.sync_id,
-    tipo: row.tipo,
-    referencia_id: row.referencia_id,
-    proposta: parseProposta(row.proposta),
-    diff: parseDiff(row.diff),
-    status: row.status,
-    motivo: row.motivo,
-    created_at: row.created_at,
-    decided_at: row.decided_at,
-    decided_by: row.decided_by,
-    sync: row.referencia_syncs
-      ? { started_at: row.referencia_syncs.started_at, status: row.referencia_syncs.status }
-      : null,
-    referencia: row.referencias,
-  };
-}
-
 function toEventoDTO(row: EventoRow): EventoSyncDTO {
+  const detalhes = parseDetails(row.detalhes);
+  const referencia =
+    typeof detalhes.nome === "string" && detalhes.nome !== ""
+      ? { nome: detalhes.nome, marca: typeof detalhes.marca === "string" ? detalhes.marca : "" }
+      : null;
   return {
     id: row.id,
     sync_id: row.sync_id,
@@ -231,12 +160,12 @@ function toEventoDTO(row: EventoRow): EventoSyncDTO {
     referencia_id: row.referencia_id,
     tipo: row.tipo,
     actor_id: row.actor_id,
-    detalhes: parseDetails(row.detalhes),
+    detalhes,
     created_at: row.created_at,
     sync: row.referencia_syncs
       ? { started_at: row.referencia_syncs.started_at, status: row.referencia_syncs.status }
       : null,
-    referencia: row.referencias,
+    referencia,
   };
 }
 
@@ -256,9 +185,8 @@ export function getDefaultReferenciasSyncPageSize() {
 }
 
 /**
- * Histórico de syncs do AMBIENTE ATUAL (cada environment tem seu catálogo —
- * no dev as fixtures de teste vivem em environments próprios, fora daqui).
- * Paginação server-side no padrão de background-jobs (`.range` + count exact).
+ * Histórico de syncs do AMBIENTE ATUAL. Paginação server-side no padrão de
+ * background-jobs (`.range` + count exact).
  */
 export async function getSyncsReferencias(filters: {
   status?: SyncStatus;
@@ -295,15 +223,15 @@ export async function getSyncsReferencias(filters: {
 }
 
 /**
- * "Matching validado" (§14.4): existe sync confiável concluída no ambiente
- * (success/pending_review) — a partir dela o auto-apply passa a valer.
+ * "Matching validado" (§14.4): existe sync bem-sucedida no ambiente (status
+ * `success`) — a partir dela o auto-apply está consolidado.
  */
 export async function getSyncValidadaAmbiente(): Promise<boolean> {
   const { count, error } = await supabase
     .from("referencia_syncs")
     .select("id", { count: "exact", head: true })
     .eq("environment", CURRENT_APP_ENVIRONMENT)
-    .in("status", ["success", "pending_review"]);
+    .eq("status", "success");
 
   if (error) {
     throw new AppError(
@@ -335,109 +263,6 @@ export async function getSyncRunningAmbiente(): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
-/** Syncs elegíveis a rollback (RPC M5 só aceita success/pending_review). */
-export async function getSyncsRevertiveis(): Promise<ReferenciaSyncDTO[]> {
-  const { data, error } = await supabase
-    .from("referencia_syncs")
-    .select(SYNC_FIELDS)
-    .eq("environment", CURRENT_APP_ENVIRONMENT)
-    .in("status", ["success", "pending_review"])
-    .order("started_at", { ascending: false })
-    .limit(DEFAULT_REVERTIVEIS_LIMIT);
-
-  if (error || !data) {
-    throw new AppError(
-      "SYNC_ROLLBACK_LIST_ERROR",
-      "Erro ao carregar sincronizações revertíveis",
-      error,
-    );
-  }
-
-  return (data as Record<string, unknown>[]).map(parseSyncRow);
-}
-
-/**
- * Pendências de curadoria — embed da referência atual e da sync de origem;
- * filtro por status e, quando aberta a trilha de um sync, por sync_id.
- */
-export async function getPendenciasReferencia(filters: {
-  status?: PendenciaSyncDTO["status"];
-  syncId?: string;
-  page: number;
-  pageSize: number;
-}): Promise<PendenciasSyncPageDTO> {
-  const { status, syncId, page, pageSize } = filters;
-  const from = Math.max(0, (page - 1) * pageSize);
-  const to = from + pageSize - 1;
-
-  let query = supabase.from("referencia_sync_pendencias").select(PENDENCIA_FIELDS, { count: "exact" });
-
-  if (status) {
-    query = query.eq("status", status);
-  }
-
-  if (syncId) {
-    query = query.eq("sync_id", syncId);
-  }
-
-  const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
-
-  if (error || !data) {
-    throw new AppError(
-      "SYNC_PENDENCIAS_ERROR",
-      "Erro ao carregar pendências de curadoria",
-      error,
-    );
-  }
-
-  return {
-    items: (data as unknown as PendenciaRow[]).map(toPendenciaDTO),
-    total: count ?? 0,
-    page,
-    pageSize,
-  };
-}
-
-/**
- * Histórico da MESMA divergência (reincidência/decisões anteriores):
- * absence/substitution rastreiam por referencia_id; new_item por identidade da
- * proposta (nome+marca — a chave do matching). Ordenado da mais recente.
- */
-export async function getHistoricoPendencia(
-  pendencia: PendenciaSyncDTO,
-): Promise<PendenciaSyncDTO[]> {
-  // Sem referência nem proposta não há como rastrear a divergência — nada a
-  // consultar (linha corrompida; a própria lista já não a exibiria útil).
-  if (!pendencia.referencia_id && !pendencia.proposta) {
-    return [];
-  }
-
-  let query = supabase.from("referencia_sync_pendencias").select(PENDENCIA_FIELDS);
-
-  if (pendencia.referencia_id) {
-    query = query.eq("referencia_id", pendencia.referencia_id);
-  } else if (pendencia.proposta) {
-    query = query
-      .eq("proposta->>nome", pendencia.proposta.nome)
-      .eq("proposta->>marca", pendencia.proposta.marca ?? "");
-  }
-
-  const { data, error } = await query
-    .eq("tipo", pendencia.tipo)
-    .order("created_at", { ascending: false })
-    .limit(12);
-
-  if (error || !data) {
-    throw new AppError(
-      "SYNC_PENDENCIA_HISTORY_ERROR",
-      "Erro ao carregar histórico da divergência",
-      error,
-    );
-  }
-
-  return (data as unknown as PendenciaRow[]).map(toPendenciaDTO);
-}
-
 /**
  * Auditoria — eventos paginados; filtros por tipo, sync (trilha) e termo no
  * nome da referência (filtro no embed `referencias.nome`, padrão ilike).
@@ -465,7 +290,8 @@ export async function getEventosReferencia(filters: {
 
   const termo = termoReferencia?.trim();
   if (termo) {
-    query = query.ilike("referencias.nome", `%${termo}%`);
+    // ENH-0009: FK removida → filtra pelo nome gravado em detalhes (jsonb ->>)
+    query = query.ilike("detalhes->>nome", `%${termo}%`);
   }
 
   const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
@@ -524,49 +350,7 @@ export async function getPermissaoRecuperacao(usuarioId: string): Promise<boolea
   return data?.pode_recuperacao === true;
 }
 
-/** Curadoria: decisão de pendência via RPC do M4 (admin real autenticado). */
-export async function decidirPendenciaReferencia(
-  pendenciaId: string,
-  aprovar: boolean,
-  motivo?: string,
-): Promise<{ pendencia_id: string; status: string; sync_id: string; sync_status: string }> {
-  const { data, error } = await supabase
-    .rpc("decidir_pendencia_referencia", {
-      p_pendencia_id: pendenciaId,
-      p_aprovar: aprovar,
-      p_motivo: motivo ?? null,
-    })
-    .single<{ pendencia_id: string; status: string; sync_id: string; sync_status: string }>();
-
-  if (error || !data) {
-    throw new AppError(
-      aprovar ? "SYNC_APROVAR_PENDENCIA_ERROR" : "SYNC_REJEITAR_PENDENCIA_ERROR",
-      aprovar ? "Erro ao aprovar mudança" : "Erro ao rejeitar mudança",
-      error,
-    );
-  }
-
-  return data;
-}
-
-/** Rollback seletivo via RPC do M5 (admin + pode_recuperacao). */
-export async function reverterSyncReferencias(syncId: string): Promise<ResultadoReverterSyncDTO> {
-  const { data, error } = await supabase
-    .rpc("reverter_sync_referencias", { p_sync_id: syncId })
-    .single<ResultadoReverterSyncDTO>();
-
-  if (error || !data) {
-    throw new AppError(
-      "SYNC_ROLLBACK_ERROR",
-      "Erro ao reverter sincronização",
-      error,
-    );
-  }
-
-  return data;
-}
-
-/** Restauração excepcional via RPC do M5 (admin + pode_recuperacao). */
+/** Restauração excepcional via RPC (admin + pode_recuperacao). */
 export async function restaurarBackupReferencias(
   backupId: string,
 ): Promise<ResultadoRestaurarBackupDTO> {
@@ -586,9 +370,7 @@ export async function restaurarBackupReferencias(
 }
 
 /**
- * Execução manual da sync (POST `/api/referencias-sync` com JWT da sessão —
- * autorização da rota, M2). Usada apenas no ambiente prod (R4-1a: a rota
- * sincroniza o catálogo de produção).
+ * Execução manual da sync (POST `/api/referencias-sync` com JWT da sessão).
  */
 export async function executarSyncManual(): Promise<ResultadoSyncManualDTO> {
   const { data: sessionData } = await supabase.auth.getSession();

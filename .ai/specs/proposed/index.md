@@ -1,10 +1,10 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-09-16 (ENH-0006 implementada — 13 ativas + 8 arquivadas)
+**Última verificação:** 2026-09-24 (ENH-0009 → IMPLEMENTED, PR #89)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (13) · arquivadas = linhas da seção "Arquivadas" (7) · as 8 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (9) · ACCEPTED (1) · arquivadas = linhas da seção "Arquivadas" (7) · as 14 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009) permanecem no Catálogo, fora das contagens.
 
-> ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED**. O estado atual do sistema está documentado exclusivamente em `../current/`.
+> ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED** (exceto propostas já aprovadas com `Decision: ACCEPTED`). O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
 > **Regra de arquivamento (ADR-0012, 2026-08-16):** `proposed/` contém SOMENTE propostas ativas. Propostas em estado terminal (IMPLEMENTED/REJECTED/SUPERSEDED) são movidas para `../archive/<estado>/<categoria>/`. Cada proposta possui uma Issue canônica no GitHub (coluna `Issue` — campo `Issue:` no arquivo + label `spec:<ID>` na Issue) e um item no GitHub Project (Status derivado, CONVENTIONS §18).
 
@@ -12,6 +12,8 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
+| [ENH-0009](../archive/implemented/enhancements/ENH-0009-delecao-fisica-integrada-sync-simplificacao.md) | ENH | Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017) | IMPLEMENTED | #88 | sessão meuFenil014 (2026-09-18 a 2026-09-20) — PR #89 (squash merge `3255c11`, 2026-09-24) |
+| [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | #87 | sessão meuFenil013 (2026-09-18) — inconsistência ALL CAPS × Sentence Case confirmada |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
@@ -22,10 +24,10 @@
 | [DEBT-0005](../archive/implemented/technical-debt/DEBT-0005-lint-src-pendencias-eslint.md) | DEBT | Pendências de lint em src/ (57 erros pré-existentes) | IMPLEMENTED | #26 | lint verde + W1 restaurado (PR #42, merge `9c583ceb`) — 2026-08-23 |
 | [DEBT-0006](../archive/implemented/technical-debt/DEBT-0006-restaurar-keepalive-dev.md) | DEBT | Restaurar keepalive do ambiente dev (regressão 879a6c0) | IMPLEMENTED | #40 | multi-alvo restaurado (PR #41, merge `4ac65fa`) — 2026-08-23 |
 | [SEC-0001](security/SEC-0001-autorizacao-funcoes-consulta.md) | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED | #14 | Fatos Fase 3 |
-| [TEST-0002](testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | PROPOSED | #16 | GAP-007/012 |
-| [TEST-0003](testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED | #17 | GAP-005/006/008 |
-| [TEST-0004](testing/TEST-0004-testes-services-faltantes.md) | TEST | Completar testes de services faltantes | PROPOSED | #18 | GAP-004/009 |
-| [TEST-0005](testing/TEST-0005-determinismo-testes-seguranca.md) | TEST | Determinismo dos testes de segurança | PROPOSED | #19 | GAP-011 + O-004 |
+| [TEST-0002](../archive/implemented/testing/TEST-0002-suites-seguranca-policies.md) | TEST | Suítes de segurança para policies não cobertas | IMPLEMENTED | #16 | GAP-007/012 → PR #86 (`development`, 2026-09-19) |
+| [TEST-0003](../archive/implemented/testing/TEST-0003-testes-server-side.md) | TEST | Testes server-side (edge functions, triggers, CLI) | IMPLEMENTED | #17 | GAP-005/008 → PR #86 (`development`, 2026-09-19) |
+| [TEST-0004](../archive/implemented/testing/TEST-0004-testes-services-faltantes.md) | TEST | Completar testes de services faltantes | IMPLEMENTED | #18 | GAP-004/009 → PR #86 (`development`, 2026-09-19) |
+| [TEST-0005](../archive/implemented/testing/TEST-0005-determinismo-testes-seguranca.md) | TEST | Determinismo dos testes de segurança | IMPLEMENTED | #19 | GAP-011/O-004 → PR #86 (`development`, 2026-09-19) |
 | [ENH-0004](../archive/implemented/enhancements/ENH-0004-modelo-identidade-referencias.md) | ENH | Modelo canônico e identidade imutável de referências | IMPLEMENTED | #49 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 · PR #55 (squash merge `82bd0f3`) — 2026-09-04 |
 | [FEAT-0017](../archive/implemented/features/FEAT-0017-sincronizacao-referencias-anvisa.md) | FEAT | Sincronização controlada de referências com a fonte ANVISA/Power BI | IMPLEMENTED | #50 | Draft 001-auto-refresh-database (arquivado) — refinamento 2026-09-02 · M1–M6 (PRs #57–#62, merges `5b1ed18`/`7ec0bf5`/`dd631d6`/`6e7d3e5`/`cb5d776`/`cb1123d`) + specs finais (M7) — 2026-09-05/06/07 |
 | [REF-0004](../archive/implemented/refactors/REF-0004-automacao-residuo-gate-e-prevencao-tentativa-erro.md) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | IMPLEMENTED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), PR #52 (squash merge) — 2026-09-03 |
@@ -33,6 +35,7 @@
 | [DEBT-0007](technical-debt/DEBT-0007-gate-validacao-rotas-vercel.md) | DEBT | Gate de validação não cobre rotas Vercel em modo Node.js ESM | PROPOSED | TBD | ERR_MODULE_NOT_FOUND em prod (v1.11.0, 2026-09-10) — fix `2ea335c` |
 | [ENH-0005](../archive/implemented/enhancements/ENH-0005-revisao-tooling-ia.md) | ENH | Revisão e melhoria do tooling de IA do projeto | IMPLEMENTED | #76 | commits `ccf8733`/`bc880ef` (dev, 2026-09-15) |
 | [ENH-0006](../archive/implemented/enhancements/ENH-0006-espelho-specs-wiki.md) | ENH | Espelho das Specs do Projeto na Wiki | IMPLEMENTED | #79 | Draft 005-specs-reflected-on-wiki (arquivado) — PR #81, merge `83f9618` — 2026-09-16 |
+| [ENH-0007](../archive/implemented/enhancements/ENH-0007-compatibilidade-multi-ferramenta-ai-tooling.md) | ENH | Compatibilidade multi-ferramenta do AI Tooling | IMPLEMENTED | #84 | Draft 006-generic-ai-tooling (arquivado) — AGENTS.md + GEMINI.md (PR Part of #84, 2026-09-18) |
 
 ## Arquivadas
 

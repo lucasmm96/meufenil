@@ -21,6 +21,7 @@
 
 - [ENH-0001-pwa-offline](Specs-Proposed-Enhancements-ENH-0001-Pwa-Offline)
 - [ENH-0002-identidade-bot-claude-prs](Specs-Proposed-Enhancements-ENH-0002-Identidade-Bot-Claude-Prs)
+- [ENH-0008-title-case-exibicao-referencias](Specs-Proposed-Enhancements-ENH-0008-Title-Case-Exibicao-Referencias)
 - [ENH-0006-espelho-specs-wiki](Specs-Proposed-Enhancements-ENH-0006-Espelho-Specs-Wiki)
 
 ## Features

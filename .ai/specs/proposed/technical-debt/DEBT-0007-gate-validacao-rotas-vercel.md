@@ -3,7 +3,7 @@
 **Type:** DEBT
 **Status:** PROPOSED
 **Title:** Gate de validação não cobre rotas Vercel em modo Node.js ESM
-**Issue:** TBD
+**Issue:** #67
 **Created on:** 2026-09-10
 
 ## Problem

@@ -1,9 +1,10 @@
 # TEST-0005 — Determinismo dos testes de segurança
 
 **Type:** TEST
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #19
 **Title:** Determinismo dos testes de segurança
+**Implemented Through:** substituição de `Date.now()` por `crypto.randomUUID()` em `uniqueTestEmail()` e `createTestReference()` em `src/shared/security/test-helpers.ts` — GAP-011 encerrado — PR #86, merge em `development` — 2026-09-19
 
 ## Problem
 
@@ -48,7 +49,7 @@ Baixo; atenção a compatibilidade com o domínio de email do Supabase test (`@m
 ## Alternatives
 
 A — `crypto.randomUUID()` no email · B — contador/processo compartilhado (ex.: arquivo/global) · C — sequencializar as suítes de segurança (vitest pool options) · D — manter status quo
-**Decision:** TBD
+**Decision:** A — `crypto.randomUUID()` no email (aplicado também em `createTestReference`)
 
 ## Open Questions
 

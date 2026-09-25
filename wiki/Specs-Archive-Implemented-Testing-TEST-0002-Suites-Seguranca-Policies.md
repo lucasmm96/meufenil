@@ -1,9 +1,10 @@
 # TEST-0002 — Suítes de segurança para policies não cobertas
 
 **Type:** TEST
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #16
 **Title:** Suítes de segurança para policies não cobertas
+**Implemented Through:** suítes RLS Abordagem B para `registros`, `exames_pku`, `referencias_favoritas`, `delegacoes_acesso` e RPC `get_estatisticas_admin` (37 testes; `describeOrSkip` para skip gracioso sem credenciais) — GAP-007/012 encerrados — PR #86, merge em `development` — 2026-09-19
 
 ## Problem
 
@@ -48,7 +49,7 @@ Mesmos riscos das suítes atuais (banco dev real; TEST-0005).
 ## Alternatives
 
 A — uma suíte por tabela (espelho de T1) · B — suíte única parametrizada · C — manter status quo
-**Decision:** TBD
+**Decision:** A — uma suíte por tabela (espelho do padrão T1 existente), com `describeOrSkip` para skip gracioso quando `SUPABASE_SERVICE_ROLE_KEY` ausente
 
 ## Open Questions
 

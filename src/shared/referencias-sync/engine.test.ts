@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { construirPlanoSync } from "./engine";
 import { PLANO_VERSAO } from "./types";
 import type { EntradaPlanoSync } from "./engine";
-import type { ArquivadaGlobal, GlobalAtiva, ModoSync } from "./types";
+import type { ArquivadaGlobal, GlobalAtiva } from "./types";
 import type { LinhaOrigem } from "../powerbi/types";
 
 /**
@@ -11,8 +11,8 @@ import type { LinhaOrigem } from "../powerbi/types";
  * Idempotência (§6.6): 2ª execução com o estado pós-aplicação → zero ops.
  */
 
-function base(modo: ModoSync = "pos_bootstrap"): EntradaPlanoSync {
-  return { origem: [], ativas: [], arquivadas: [], pendenciasAbertas: [], decisoes: [], modo };
+function base(): EntradaPlanoSync {
+  return { origem: [], ativas: [], arquivadas: [] };
 }
 
 function com(parcial: Partial<EntradaPlanoSync>): EntradaPlanoSync {
@@ -41,7 +41,7 @@ function arquivada(
 }
 
 describe("construirPlanoSync — p_plano e resumo", () => {
-  it("plano pós-bootstrap: matched + novo, com contadores e versão", () => {
+  it("matched + novo: criação automática, contadores e versão corretos", () => {
     const plano = construirPlanoSync(
       com({
         origem: [linha("Arroz", "Marca A", 8), linha("Feijão", null, 12)],
@@ -50,44 +50,15 @@ describe("construirPlanoSync — p_plano e resumo", () => {
     );
 
     expect(plano.versao).toBe(PLANO_VERSAO);
-    expect(plano.modo).toBe("pos_bootstrap");
     expect(plano.criacoes).toEqual([
       { op: "create", identidade: { nome: "Feijão", marca: "", fenil_mg_por_100g: 12 } },
     ]);
     expect(plano.arquivamentos).toEqual([]);
-    expect(plano.pendencias).toEqual([]);
     expect(plano.resumo).toEqual({
       totalOrigem: 2,
       equivalentes: 1,
       criadas: 1,
       arquivadas: 0,
-      divergencias: 0,
-      pendencias: { substitution: 0, absence: 0, new_item: 0 },
-    });
-  });
-
-  it("bootstrap: tudo vira pendência — zero criações e zero arquivamentos", () => {
-    const plano = construirPlanoSync(
-      com({
-        modo: "bootstrap",
-        origem: [linha("Feijão", "", 12)],
-        ativas: [ativa("a1", "Arroz", "Marca A", 8)],
-      }),
-    );
-
-    expect(plano.criacoes).toEqual([]);
-    expect(plano.arquivamentos).toEqual([]);
-    expect(plano.pendencias).toEqual([
-      { tipo: "new_item", referencia_id: null, proposta: { nome: "Feijão", marca: "", fenil_mg_por_100g: 12 }, diff: null },
-      { tipo: "absence", referencia_id: "a1", proposta: null, diff: null },
-    ]);
-    expect(plano.resumo).toEqual({
-      totalOrigem: 1,
-      equivalentes: 0,
-      criadas: 0,
-      arquivadas: 0,
-      divergencias: 2,
-      pendencias: { substitution: 0, absence: 1, new_item: 1 },
     });
   });
 
@@ -118,6 +89,41 @@ describe("construirPlanoSync — p_plano e resumo", () => {
     expect(plano.criacoes).toHaveLength(1);
     expect(plano.criacoes[0]?.identidade.marca).toBe("");
   });
+
+  it("substituição auto-aplicada: arquivamento com motivo='substituicao' + criação; resumo.arquivadas conta só substituicao", () => {
+    const plano = construirPlanoSync(
+      com({
+        origem: [linha("Arroz", "Marca A", 150)],
+        ativas: [ativa("a1", "Arroz", "Marca A", 100)],
+      }),
+    );
+
+    expect(plano.criacoes).toHaveLength(1);
+    expect(plano.arquivamentos).toHaveLength(1);
+    expect(plano.arquivamentos[0]).toMatchObject({
+      op: "archive",
+      referencia_id: "a1",
+      motivo: "substituicao",
+    });
+    expect(plano.resumo.arquivadas).toBe(1);
+  });
+
+  it("ausência: arquivamento com motivo='ausencia'; resumo.arquivadas NÃO conta ausencias (são deletadas pela RPC)", () => {
+    const plano = construirPlanoSync(
+      com({
+        origem: [],
+        ativas: [ativa("b1", "Feijão", "", 12)],
+      }),
+    );
+
+    expect(plano.arquivamentos).toHaveLength(1);
+    expect(plano.arquivamentos[0]).toMatchObject({
+      op: "archive",
+      referencia_id: "b1",
+      motivo: "ausencia",
+    });
+    expect(plano.resumo.arquivadas).toBe(0);
+  });
 });
 
 describe("construirPlanoSync — idempotência (§6.6)", () => {
@@ -141,9 +147,7 @@ describe("construirPlanoSync — idempotência (§6.6)", () => {
 
     expect(segundo.criacoes).toEqual([]);
     expect(segundo.arquivamentos).toEqual([]);
-    expect(segundo.pendencias).toEqual([]);
     expect(segundo.resumo.equivalentes).toBe(2);
-    expect(segundo.resumo.divergencias).toBe(0);
   });
 
   it("ausência auto-arquivada some das ativas e não reaparece sem origem", () => {
@@ -165,7 +169,6 @@ describe("construirPlanoSync — idempotência (§6.6)", () => {
     const segundo = construirPlanoSync(com({ origem, ...estadoPosAplicacao }));
 
     expect(segundo.arquivamentos).toEqual([]);
-    expect(segundo.pendencias).toEqual([]);
     expect(segundo.resumo.equivalentes).toBe(1);
   });
 

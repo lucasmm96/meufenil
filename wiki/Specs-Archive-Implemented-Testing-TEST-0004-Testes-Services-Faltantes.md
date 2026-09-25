@@ -1,9 +1,10 @@
 # TEST-0004 — Completar testes de services faltantes
 
 **Type:** TEST
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #18
 **Title:** Completar testes de services faltantes
+**Implemented Through:** testes de service para `delegacoesAcesso.service.ts` (listar/conceder/revogar/assumir/sair — 19 testes) e operações faltantes de `referencias.service.ts` (update/activate/deleteOrDeactivate/toggleFavorito — 17 testes) — GAP-004/009 encerrados — PR #86, merge em `development` — 2026-09-19
 
 ## Problem
 
@@ -48,7 +49,7 @@ Baixo.
 ## Alternatives
 
 A — testes por operação (padrão atual dos services) · B — manter status quo
-**Decision:** TBD
+**Decision:** A — testes por operação (padrão atual dos services)
 
 ## Open Questions
 
