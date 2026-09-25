@@ -1,13 +1,14 @@
 # ENH-0010 — Identidade das referências removidas nos detalhes técnicos do sync
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Decision:** Alternativa A (estágio `audit` separado). OQ-1: apenas `referencia_deletada` + `referencia_arquivada`. OQ-2: sem LIMIT.
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-09-25
 **Title:** Identidade das referências removidas nos detalhes técnicos do sync
 **Issue:** #91
 **Created on:** 2026-09-25
+**Implemented Through:** PR #92 (squash merge `964944c`, 2026-09-25) — estágio audit em `api/referencias-sync.ts`; spec FEAT-0017 atualizada
 
 ## Problem
 
