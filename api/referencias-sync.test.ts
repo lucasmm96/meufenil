@@ -610,6 +610,9 @@ describe("referencias-sync handler", () => {
       ],
     };
 
+    // ENH-0010: arquivadas=1 dispara o estágio audit — precisa de mock para o SELECT.
+    filas.referencia_eventos.push({ data: [], error: null });
+
     const mock = prepararHandler(
       filas,
       filasRpcAplicar({ equivalentes: 0, criadas: 2, arquivadas: 1, deletadas: 0 })
@@ -688,6 +691,92 @@ describe("referencias-sync handler", () => {
       status: "success",
       message: expect.stringContaining("2 equivalentes"),
     });
+  });
+
+  it("audit stage: referências removidas geram entrada audit em details.estagios (AC-1/AC-3/AC-5)", async () => {
+    setAmbiente();
+    extractMock.mockResolvedValue({
+      rows: EXTRACAO_VALIDA,
+      patchAplicado: true,
+      contagem: 2,
+    });
+
+    const leite = { id: "ref-x", nome: "Leite", marca: "Marca X", fenil_mg_por_100g: 5 };
+
+    const filas = {
+      ...filasBootstrap(),
+      referencia_syncs: [
+        { data: null, error: null },
+        { data: { id: "sync-audit" }, error: null },
+        { data: null, error: null },
+      ],
+      referencias: [
+        { data: [leite], error: null }, // backup
+        { data: [leite], error: null }, // estágio 6 — ativas
+        { data: [], error: null }, // estágio 6 — arquivadas
+      ],
+    };
+
+    // Evento gerado pela RPC no apply, lido pelo estágio audit.
+    const eventoAudit = {
+      tipo: "referencia_arquivada",
+      referencia_id: "ref-x",
+      detalhes: { nome: "Leite", marca: "Marca X", fenil_mg_por_100g: 5 },
+    };
+    filas.referencia_eventos.push({ data: [eventoAudit], error: null });
+
+    const mock = prepararHandler(
+      filas,
+      filasRpcAplicar({ equivalentes: 0, criadas: 2, arquivadas: 1, deletadas: 0 })
+    );
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+
+    const final = updatesSync(mock).at(-1)?.argumentos[0] as {
+      details: { estagios: Array<{ estagio: string; status: string; alteracoes?: unknown[] }> };
+    };
+    const audit = final.details.estagios.find((e) => e.estagio === "audit");
+    expect(audit).toEqual({
+      estagio: "audit",
+      status: "ok",
+      alteracoes: [
+        {
+          tipo: "referencia_arquivada",
+          referencia_id: "ref-x",
+          identidade: { nome: "Leite", marca: "Marca X", fenil_mg_por_100g: 5 },
+        },
+      ],
+    });
+  });
+
+  it("audit stage: sync sem arquivadas/deletadas não gera entrada audit (AC-2/AC-5)", async () => {
+    setAmbiente();
+    extractMock.mockResolvedValue({
+      rows: EXTRACAO_VALIDA,
+      patchAplicado: true,
+      contagem: 2,
+    });
+
+    const mock = prepararHandler(filasBootstrap(), filasRpcAplicar(RESUMO_CRIADAS_2));
+    const res = createResponse();
+
+    await handler(
+      { method: "GET", headers: { authorization: "Bearer segredo-cron" } },
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+
+    const final = updatesSync(mock).at(-1)?.argumentos[0] as {
+      details: { estagios: Array<{ estagio: string }> };
+    };
+    expect(final.details.estagios.some((e) => e.estagio === "audit")).toBe(false);
   });
 
   it("RPC de aplicação falha → nada aplicado → 500 failure com a mensagem da RPC", async () => {
