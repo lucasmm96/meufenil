@@ -14,6 +14,10 @@
 - [ENH-0003-historico-execucoes-seletor-paginacao](Specs-Archive-Implemented-Enhancements-ENH-0003-Historico-Execucoes-Seletor-Paginacao)
 - [ENH-0004-modelo-identidade-referencias](Specs-Archive-Implemented-Enhancements-ENH-0004-Modelo-Identidade-Referencias)
 - [ENH-0005-revisao-tooling-ia](Specs-Archive-Implemented-Enhancements-ENH-0005-Revisao-Tooling-Ia)
+- [ENH-0006-espelho-specs-wiki](Specs-Archive-Implemented-Enhancements-ENH-0006-Espelho-Specs-Wiki)
+- [ENH-0007-compatibilidade-multi-ferramenta-ai-tooling](Specs-Archive-Implemented-Enhancements-ENH-0007-Compatibilidade-Multi-Ferramenta-Ai-Tooling)
+- [ENH-0009-delecao-fisica-integrada-sync-simplificacao](Specs-Archive-Implemented-Enhancements-ENH-0009-Delecao-Fisica-Integrada-Sync-Simplificacao)
+- [ENH-0010-identidade-referencias-removidas-detalhes-sync](Specs-Archive-Implemented-Enhancements-ENH-0010-Identidade-Referencias-Removidas-Detalhes-Sync)
 
 ### Features
 

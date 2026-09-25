@@ -3,7 +3,7 @@
 **ID:** FEAT-0017
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-14 (BR-044 revisada por decisão do usuário — duplicidade conflitante na origem rejeita o par inteiro, não invalida a sync; precisão decimal do fenil — até 2 casas em toda a cadeia: validação da origem, `chaveFenil`, coluna `numeric(10,2)` e input do modal)
+**Última verificação:** 2026-09-25 (ENH-0010: estágio audit adicionado após o apply — identidade das referências removidas em `details.estagios`)
 
 ## Purpose
 
@@ -29,6 +29,7 @@ Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is
 5. Backup (estágio 5): estado pré-aplicação de `referencias` (globais) em `referencia_backups` com sha256 e contagem + evento `backup_created` `[CONFIRMED: code]`.
 6. Comparação e aplicação (estágios 6–7, motor M3 + RPC M4): `canonical.ts`/`compare.ts` (matching determinístico; `derivarModoSync` decide `bootstrap` × `pos_bootstrap`) geram o plano (versão 1) e `aplicar_sync_referencias` (RPC, service_role) aplica: criações/arquivamentos automáticos (só pós-bootstrap confiável), pendências de curadoria 1:1, seed `pre_sync_inativa` quando `modo = 'bootstrap'` — tudo na mesma transação, com guardas de estado (mudou entre comparação e aplicação → exceção 23505 → rollback total) `[CONFIRMED: migrations 20260906000000/20260907000000; code — compare.ts:117-122]`.
 7. Curadoria: admin decide pendências via RPC `decidir_pendencia_referencia` — aprovar executa a mudança por tipo (substitution = arquivar + criar; absence = arquivar; new_item = criar), rejeitar exige motivo; a decisão da última pendência `open` marca a sync `success` `[CONFIRMED: migration 20260906000000:226-450]`.
+7.5. Audit (ENH-0010): quando `arquivadas > 0 || deletadas > 0`, a rota lê `referencia_eventos` para o sync atual (`tipo IN ('referencia_deletada', 'referencia_arquivada')`) e adiciona `{ estagio: 'audit', status: 'ok', alteracoes: [{ tipo, referencia_id, identidade }] }` em `details.estagios`; identidade lida de `referencia_eventos.detalhes` (gravada pela RPC no apply); isolado em try/catch — falha não impede conclusão `[CONFIRMED: code — api/referencias-sync.ts]`.
 8. Conclusão (estágio 8): rota finaliza a sync (status por resumo — `success` sem divergências desconhecidas / `pending_review` com pendências open / `failure`) e fecha `finished_at` `[CONFIRMED: code — rota]`.
 
 ## Alternative Flows
