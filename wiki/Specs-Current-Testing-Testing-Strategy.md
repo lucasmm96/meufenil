@@ -1,6 +1,6 @@
 # Testing Strategy — Estado Atual
 
-**Última verificação:** 2026-09-07 (FEAT-0017 M6 — seed `pre_sync_inativa` com suíte real `rpc-referencias-sync-seed.test.ts`, guard `isFeat0017M6Applied`, UI de sincronização no Admin com `referencias-sync.service.test.ts` (25), `useReferenciasSyncAdmin.test.tsx` (9) e `Admin.test.tsx` (15); seção 5 reexecutada — entrada 2026-09-07 abaixo)
+**Última verificação:** 2026-09-18 (TEST-0005 — `uniqueTestEmail` e `createTestReference` migradas para `crypto.randomUUID()`; `testUserCounter` removido; GAP-011 encerrado)
 
 Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM hoje. A análise de gaps e as recomendações estão no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`) — NÃO aqui.
 
@@ -57,6 +57,9 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - Pré-condição: `isSecurityMigrationApplied()` (exige `admin_can_select_all_usuarios` em pg_policies) `[CONFIRMED: test]`.
 
 ## 5. Resultados observados
+
+**2026-09-18 (TEST-0005):**
+- `uniqueTestEmail()` migrada de `Date.now()` + contador por processo para `crypto.randomUUID()` — elimina a classe de colisão confirmada em 2 de 3 execuções (GAP-011). Aplicado também em `createTestReference`. `testUserCounter` removido.
 
 **2026-09-07 (FEAT-0017 M6):**
 - Suítes de segurança agora são **8** (M6 adicionou `rpc-referencias-sync-seed`); guard novo `isFeat0017M6Applied` em `test-helpers.ts` — sonda o catálogo `pg_proc` por conexão direta (`prosrc` da `aplicar_sync_referencias` contém `pre_sync_inativa`), sem `SUPABASE_DATABASE_URL` → false (seção 4).
@@ -117,6 +120,7 @@ Notas factuais sobre a medição:
 - Políticas RLS de `registros`, `exames_pku`, `referencias_favoritas` e `delegacoes_acesso` sem suítes de segurança próprias (as 4 suítes cobrem `usuarios` + 2 RPCs).
 - Trigger restante do banco (retenção 365d de `background_job_executions`) sem teste direto — os triggers de normalização de nome e de limpeza de favoritos foram ELIMINADOS na ENH-0004 (2026-09-04, dev); ver [../database/triggers.md](Specs-Current-Database-Triggers).
 - Testes de segurança dependem do banco development real (dados de teste criados/limpos; estado compartilhado com desenvolvimento).
+- ~~Não-determinismo em `uniqueTestEmail()` sob paralelismo (GAP-011)~~ — **corrigido em TEST-0005 (2026-09-18)**: `crypto.randomUUID()` substitui `Date.now()` + contador por processo em `uniqueTestEmail` e `createTestReference`.
 
 ## 8. Relação Spec × Test (mecanismo existente)
 
