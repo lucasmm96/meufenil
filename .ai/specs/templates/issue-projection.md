@@ -40,5 +40,5 @@ Discussão operacional: progresso, bloqueios, aprovações e validações. (Cont
 
 **Campos complementares (fora do bloco, gerenciados no GitHub):**
 - Título: `[<ID>] <Título da Spec>` (Spec vence).
-- Labels: `spec:<ID>` + label do tipo (`feat` · `enhancement` · `refactor` · `technical-debt` · `security` · `testing`) + `spec-driven`.
+- Labels: `spec:<tipo>` (`spec:feat` · `spec:enh` · `spec:ref` · `spec:debt` · `spec:sec` · `spec:test`) + label do tipo (`feat` · `enhancement` · `refactor` · `technical-debt` · `security` · `testing`) + `spec-driven`.
 - Milestone: alvo de release (operacional; não existe na Spec).

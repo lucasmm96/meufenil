@@ -1,7 +1,7 @@
 # System Map — MeuFenil
 
 **Status:** COMPLETO (Fase 8 — 2026-08-13). Todas as linhas são capabilities CONFIRMADAS das Fases 2–7; a lista preliminar da Fase 0 foi validada e consolidada (ver `.ai/.temp/analyses/24-features-system-map.md`).
-**Última verificação:** 2026-09-07 (promoção FEAT-0017 — linha Sincronização de referências; ENH-0004/FEAT-0017 já refletidos nas linhas 0008/0012/0013 nas verificações anteriores)
+**Última verificação:** 2026-09-25 (ENH-0009 + ENH-0010: linha FEAT-0017 atualizada — deleção física integrada, curadoria/rollback/bootstrap/seed removidos, estágio audit; antes: 2026-09-07)
 
 > Este mapa cobre SOMENTE capabilities do Current State. Itens Proposed são indexados no [`README`](../README.md). É um ÍNDICE: cada célula aponta para a documentação canônica — não duplica conteúdo.
 

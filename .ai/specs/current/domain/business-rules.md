@@ -389,7 +389,7 @@ Regras de negócio CONFIRMADAS a partir do sistema atual. Cada regra segue o for
 - **When:** sincronização compara
 - **Then:** arquivada-pela-origem (evento `referencia_arquivada`) reaparecendo → tratada como referência NOVA (recriação com id novo, mesmo fluxo de inclusão); bloqueada-manual (global inativa com evento `is_ativa_manual`/`pre_sync_inativa` ou sem evento de arquivamento por sync) → presença na origem é silenciosa, nunca auto-reativa; a distinção é derivada dos eventos de auditoria (B8 — sem coluna nova em `referencias`); ENH-0009 removeu o seed de `pre_sync_inativa` (`derivarModoSync` e coluna `bootstrap` dropados — globais legadas sem evento agora entram como candidatas ao sweep retroativo); reativações por restauração são a EXCEÇÃO auditada (evento `restore`, nunca tipo `ativar`/`is_ativa_manual` — GUC `app.audit_origin`)
 - **Evidence:** `[CONFIRMED: code — compare.ts:30-33 (reaparição de bloqueio manual → silêncio), src/shared/referencias-sync/compare.ts; migration 20260907000000 (seed pre_sync_inativa, actor NULL, só em bootstrap); migration 20260906010000 (reativações auditadas com evento rollback/restore)]`
-- **Tests:** `compare.test.ts` (reaparição origem×manual, com e sem seed); suíte REAL `rpc-referencias-sync-seed.test.ts` (6 testes) `[CONFIRMED: test]`
+- **Tests:** `compare.test.ts` (reaparição origem×manual); suíte REAL `rpc-referencias-sync-seed.test.ts` (ENH-0009 — 1 teste: verifica zero eventos `pre_sync_inativa` após remoção do seed) `[CONFIRMED: test, migration 20260923000000]`
 - **Status:** Confirmed + tested
 
 ### BR-043 — ~~Curadoria~~ REVOGADO pelo ENH-0009 (2026-09-24)

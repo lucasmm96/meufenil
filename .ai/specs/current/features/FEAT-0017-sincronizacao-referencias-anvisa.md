@@ -3,15 +3,15 @@
 **ID:** FEAT-0017
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-25 (ENH-0010: estágio audit adicionado após o apply — identidade das referências removidas em `details.estagios`)
+**Última verificação:** 2026-09-25 (ENH-0011: `motivo` adicionado a `detalhes` dos eventos de remoção na RPC e surfaçado como campo separado no audit JSON; ENH-0009: curadoria/rollback/bootstrap/seed removidos; ENH-0010: estágio audit adicionado após o apply)
 
 ## Purpose
 
-Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is_global = true` de `referencias` com a origem (relatório Power BI associado à ANVISA): extrai, valida, compara, aplica mudanças seguras automaticamente (apenas em sync confiável), abre curadoria humana para mudanças substantivas, tira snapshot/backup por execução e permite rollback seletivo e restauração excepcional auditados. Entregue nos marcos M1–M6: schema (M1), extração/validação/snapshot/backup (M2), motor puro (M3), aplicação + curadoria (M4), rollback/restauração (M5), seed de bootstrap + UI admin (M6).
+Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is_global = true` de `referencias` com a origem (relatório Power BI associado à ANVISA): extrai, valida, compara, aplica mudanças automaticamente (substituições auto-aplicadas, deleção física integrada, sweep retroativo), tira snapshot/backup por execução e permite restauração excepcional auditada. Entregue nos marcos M1–M6: schema (M1), extração/validação/snapshot/backup (M2), motor puro (M3), aplicação (M4), restauração (M5), UI admin (M6). ENH-0009 eliminou curadoria, rollback seletivo e bootstrap.
 
 ## Actors
 
-- Vercel Cron (produtor agendado — semanal); Admin (UI de sincronizações/curadoria/recuperação)
+- Vercel Cron (produtor agendado — semanal); Admin (UI de sincronizações/recuperação)
 - Ator Sistema (`sistema@meufenil.local` — identidade real no Supabase Auth, provisionada por `scripts/provisionar-ator-sistema.js`): autor das criações/arquivamentos automáticos
 - service_role (rota `/api/referencias-sync`)
 
@@ -27,40 +27,39 @@ Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is
 3. Validação (estágio 3): checks estruturais/tipos/duplicidades. Estrutura inesperada ou nenhuma linha válida restante → abort, status `origin_invalid`, nada aplicado. Anomalias de campo/tipo são rejeições **individuais**: a linha sai do payload (reportada com linha/nome/motivo no evento `validation`) e o sync segue com as válidas; marca nula = produto sem marca declarada → entra como `''`. Duplicidade conflitante (mesmo nome+marca, fenil divergente — BR-044 revisada 2026-09-14) rejeita **todas as linhas do grupo** (par inteiro — nenhum valor arbitrário vence; o produto fica fora até a origem estabilizar); não invalida a sync `[CONFIRMED: code — validate.ts; migration — rota]`.
 4. Snapshot (estágio 4): payload decodificado **das linhas válidas** gravado em `referencia_snapshots` com sha256 e contagem + evento `snapshot_created` `[CONFIRMED: code]`.
 5. Backup (estágio 5): estado pré-aplicação de `referencias` (globais) em `referencia_backups` com sha256 e contagem + evento `backup_created` `[CONFIRMED: code]`.
-6. Comparação e aplicação (estágios 6–7, motor M3 + RPC M4): `canonical.ts`/`compare.ts` (matching determinístico; `derivarModoSync` decide `bootstrap` × `pos_bootstrap`) geram o plano (versão 1) e `aplicar_sync_referencias` (RPC, service_role) aplica: criações/arquivamentos automáticos (só pós-bootstrap confiável), pendências de curadoria 1:1, seed `pre_sync_inativa` quando `modo = 'bootstrap'` — tudo na mesma transação, com guardas de estado (mudou entre comparação e aplicação → exceção 23505 → rollback total) `[CONFIRMED: migrations 20260906000000/20260907000000; code — compare.ts:117-122]`.
-7. Curadoria: admin decide pendências via RPC `decidir_pendencia_referencia` — aprovar executa a mudança por tipo (substitution = arquivar + criar; absence = arquivar; new_item = criar), rejeitar exige motivo; a decisão da última pendência `open` marca a sync `success` `[CONFIRMED: migration 20260906000000:226-450]`.
-7.5. Audit (ENH-0010): quando `arquivadas > 0 || deletadas > 0`, a rota lê `referencia_eventos` para o sync atual (`tipo IN ('referencia_deletada', 'referencia_arquivada')`) e adiciona `{ estagio: 'audit', status: 'ok', alteracoes: [{ tipo, referencia_id, identidade }] }` em `details.estagios`; identidade lida de `referencia_eventos.detalhes` (gravada pela RPC no apply); isolado em try/catch — falha não impede conclusão `[CONFIRMED: code — api/referencias-sync.ts]`.
-8. Conclusão (estágio 8): rota finaliza a sync (status por resumo — `success` sem divergências desconhecidas / `pending_review` com pendências open / `failure`) e fecha `finished_at` `[CONFIRMED: code — rota]`.
+6. Comparação (estágio 6, motor M3 — simplificado pelo ENH-0009): `canonical.ts`/`compare.ts` (matching determinístico; consulta ativas e arquivadas globais) geram o plano `{ versao, criacoes, arquivamentos }` — `arquivamentos[].motivo: "ausencia"|"substituicao"`; substituições auto-aplicadas `[CONFIRMED: code — compare.ts; migration 20260923000000 (ENH-0009)]`.
+7. Aplicação (estágio 7, RPC M4 — reescrita pelo ENH-0009/ENH-0011): `aplicar_sync_referencias` (RPC, service_role): criações, arquivamentos e **deleção física** (FK violation → degradação a arquivamento), **sweep retroativo** de até 100 globais inativas sem relacionamentos — tudo na mesma transação; guardas de estado (23505 → rollback total). **ENH-0011:** eventos de remoção têm `detalhes = {nome, marca, fenil_mg_por_100g, motivo}` (`ausencia`|`substituicao`|`sweep`). Retorna `{ sync_id, equivalentes, criadas, arquivadas, deletadas }` `[CONFIRMED: code; migration 20260923000000 (ENH-0009); migration 20260925000000 (ENH-0011)]`.
+7.5. Audit (ENH-0010/ENH-0011): quando `arquivadas > 0 || deletadas > 0`, a rota lê `referencia_eventos` para o sync atual (`tipo IN ('referencia_deletada', 'referencia_arquivada')`) e adiciona `{ estagio: 'audit', status: 'ok', alteracoes: [{ tipo, referencia_id, identidade, motivo }] }` em `details.estagios`; **ENH-0011:** `motivo` extraído de `ev.detalhes` como campo separado de `identidade = {nome, marca, fenil_mg_por_100g}` (eventos históricos: `motivo: null`); isolado em try/catch — falha não impede conclusão `[CONFIRMED: code — api/referencias-sync.ts; migration 20260925000000]`.
+8. Conclusão (estágio 8 — simplificado pelo ENH-0009): rota finaliza a sync sempre como `success` (sem pendências/curadoria); `failure` apenas em erro técnico `[CONFIRMED: code — rota]`.
 
 ## Alternative Flows
 
-- **Sync não confiável nunca aplica** (BR-039): validação falhou OU nenhuma sync anterior confiável (`derivarModoSync` → `bootstrap`) → zero efeito automático no catálogo; no bootstrap TODA divergência vira pendência de curadoria `[CONFIRMED: code — compare.ts:117-122; migration 20260907000000 header]`.
-- **Arquivada-pela-origem reaparece** (BR-042): tratada como referência NOVA — criada (auto pós-bootstrap; pendência `new_item` no bootstrap) `[CONFIRMED: code — compare.ts]`.
-- **Bloqueio manual preservado** (BR-042): global inativa sem evento de arquivamento por sync → presença na origem é silêncio; seed grava `pre_sync_inativa` (actor NULL) só para legadas sem evento `[CONFIRMED: code; migration 20260907000000]`.
-- **Rejeição** (BR-043): divergência vira conhecida e deliberada; reapresentada nas syncs seguintes até decisão; não cria regra permanente `[CONFIRMED: code — compare.ts map de decisões; migration 20260906000000]`.
-- **Rollback/restauração** (BR-046): cancelam pendências `open` (evento `pendencia_cancelada` — sem nova decisão); flips de reativação auditados como `rollback`/`restore`, nunca `is_ativa_manual` `[CONFIRMED: migration 20260906010000]`.
+- **Sync com extração/validação inválida aborta** (BR-039): origem inválida ou zero linhas válidas → status `origin_invalid`, nada aplicado `[CONFIRMED: code — compare.ts; api/referencias-sync.ts]`.
+- **Arquivada-pela-origem reaparece** (BR-042): tratada como referência NOVA — criada automaticamente `[CONFIRMED: code — compare.ts]`.
+- **Bloqueio manual preservado** (BR-042): global inativa sem evento de arquivamento por sync → presença na origem é silêncio (ENH-0009 removeu seed `pre_sync_inativa` e `derivarModoSync`/bootstrap) `[CONFIRMED: code; migration 20260923000000]`.
+- **Restauração excepcional** (BR-046): `restaurar_referencias_de_backup` reverte o catálogo global a um backup com verificação sha256; flips auditados como `restore`, nunca `is_ativa_manual`; `pendencias_canceladas` sempre 0 (ENH-0009 — sem pendências) `[CONFIRMED: migration 20260906010000; 20260923000000]`.
 
 ## Error Flows
 
 - Origem inválida/não confiável → `origin_invalid`/`failure` antes de efeito (B9 — sem retry) `[CONFIRMED: migration, code]`
-- Estado mudou durante a sync (23505/linha alterada) → exceção → sync `failure` (retry limpo na próxima) `[CONFIRMED: migration 20260906000000]`
-- Ator Sistema ausente e plano com criações → fail-high (`raise exception` orienta `scripts/provisionar-ator-sistema.js`) `[CONFIRMED: migration 20260906000000:83-85]`
+- Estado mudou durante a sync (23505/linha alterada) → exceção → sync `failure` (retry limpo na próxima) `[CONFIRMED: migration 20260923000000]`
+- Ator Sistema ausente e plano com criações → fail-high (`raise exception` orienta `scripts/provisionar-ator-sistema.js`) `[CONFIRMED: migration 20260923000000]`
 - Sync simultânea → 409 single-flight sem registrar linha `[CONFIRMED: migration 20260905000000; teste REAL]`
-- Chamadas sem autorização (RPCs de recuperação sem `pode_operar_recuperacao`, não-admin em curadoria, aplicar fora de service_role) → permissão negada `[CONFIRMED: migrations 20260906000000/20260906010000]`
-- Restauração com payload corrompido → sha256 não confere → aborta antes de qualquer efeito `[CONFIRMED: migration 20260906010000:434-437]`
+- Chamadas sem autorização (RPCs de recuperação sem `pode_operar_recuperacao`, aplicar fora de service_role) → permissão negada `[CONFIRMED: migrations 20260906010000/20260923000000]`
+- Restauração com payload corrompido → sha256 não confere → aborta antes de qualquer efeito `[CONFIRMED: migration 20260906010000]`
 
 ## Business Rules
 
 - [BR-038](../domain/business-rules.md) — sincronização controla apenas globais
-- [BR-039](../domain/business-rules.md) — sync não confiável jamais cria, arquiva ou altera
-- [BR-040](../domain/business-rules.md) — mudança substantiva = arquivar + criar, só por curadoria
+- [BR-039](../domain/business-rules.md) — sync com extração/validação inválida aborta sem efeito
+- [BR-040](../domain/business-rules.md) — mudança substantiva = arquivar + criar, auto-aplicada (ENH-0009)
 - [BR-041](../domain/business-rules.md) — matching determinístico decide identidade
 - [BR-042](../domain/business-rules.md) — arquivada não reativa; reaparição = nova; bloqueio manual preservado
-- [BR-043](../domain/business-rules.md) — curadoria por sync; rejeição exige motivo
+- ~~[BR-043](../domain/business-rules.md) — curadoria~~ REVOGADO pelo ENH-0009
 - [BR-044](../domain/business-rules.md) — duplicidade conflitante rejeita o par inteiro
-- [BR-045](../domain/business-rules.md) — sync é unidade com ID único; single-flight; canceladas sem nova decisão
-- [BR-046](../domain/business-rules.md) — backup pré-aplicação, retenção 12m; rollback preserva posteriores; restore com sha256
-- [BR-047](../domain/business-rules.md) — auditoria de sync/curadoria e de `is_ativa` manual; ator Sistema; fronteira OQ4
+- [BR-045](../domain/business-rules.md) — sync é unidade com ID único; single-flight
+- [BR-046](../domain/business-rules.md) — backup pré-aplicação, retenção 12m; restauração excepcional com sha256
+- [BR-047](../domain/business-rules.md) — auditoria de sync e de `is_ativa` manual; ator Sistema; fronteira OQ4
 
 Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023, BR-024, BR-026, BR-027 (exceção dos backups de 12m).
 
@@ -77,22 +76,22 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 
 ## Database
 
-- [referencia_syncs](../database/referencia_syncs.md), [referencia_sync_pendencias](../database/referencia_sync_pendencias.md), [referencia_eventos](../database/referencia_eventos.md), [referencia_snapshots](../database/referencia_snapshots.md), [referencia_backups](../database/referencia_backups.md) (promoção M7)
-- [rpc](../database/rpc.md) — `aplicar_sync_referencias`, `decidir_pendencia_referencia`, `pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`, `fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`
+- [referencia_syncs](../database/referencia_syncs.md), ~~referencia_sync_pendencias~~ (DROPPED — ENH-0009), [referencia_eventos](../database/referencia_eventos.md), [referencia_snapshots](../database/referencia_snapshots.md), [referencia_backups](../database/referencia_backups.md)
+- [rpc](../database/rpc.md) — `aplicar_sync_referencias` (reescrita ENH-0009), ~~`decidir_pendencia_referencia`~~ (ELIMINADA ENH-0009), `pode_operar_recuperacao`, ~~`reverter_sync_referencias`~~ (ELIMINADA ENH-0009), `restaurar_referencias_de_backup` (reescrita ENH-0009), `fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`
 - [triggers](../database/triggers.md) — `trg_auditar_is_ativa_manual`, `trg_trim_referencia_backups`; [referencias](../database/referencias.md), [usuarios](../database/usuarios.md) (`pode_recuperacao`)
-- Migrations M1–M6: 20260905000000 (schema/enums/RLS/single-flight/trim), 20260905010000 (auditoria manual), 20260905020000 (R4-3 — ativar global só admin), 20260906000000 (aplicar/decidir), 20260906010000 (rollback/restauração + `pode_recuperacao`), 20260907000000 (seed `pre_sync_inativa` no bootstrap)
-- Migração de precisão decimal (2026-09-11): 20260911000000 — `fenil_mg_por_100g` → `numeric(10,2)` + `CREATE OR REPLACE` das 4 RPCs com cast `numeric(10,1)`; **aplicada em dev em 2026-09-11; pendente em prod** (aplicação via `scripts/apply-supabase-migrations.sh`, com autorização — HIGH RISK)
-- Migração de revisão do reverter (2026-09-14): 20260914000000 — `reverter_sync_referencias` com no-op revisado: sync sem alterações COM pendências `open` cancela as pendências e marca `reverted` (decisão do usuário — bootstrap por definição não aplica operações); aplicada em dev em 2026-09-14; pendente em prod
+- Migrations M1–M6: 20260905000000 (schema/enums/RLS/single-flight/trim), 20260905010000 (auditoria manual), 20260905020000 (R4-3 — ativar global só admin), 20260906000000 (aplicar/decidir), 20260906010000 (restauração + `pode_recuperacao`), 20260907000000 (seed `pre_sync_inativa`)
+- Migração de precisão decimal (2026-09-11): 20260911000000 — `fenil_mg_por_100g` → `numeric(10,2)`; aplicada em dev e prod (release v1.11.0)
+- ENH-0009 (2026-09-24): 20260923000000 — deleção física integrada ao sync; curadoria/rollback/bootstrap/seed removidos; `referencia_sync_pendencias` DROPPED; colunas `bootstrap`/`divergencias` removidas de `referencia_syncs`, `deletadas` adicionada; aplicada em dev (release v1.15.0) e prod
 
 ## Security
 
-- [security-model](../security/security-model.md) (§11 tabelas de sync; §12 operações de recuperação) — RLS admin-only SELECT ×5, sem policies de escrita; escritas via service_role/RPCs SECURITY DEFINER; curadoria com guarda interna de admin; recuperação exige `pode_operar_recuperacao` (admin E flag); ator Sistema real no Auth; GUC `app.audit_origin` suprime trigger onde a RPC registra evento específico
+- [security-model](../security/security-model.md) (§11 tabelas de sync; §12 operações de recuperação) — RLS admin-only SELECT ×4 (referencia_sync_pendencias DROPPED), sem policies de escrita; escritas via service_role/RPCs SECURITY DEFINER; aplicação exclusiva service_role; restauração exige `pode_operar_recuperacao` (admin E flag); ator Sistema real no Auth; GUC `app.audit_origin` suprime trigger onde a RPC registra evento específico (ENH-0009 removeu GUC para curadoria)
 
 ## Tests
 
 - Unit (motor/extração): `canonical.test.ts`, `compare.test.ts`, `engine.test.ts`, `src/shared/powerbi/validate.test.ts`, `decode.test.ts`, `extract.test.ts`
-- REAL (banco — M1–M6): `api/referencias-sync.test.ts` (rota/estágios), `src/shared/security/rpc-referencias-sync.test.ts` (M1 single-flight/RLS + M4 aplicação/curadoria/GUC), `rpc-referencias-sync-rollback.test.ts` (M5 — 17), `rpc-referencias-sync-seed.test.ts` (M6 — 6), `src/react-app/services/referencias-sync.service.test.ts`, `Admin.test.tsx` (UI M6)
-- **Coverage status:** TESTED — suítes do motor e REAL M1–M6; lacunas conhecidas: calibração de margens de validação com a 1ª extração real e E2E do cron Vercel (ver Unknowns)
+- REAL (banco): `api/referencias-sync.test.ts` (rota/estágios — inclui cenários ENH-0009/ENH-0010), `src/shared/security/rpc-referencias-sync.test.ts` (ENH-0009 — 9 testes: aplicação + guardas + state-changed rollback), `rpc-referencias-sync-rollback.test.ts` (ENH-0009 — 6 testes: restauração por backup), `rpc-referencias-sync-seed.test.ts` (ENH-0009 — 1 teste: seed removido → zero pre_sync_inativa), `src/react-app/services/referencias-sync.service.test.ts`, `Admin.test.tsx` (UI M6)
+- **Coverage status:** TESTED — suítes do motor e REAL M1–M6 + ENH-0009/ENH-0010; lacunas conhecidas: calibração de margens de validação com a 1ª extração real e E2E do cron Vercel (ver Unknowns)
 
 ## Dependencies
 
@@ -112,6 +111,9 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 - E3 — Motor puro: `src/shared/referencias-sync/*.ts`; extração: `src/shared/powerbi/*.ts` `[CONFIRMED: code]`
 - E4 — Merges em development: M1 `5b1ed18` (PR #57), M2 `7ec0bf5` (PR #58), M3 `dd631d6` (PR #59), M4 `6e7d3e5` (PR #60), M5 `cb5d776` (PR #61), M6 `cb1123d` (PR #62) `[CONFIRMED: git]`
 - E5 — Suítes REAL M1–M6 executadas contra dev; M1–M6 em prod desde a release v1.11.0 (2026-09-10) `[CONFIRMED: database — catálogo prod 2026-09-11]`
+- E6 — ENH-0009: migration 20260923000000 (deleção física + simplificação — dev 2026-09-24, prod release v1.15.0) `[CONFIRMED: migration]`
+- E7 — ENH-0010: `api/referencias-sync.ts` (estágio audit) — dev 2026-09-25, prod release v1.15.1 `[CONFIRMED: code]`
+- E8 — ENH-0011: migration 20260925000000 + `api/referencias-sync.ts` (audit stage motivo) — dev 2026-09-25 `[CONFIRMED: migration, code]`
 
 ## Unknowns
 

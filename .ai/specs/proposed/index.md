@@ -1,17 +1,18 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-09-25 (ENH-0010 IMPLEMENTED — PR #92, squash merge `964944c`)
+**Última verificação:** 2026-09-25 (DEBT-0008 IMPLEMENTED — 6 labels de categoria, migração retroativa 34 Issues)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (10) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 15 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (10) · ACCEPTED (1) · arquivadas = linhas da seção "Arquivadas" (7) · as 17 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED** (exceto propostas já aprovadas com `Decision: ACCEPTED`). O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
-> **Regra de arquivamento (ADR-0012, 2026-08-16):** `proposed/` contém SOMENTE propostas ativas. Propostas em estado terminal (IMPLEMENTED/REJECTED/SUPERSEDED) são movidas para `../archive/<estado>/<categoria>/`. Cada proposta possui uma Issue canônica no GitHub (coluna `Issue` — campo `Issue:` no arquivo + label `spec:<ID>` na Issue) e um item no GitHub Project (Status derivado, CONVENTIONS §18).
+> **Regra de arquivamento (ADR-0012, 2026-08-16):** `proposed/` contém SOMENTE propostas ativas. Propostas em estado terminal (IMPLEMENTED/REJECTED/SUPERSEDED) são movidas para `../archive/<estado>/<categoria>/`. Cada proposta possui uma Issue canônica no GitHub (coluna `Issue` — campo `Issue:` no arquivo + label de categoria `spec:<tipo>` na Issue) e um item no GitHub Project (Status derivado, CONVENTIONS §18).
 
 ## Catálogo
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
+| [ENH-0011](../archive/implemented/enhancements/ENH-0011-motivo-remocao-audit-json.md) | ENH | Motivo de remoção no evento e no audit JSON | IMPLEMENTED | #95 | migration 20260925000000 + api/referencias-sync.ts (audit stage) — dev 2026-09-25 |
 | [ENH-0010](../archive/implemented/enhancements/ENH-0010-identidade-referencias-removidas-detalhes-sync.md) | ENH | Identidade das referências removidas nos detalhes técnicos do sync | IMPLEMENTED | #91 | sessão meuFenil017 (2026-09-25) — PR #92 (squash merge `964944c`, 2026-09-25) |
 | [ENH-0009](../archive/implemented/enhancements/ENH-0009-delecao-fisica-integrada-sync-simplificacao.md) | ENH | Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017) | IMPLEMENTED | #88 | sessão meuFenil014 (2026-09-18 a 2026-09-20) — PR #89 (squash merge `3255c11`, 2026-09-24) |
 | [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | #87 | sessão meuFenil013 (2026-09-18) — inconsistência ALL CAPS × Sentence Case confirmada |
@@ -34,6 +35,7 @@
 | [REF-0004](../archive/implemented/refactors/REF-0004-automacao-residuo-gate-e-prevencao-tentativa-erro.md) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | IMPLEMENTED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), PR #52 (squash merge) — 2026-09-03 |
 | [REF-0005](refactors/REF-0005-heading-canonico-corpo-release-pre-release-check-ampliado.md) | REF | Corpo de Release com heading canônico da tabela de rastreabilidade + pre-release-check ampliado | PROPOSED | #54 | W6 `no-table` em v1.10.0 (run 33139076564) e v1.10.1 (run 33826721637) — 2026-09-03 |
 | [DEBT-0007](technical-debt/DEBT-0007-gate-validacao-rotas-vercel.md) | DEBT | Gate de validação não cobre rotas Vercel em modo Node.js ESM | PROPOSED | TBD | ERR_MODULE_NOT_FOUND em prod (v1.11.0, 2026-09-10) — fix `2ea335c` |
+| [DEBT-0008](../archive/implemented/technical-debt/DEBT-0008-labels-spec-por-categoria.md) | DEBT | Labels de spec por categoria em vez de labels por ID | IMPLEMENTED | #94 | Alternativa C — 6 labels de categoria, dedup por título — sessão meuFenil018 (2026-09-25) |
 | [ENH-0005](../archive/implemented/enhancements/ENH-0005-revisao-tooling-ia.md) | ENH | Revisão e melhoria do tooling de IA do projeto | IMPLEMENTED | #76 | commits `ccf8733`/`bc880ef` (dev, 2026-09-15) |
 | [ENH-0006](../archive/implemented/enhancements/ENH-0006-espelho-specs-wiki.md) | ENH | Espelho das Specs do Projeto na Wiki | IMPLEMENTED | #79 | Draft 005-specs-reflected-on-wiki (arquivado) — PR #81, merge `83f9618` — 2026-09-16 |
 | [ENH-0007](../archive/implemented/enhancements/ENH-0007-compatibilidade-multi-ferramenta-ai-tooling.md) | ENH | Compatibilidade multi-ferramenta do AI Tooling | IMPLEMENTED | #84 | Draft 006-generic-ai-tooling (arquivado) — AGENTS.md + GEMINI.md (PR Part of #84, 2026-09-18) |
@@ -57,6 +59,6 @@ Propostas em estado terminal, movidas de `proposed/` para `../archive/implemente
 
 - Cada proposta descreve o estado ATUAL (com link para `../current/`) e o estado PROPOSTO — nunca confunda os dois.
 - Nenhuma proposta é aprovada/priorizada por estar aqui. Fluxo de aprovação: revisão humana (decisão registrada na proposta: `Decision:` + `Approved by/on:`) → implementação (work branch + PR → `development`) → promoção/arquivamento conforme `../CONVENTIONS.md` seções 8, 10 e 18.
-- Toda proposta possui Issue canônica no GitHub (ligação 1:1 via campo `Issue:` + label `spec:<ID>` + bloco `SPEC-PROJECTION`) e item no GitHub Project — ver `../CONVENTIONS.md` §18.
+- Toda proposta possui Issue canônica no GitHub (ligação 1:1 via campo `Issue:` + label de categoria `spec:<tipo>` + bloco `SPEC-PROJECTION`) e item no GitHub Project — ver `../CONVENTIONS.md` §18.
 - Propostas agrupam múltiplas evidências (ex.: TEST-0001 consolida GAP-001/002/003/010). Mapeamento completo no relatório `.ai/.temp/analyses/26-catalogo-propostas.md`.
 - Novas categorias SEC e TEST adicionadas nesta fase (extensão registrada — ver DEBT-0004).

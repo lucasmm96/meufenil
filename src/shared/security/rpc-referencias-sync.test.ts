@@ -217,6 +217,13 @@ describeOrSkip("RPC ENH-0009: aplicar_sync_referencias (Abordagem B)", () => {
       ]);
       expect(eventos.every((e) => e.actor_id === sistemaId)).toBe(true);
 
+      // ENH-0011: detalhes.motivo nos eventos de remoção
+      const evArquivado = eventosPlano.find((e) => e.tipo === "referencia_arquivada");
+      expect(evArquivado?.detalhes?.motivo).toBe("substituicao");
+      for (const evSweep of eventosSweep) {
+        expect(evSweep.detalhes?.motivo).toBe("sweep");
+      }
+
       // Sync: contadores e alteracoes vazias (rollback removido no ENH-0009)
       const { data: sync } = await admin
         .from("referencia_syncs")
@@ -422,6 +429,45 @@ describeOrSkip("RPC ENH-0009: aplicar_sync_referencias (Abordagem B)", () => {
       if (!sync) throw new Error("Fixture ausente: registro de sync");
       expect(sync).toMatchObject({ criadas: 0, arquivadas: 0 });
       expect(sync.alteracoes).toEqual([]);
+    });
+
+    it("ENH-0011: eventos de remoção por ausência têm detalhes.motivo='ausencia'", async () => {
+      if (!m4Aplicada || !sistemaId) return;
+
+      const syncId = await criarSync("running");
+      // Referência sem vínculos → deleção física (referencia_deletada, motivo ausencia)
+      const semVinculos = await createTestReference(adminUser.id, {
+        is_global: true,
+        nome: nomeUnico("ausencia_del"),
+      });
+
+      const { data, error } = await admin.rpc("aplicar_sync_referencias", {
+        p_sync_id: syncId,
+        p_plano: {
+          versao: 1,
+          criacoes: [],
+          arquivamentos: [{ op: "archive", referencia_id: semVinculos.id, motivo: "ausencia" }],
+        },
+      });
+
+      expect(error).toBeNull();
+      // deletadas >= 1: o sweep pode apagar stale refs do banco de teste
+      expect((data as { deletadas: number }).deletadas).toBeGreaterThanOrEqual(1);
+      expect((data as { arquivadas: number }).arquivadas).toBe(0);
+
+      const eventos = await eventosPorSync(syncId);
+      // Evento específico do plano (por referencia_id) tem motivo 'ausencia'
+      const evDelPlano = eventos.find(
+        (e) => e.tipo === "referencia_deletada" && e.referencia_id === semVinculos.id
+      );
+      expect(evDelPlano?.detalhes?.motivo).toBe("ausencia");
+      // Eventos de sweep têm motivo 'sweep'
+      const eventosSweep = eventos.filter(
+        (e) => e.tipo === "referencia_deletada" && e.referencia_id !== semVinculos.id
+      );
+      for (const evSweep of eventosSweep) {
+        expect(evSweep.detalhes?.motivo).toBe("sweep");
+      }
     });
 
     it("authenticated (admin) NÃO pode aplicar plano — exclusivo service_role", async () => {

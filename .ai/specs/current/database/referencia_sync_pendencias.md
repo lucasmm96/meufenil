@@ -1,11 +1,13 @@
-# Tabela public.referencia_sync_pendencias
+# ~~Tabela public.referencia_sync_pendencias~~ — DROPPED (ENH-0009)
 
-**Última verificação:** 2026-09-07 (FEAT-0017 M1–M6)
-**DDL versionado em:** `supabase/migrations/20260905000000_referencias_sync_tabelas.sql` (completo, linhas 98–124) — escrita e decisão pelos RPCs da 20260906000000; cancelamento pelos RPCs da 20260906010000
+> **Esta tabela foi eliminada pela migration ENH-0009 (`20260923000000_enh_0009_delecao_fisica_sync_simplificacao.sql`, `DROP TABLE referencia_sync_pendencias CASCADE`) — 2026-09-24.** O mecanismo de curadoria foi integralmente removido (substituições auto-aplicadas; sem pendências; `decidir_pendencia_referencia` DROPPED). Esta spec é mantida apenas para rastreabilidade histórica — não reflete nenhum objeto ativo no banco.
 
-## Propósito
+**Última verificação:** 2026-09-25 (ENH-0009 — tabela DROPPED, migration 20260923000000. Antes: 2026-09-07 FEAT-0017 M1–M6)
+**DDL histórico em:** `supabase/migrations/20260905000000_referencias_sync_tabelas.sql` (linhas 98–124)
 
-Curadoria da sincronização (FEAT-0017): divergências entre origem e catálogo que exigem decisão humana — a pendência carrega o tipo, a referência afetada, a proposta e o diff estruturado da divergência. Decidida por admin (aprovar/rejeitar); cancelada por rollback/restauração.
+## Propósito (histórico)
+
+Curadoria da sincronização (FEAT-0017 M4): divergências entre origem e catálogo que exigiam decisão humana. **Eliminado pelo ENH-0009.**
 
 ## Colunas
 

@@ -1,6 +1,6 @@
 # Testing Strategy — Estado Atual
 
-**Última verificação:** 2026-09-18 (TEST-0005 — `uniqueTestEmail` e `createTestReference` migradas para `crypto.randomUUID()`; `testUserCounter` removido; GAP-011 encerrado)
+**Última verificação:** 2026-09-25 (ENH-0009 + ENH-0010: contagens e descrições das suítes de sync atualizadas; Admin.test.tsx 11 testes; antes: 2026-09-18 TEST-0005)
 
 Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM hoje. A análise de gaps e as recomendações estão no relatório da fase (`.ai/.temp/analyses/22-auditoria-testes.md`) — NÃO aqui.
 
@@ -37,9 +37,9 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 | Unit (lib frontend) | `src/react-app/lib/referencias.test.ts` (ENH-0004 + canônico revisto 2026-09-04) | helpers puros do modelo canônico de referências — `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca` (20 testes) |
 | Service (client-side) | 11 arquivos em `services/*.service.test.ts` (inclui `referencias-sync.service.test.ts`, FEAT-0017 M6 — 25 testes) | mocks do supabase; assertions de chamadas e AppError |
 | Hook | 13 arquivos em `hooks/use*.test.ts(x)` (inclui `useReferenciasSyncAdmin.test.tsx`, FEAT-0017 M6 — 9 testes) | `renderHook` (Testing Library) + mocks de services/supabase |
-| Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 84 testes (15+17+25+12+13+2 — Admin com a seção de sincronização FEAT-0017 M6) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
+| Component/Page | 6 arquivos: `pages/{Admin,Perfil,Referencias,Dashboard}.test.tsx` + `components/{AdicionarRegistro,ConsentimentoLGPD}.test.tsx` | `render` + mocks de hooks; 80 testes (11+17+25+12+13+2 — Admin atualizado ENH-0009: testes de curadoria/pendências removidos; antes de ENH-0009: 15 no M6) cobrindo estados loading/empty/error, interações e fluxos destrutivos |
 | API/Serverless | `api/keepalive.test.ts`, `api/referencias-sync.test.ts` (FEAT-0017 M4) | handler Node-style com mocks (`createClient` + módulo de extração; motor M3 e validação reais na rota de sync); 4 + 13 cenários |
-| Security (integração real) | `src/shared/security/` — 8 suítes: `auth-real-validation`, `rls-usuarios`, `rpc-ativar-referencia`, `rpc-remover-referencia`, `rls-referencia-sync` (FEAT-0017 M1), `rpc-referencias-sync` (FEAT-0017 M4), `rpc-referencias-sync-rollback` (FEAT-0017 M5), `rpc-referencias-sync-seed` (FEAT-0017 M6 — seed `pre_sync_inativa`, 6 testes) | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll; **execução serial global** (`fileParallelism: false` — banco dev compartilhado; ver seção 5, entrada 2026-09-06) |
+| Security (integração real) | `src/shared/security/` — 8 suítes: `auth-real-validation`, `rls-usuarios`, `rpc-ativar-referencia`, `rpc-remover-referencia`, `rls-referencia-sync` (FEAT-0017 M1), `rpc-referencias-sync` (FEAT-0017 M4 — ENH-0009: 9 testes, curadoria eliminada), `rpc-referencias-sync-rollback` (FEAT-0017 M5 — ENH-0009: 6 testes, apenas restauração), `rpc-referencias-sync-seed` (FEAT-0017 M6 — ENH-0009: 1 teste, seed removido) | clientes Supabase reais com JWTs contra o banco **development**; service role para criar usuários de teste; cleanup em afterAll; **execução serial global** (`fileParallelism: false` — banco dev compartilhado; ver seção 5, entrada 2026-09-06) |
 | E2E | **NÃO identificado** `[CONFIRMED: ausência]` | — |
 | Smoke | **NÃO identificado** `[CONFIRMED: ausência]` | — |
 
@@ -50,13 +50,21 @@ Este documento descreve a infraestrutura e a estratégia de testes que EXISTEM h
 - `rpc-ativar-referencia.test.ts` (T2.0–T2.5): autorização de `ativar_referencia` (dono, delegado, admin, não autorizado, inexistente; T2.0 legado).
 - `rpc-remover-referencia.test.ts` (T3.0–T3.8): autorização de `remover_ou_desativar_referencia` (dono, delegado, admin, global, vínculo soft-delete, inexistente; T3.0 legado). **T3.7 (ENH-0004):** remoção de referência GLOBAL por admin sempre arquiva (`'deactivated'`, linha permanece com `is_ativa = false`) — condicionado a `isEnh0004MigrationApplied` (migrations ENH-0004 aplicadas em dev) `[CONFIRMED: test]`.
 - `rls-referencia-sync.test.ts` (FEAT-0017 M1, guard `isFeat0017M1Applied`): RLS das tabelas de sync — anon/authenticated sem INSERT/UPDATE/DELETE; SELECT admin-only.
-- `rpc-referencias-sync.test.ts` (FEAT-0017 M4, guards `isFeat0017M4Applied`/`isSistemaProvisionado`): aplicar exclusivo service_role (authenticated → permissão negada; rollback total em 23505/estado mudado; `criado_por` = Sistema); decidir exclusivo admin com sessão (service_role → permissão negada; aprovar os 3 tipos com GUC D-7; rejeitar com/sem motivo; terminais; sync running).
-- `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5, 17 testes, guards `isFeat0017M5Applied`/`isSistemaProvisionado`): reverter (11) — permissões (admin sem flag, não-admin, service_role), guarda de execução por environment, status restritos, no-op, preservação de alterações posteriores (skip), colisão 23505 → skip por op, pendências → `cancelled`, status → `reverted`; restaurar (6) — permissões, backup inexistente, integridade sha256 (conteúdo corrompido), conflito de identidade aborta a transação, happy path DENTRO de transação PG real (forge de `request.jwt.claims` + ROLLBACK — zero persistência; timeout de 120s no teste) `[CONFIRMED: test]`.
-- `rpc-referencias-sync-seed.test.ts` (FEAT-0017 M6, 6 testes, guard `isFeat0017M6Applied`): bootstrap com global inativa legada → 1 evento `pre_sync_inativa` por inativa (actor NULL, sync da 1ª sync); inativa QUE JÁ TEM evento → sem seed (histórico honesto preservado); NÃO-bootstrap (`pos_bootstrap`) → sem seed; plano sem `modo` (contrato antigo) → sem seed (default seguro); idempotência — 2ª aplicação bootstrap não duplica eventos; seed é INSERT de evento e não dispara o trigger `is_ativa_manual` `[CONFIRMED: test]`.
+- `rpc-referencias-sync.test.ts` (FEAT-0017 M4, guards `isFeat0017M4Applied`/`isSistemaProvisionado` — ENH-0009: 9 testes; curadoria eliminada): aplicar exclusivo service_role (authenticated → permissão negada; rollback total em 23505/estado mudado; `criado_por` = Sistema; contadores `criadas`/`arquivadas`/`deletadas`; sweep retroativo) `[CONFIRMED: test, migration 20260923000000]`.
+- `rpc-referencias-sync-rollback.test.ts` (FEAT-0017 M5, guards `isFeat0017M5Applied`/`isSistemaProvisionado` — ENH-0009: 6 testes; `reverter_sync_referencias` eliminada, apenas restauração): restaurar — permissões, backup inexistente, integridade sha256 (conteúdo corrompido), conflito de identidade aborta a transação, happy path DENTRO de transação PG real (forge de `request.jwt.claims` + ROLLBACK — zero persistência; timeout de 120s no teste) `[CONFIRMED: test, migration 20260923000000]`.
+- `rpc-referencias-sync-seed.test.ts` (FEAT-0017 M6 — ENH-0009: 1 teste; seed `pre_sync_inativa` removido de `aplicar_sync_referencias`): verifica que não existem eventos `pre_sync_inativa` no banco dev após remoção do seed pelo ENH-0009 `[CONFIRMED: test, migration 20260923000000]`.
 - **Skip condicional:** as 8 suítes usam `describeOrSkip = hasServiceRole ? describe : describe.skip` (pulam se `SUPABASE_SERVICE_ROLE_KEY` ausente); as suítes de sync exigem ainda os guards de migration correspondentes (M1/M4/M5/M6 + ator Sistema) `[CONFIRMED: test]`.
 - Pré-condição: `isSecurityMigrationApplied()` (exige `admin_can_select_all_usuarios` em pg_policies) `[CONFIRMED: test]`.
 
 ## 5. Resultados observados
+
+**2026-09-24/25 (ENH-0009 + ENH-0010):**
+- `rpc-referencias-sync-rollback.test.ts` reduzido de 17 → **6 testes** (ENH-0009: `reverter_sync_referencias` eliminada; apenas restauração permanece).
+- `rpc-referencias-sync-seed.test.ts` reduzido de 6 → **1 teste** (ENH-0009: seed `pre_sync_inativa` removido de `aplicar_sync_referencias`; teste verifica zero eventos `pre_sync_inativa`).
+- `rpc-referencias-sync.test.ts` reescrito para **9 testes** (ENH-0009: curadoria eliminada; foco em aplicação, contadores `deletadas`, sweep retroativo, guardas de estado e single-flight).
+- `Admin.test.tsx` reduzido de ~20 → **11 testes** (ENH-0009: testes de pendências/curadoria/reverter removidos; botão manual em dev/prod, restauração por backup permanecem).
+- `api/referencias-sync.test.ts` cobre estágios 1–8 incluindo ENH-0009 (deleção física, sweep) e ENH-0010 (estágio audit).
+- Execução da suite completa pós-ENH-0009/0010: não documentada nesta spec (ver CI).
 
 **2026-09-18 (TEST-0005):**
 - `uniqueTestEmail()` migrada de `Date.now()` + contador por processo para `crypto.randomUUID()` — elimina a classe de colisão confirmada em 2 de 3 execuções (GAP-011). Aplicado também em `createTestReference`. `testUserCounter` removido.
