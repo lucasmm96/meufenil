@@ -18,6 +18,7 @@
 - [ENH-0007-compatibilidade-multi-ferramenta-ai-tooling](Specs-Archive-Implemented-Enhancements-ENH-0007-Compatibilidade-Multi-Ferramenta-Ai-Tooling)
 - [ENH-0009-delecao-fisica-integrada-sync-simplificacao](Specs-Archive-Implemented-Enhancements-ENH-0009-Delecao-Fisica-Integrada-Sync-Simplificacao)
 - [ENH-0010-identidade-referencias-removidas-detalhes-sync](Specs-Archive-Implemented-Enhancements-ENH-0010-Identidade-Referencias-Removidas-Detalhes-Sync)
+- [ENH-0011-motivo-remocao-audit-json](Specs-Archive-Implemented-Enhancements-ENH-0011-Motivo-Remocao-Audit-Json)
 
 ### Features
 
@@ -37,6 +38,7 @@
 - [DEBT-0004-reconciliar-templates](Specs-Archive-Implemented-Technical-Debt-DEBT-0004-Reconciliar-Templates)
 - [DEBT-0005-lint-src-pendencias-eslint](Specs-Archive-Implemented-Technical-Debt-DEBT-0005-Lint-Src-Pendencias-Eslint)
 - [DEBT-0006-restaurar-keepalive-dev](Specs-Archive-Implemented-Technical-Debt-DEBT-0006-Restaurar-Keepalive-Dev)
+- [DEBT-0008-labels-spec-por-categoria](Specs-Archive-Implemented-Technical-Debt-DEBT-0008-Labels-Spec-Por-Categoria)
 
 ### Testing
 

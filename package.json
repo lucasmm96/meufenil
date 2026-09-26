@@ -1,7 +1,7 @@
 {
   "name": "meufenil",
   "private": true,
-  "version": "1.14.0",
+  "version": "1.15.2",
   "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
