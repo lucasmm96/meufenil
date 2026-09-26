@@ -242,7 +242,7 @@ Camada operacional/pública do Specification System. A Spec continua sendo a fon
 ### 18.2 Ligação Spec ↔ Issue (1:1, auditável)
 
 - Spec → Issue: campo `Issue: #N` no frontmatter (preenchido no mesmo fluxo de criação da Spec).
-- Issue → Spec: label `spec:<ID>` + bloco `SPEC-PROJECTION` no body (ID, caminho, status).
+- Issue → Spec: label de categoria `spec:<tipo>` (onde `<tipo>` ∈ `feat`, `enh`, `ref`, `debt`, `sec`, `test`) + bloco `SPEC-PROJECTION` no body (ID, caminho, status).
 - Todo item real de `proposed/` possui Issue canônica; criar Spec sem Issue (ou vice-versa) é estado inválido, corrigível por auditoria.
 
 ### 18.3 Bloco SPEC-PROJECTION
@@ -262,7 +262,7 @@ O corpo do Issue tem um bloco `<!-- SPEC-PROJECTION:START --> … <!-- SPEC-PROJ
 
 ### 18.5 Sincronização
 
-Idempotente e declarativa: executar duas vezes não pode criar duas Issues (chave: `Issue:` do frontmatter ou busca por label `spec:<ID>`) nem comentários duplicados (markers). Divergência entre ação humana no GitHub e a Spec: reportar com opções — nunca reverter nem acatar silenciosamente (protocolo seção 12). Invariantes auditadas: toda Spec ativa com Issue 1:1; todo Issue `spec-driven` no Project; nenhum PR com `Closes #N` em Issue canônica; nenhum arquivo com Status terminal em `proposed/`.
+Idempotente e declarativa: executar duas vezes não pode criar duas Issues (chave: `Issue:` do frontmatter ou busca por título `[SPEC-ID]` — formato canônico determinístico) nem comentários duplicados (markers). Labels de categoria: ao criar uma Issue canônica, aplique o label de categoria correspondente (`spec:feat` para FEAT-*, `spec:enh` para ENH-*, `spec:ref` para REF-*, `spec:debt` para DEBT-*, `spec:sec` para SEC-*, `spec:test` para TEST-*) — conjunto fechado, sem criar novos labels por ID. Divergência entre ação humana no GitHub e a Spec: reportar com opções — nunca reverter nem acatar silenciosamente (protocolo seção 12). Invariantes auditadas: toda Spec ativa com Issue 1:1; todo Issue `spec-driven` no Project; toda Issue canônica ativa com exatamente um label `spec:<tipo>`; nenhum PR com `Closes #N` em Issue canônica; nenhum arquivo com Status terminal em `proposed/`.
 
 ### 18.6 Fechamento de Issue (decisão × execução mecânica — alinhado à revisão final D-12)
 
