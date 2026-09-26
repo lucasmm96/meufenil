@@ -1,10 +1,11 @@
 # DEBT-0008 — Labels de spec por categoria em vez de labels por ID
 
 **Type:** DEBT
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Labels de spec por categoria em vez de labels por ID
 **Issue:** #94
 **Created on:** 2026-09-25
+**Implemented Through:** Alternativa C — 6 labels de categoria (`spec:feat`/`spec:enh`/`spec:ref`/`spec:debt`/`spec:sec`/`spec:test`), dedup por título `[SPEC-ID]`, migração retroativa de 34 Issues; CONVENTIONS.md §18.2/§18.5, github-manager, ADR-0012, templates atualizados — sessão meuFenil018 (2026-09-25)
 
 ## Problem
 
@@ -105,7 +106,7 @@ Nenhuma.
 
 **C — Labels de categoria `spec:<tipo>` (proposta acima):** Conjunto fechado com 6 labels; permite filtrar por categoria; exige mudança na CONVENTIONS, no `github-manager` e ajuste retroativo em todas as Issues.
 
-**Decision:** TBD — escolha entre A, B e C é humana. **Approved by:** — **Approved on:** —
+**Decision:** C — labels de categoria (`spec:feat`, `spec:enh`, `spec:ref`, `spec:debt`, `spec:sec`, `spec:test`) + dedup por título de Issue. **Approved by:** Lucas (usuário) **Approved on:** 2026-09-25
 
 ## Open Questions
 
