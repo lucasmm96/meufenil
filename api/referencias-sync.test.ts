@@ -750,6 +750,7 @@ describe("referencias-sync handler", () => {
           tipo: "referencia_arquivada",
           referencia_id: "ref-x",
           identidade: { nome: "Leite", marca: "Marca X", fenil_mg_por_100g: 5 },
+          motivo: null,
         },
       ],
     });
