@@ -12,7 +12,7 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
-| [ENH-0012](enhancements/ENH-0012-ajuste-retroativo-verbatim-referencias.md) | ENH | Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA | PROPOSED | #99 | sessão meuFenil019 (2026-09-28) — pré-requisito de ENH-0008 |
+| [ENH-0012](enhancements/ENH-0012-ajuste-retroativo-verbatim-referencias.md) | ENH | Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA | ACCEPTED | #99 | sessão meuFenil019 (2026-09-28) — pré-requisito de ENH-0008 |
 | [ENH-0011](../archive/implemented/enhancements/ENH-0011-motivo-remocao-audit-json.md) | ENH | Motivo de remoção no evento e no audit JSON | IMPLEMENTED | #95 | migration 20260925000000 + api/referencias-sync.ts (audit stage) — dev 2026-09-25 |
 | [ENH-0010](../archive/implemented/enhancements/ENH-0010-identidade-referencias-removidas-detalhes-sync.md) | ENH | Identidade das referências removidas nos detalhes técnicos do sync | IMPLEMENTED | #91 | sessão meuFenil017 (2026-09-25) — PR #92 (squash merge `964944c`, 2026-09-25) |
 | [ENH-0009](../archive/implemented/enhancements/ENH-0009-delecao-fisica-integrada-sync-simplificacao.md) | ENH | Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017) | IMPLEMENTED | #88 | sessão meuFenil014 (2026-09-18 a 2026-09-20) — PR #89 (squash merge `3255c11`, 2026-09-24) |

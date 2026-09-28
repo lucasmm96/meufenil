@@ -1,10 +1,13 @@
 # ENH-0012 — Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA
 **Issue:** #99
 **Created on:** 2026-09-28
+**Decision:** ACCEPTED
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-09-28
 
 ## Problem
 
@@ -100,7 +103,7 @@ Nenhuma.
 - **B. Ajuste via SQL simples (uppercase tudo):** não corresponde ao verbatim da ANVISA — a ANVISA pode ter formatação distinta de ALL CAPS puro. **Decision:** descartada — verbatim exige lookup real na origem.
 - **C. Deixar o sync corrigir gradualmente:** com comparação case-sensitive, itens do seed não são reconhecidos como correspondentes e o ajuste não ocorre naturalmente. **Decision:** descartada.
 
-**Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED. **Approved by:** — **Approved on:** —
+**Decision:** ACCEPTED — ajuste retroativo via extração em tempo real + script idempotente; itens sem par na ANVISA mantidos sem alteração. **Approved by:** Lucas Martins Menezes **Approved on:** 2026-09-28
 
 ## Open Questions
 
