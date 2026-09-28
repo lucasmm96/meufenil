@@ -27,7 +27,7 @@ Auditoria confirmatória do pipeline de sync: verificar que `nome`, `marca` e `f
 
 Script pontual que:
 
-1. Executa extração ANVISA (ou usa o payload mais recente disponível)
+1. Executa extração ANVISA em tempo real (nova extração antes de rodar — ver OQ2)
 2. Para cada referência global ativa no catálogo, busca correspondente na ANVISA por comparação **case-insensitive** de `nome+marca` (normalizado apenas para fins de lookup — não para persistência)
 3. Quando encontra correspondência: atualiza `nome` e `marca` no banco para o valor verbatim da ANVISA
 4. Quando não encontra correspondência: mantém o registro sem alteração e registra no log de execução
@@ -104,8 +104,8 @@ Nenhuma.
 
 ## Open Questions
 
-1. **Itens do seed sem correspondência na ANVISA:** manter sem alteração (comportamento proposto) ou flag para revisão manual? Impacta o critério de "sucesso" do script.
-2. **Mecanismo de extração:** o script usa extração ANVISA em tempo real (requer conectividade) ou um snapshot do último payload de sync? Impacta a janela de tempo válida do ajuste.
+1. **Itens do seed sem correspondência na ANVISA:** manter sem alteração (comportamento proposto) ou flag para revisão manual? **RESOLVIDA:** manter sem alteração — itens sem par na ANVISA ficam como estão; o log os registra. Não tocar o que não tem origem confirmada. `[Decisão: Lucas Martins Menezes, 2026-09-28]`
+2. **Mecanismo de extração:** o script usa extração ANVISA em tempo real (requer conectividade) ou um snapshot do último payload de sync? **RESOLVIDA:** extração em tempo real — o script dispara uma nova extração antes de rodar, garantindo dados atualizados da origem. `[Decisão: Lucas Martins Menezes, 2026-09-28]`
 
 ## Acceptance Criteria
 
