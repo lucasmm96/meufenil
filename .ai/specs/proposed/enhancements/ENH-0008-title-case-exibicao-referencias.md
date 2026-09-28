@@ -9,6 +9,9 @@
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-09-18
 
+> ⚠️ **BLOQUEADA — não implementar antes de [ENH-0012](enhancements/ENH-0012-ajuste-retroativo-verbatim-referencias.md) estar `IMPLEMENTED`.**
+> ENH-0012 ajusta os dados existentes para fidelidade verbatim com a ANVISA. Sem esse ajuste prévio, o Title Case será aplicado sobre dados com formatação inconsistente com a origem, desconectando a cadeia banco → display da realidade. **Implementar esta spec antes de ENH-0012 viola o princípio de verbatim fidelidade.**
+
 ## Problem
 
 O catálogo de referências alimentares contém itens com caixa inconsistente entre si: itens do seed histórico estão em Sentence/Title Case ("Alimento achocolatado em pó"), enquanto itens criados pelo sync ANVISA/Power BI estão em ALL CAPS ("ALIMENTO ACHOCOLATADO EM PÓ") — conforme o formato nativo da fonte. O frontend exibe o dado bruto, expondo essa inconsistência visual ao usuário em todos os pontos de exibição.
@@ -124,7 +127,7 @@ N/A — sem impacto arquitetural.
 
 ## Dependencies
 
-Nenhuma.
+- **[ENH-0012](enhancements/ENH-0012-ajuste-retroativo-verbatim-referencias.md) — BLOCKING:** ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA. **ENH-0012 deve estar com Status `IMPLEMENTED` antes de qualquer implementação desta spec.** (ver aviso no topo)
 
 ## Risks
 

@@ -12,10 +12,11 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
+| [ENH-0012](enhancements/ENH-0012-ajuste-retroativo-verbatim-referencias.md) | ENH | Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA | PROPOSED | #99 | sessão meuFenil019 (2026-09-28) — pré-requisito de ENH-0008 |
 | [ENH-0011](../archive/implemented/enhancements/ENH-0011-motivo-remocao-audit-json.md) | ENH | Motivo de remoção no evento e no audit JSON | IMPLEMENTED | #95 | migration 20260925000000 + api/referencias-sync.ts (audit stage) — dev 2026-09-25 |
 | [ENH-0010](../archive/implemented/enhancements/ENH-0010-identidade-referencias-removidas-detalhes-sync.md) | ENH | Identidade das referências removidas nos detalhes técnicos do sync | IMPLEMENTED | #91 | sessão meuFenil017 (2026-09-25) — PR #92 (squash merge `964944c`, 2026-09-25) |
 | [ENH-0009](../archive/implemented/enhancements/ENH-0009-delecao-fisica-integrada-sync-simplificacao.md) | ENH | Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017) | IMPLEMENTED | #88 | sessão meuFenil014 (2026-09-18 a 2026-09-20) — PR #89 (squash merge `3255c11`, 2026-09-24) |
-| [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | #87 | sessão meuFenil013 (2026-09-18) — inconsistência ALL CAPS × Sentence Case confirmada |
+| [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | #87 | sessão meuFenil013 (2026-09-18) — ⚠️ BLOQUEADA por ENH-0012 |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
