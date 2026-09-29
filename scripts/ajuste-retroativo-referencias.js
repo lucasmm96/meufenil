@@ -318,11 +318,21 @@ function requireEnv(name) {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  loadEnvFileIfPresent(".env.development");
+  const isProd = process.argv.includes("--prod");
+  loadEnvFileIfPresent(isProd ? ".env.production" : ".env.development");
 
-  const supabaseUrl = requireEnv("VITE_SUPABASE_URL");
-  const serviceKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  // Prod usa as vars dedicadas do sync (REFERENCIAS_SYNC_*); dev usa as vars locais.
+  const supabaseUrl = isProd
+    ? requireEnv("REFERENCIAS_SYNC_SUPABASE_URL")
+    : requireEnv("VITE_SUPABASE_URL");
+  const serviceKey = isProd
+    ? requireEnv("REFERENCIAS_SYNC_SUPABASE_SERVICE_ROLE_KEY")
+    : requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   const resourceKey = requireEnv("POWERBI_RESOURCE_KEY");
+
+  if (isProd) {
+    console.log("[ENH-0012] MODO PRODUÇÃO — alterações serão aplicadas no banco de prod.");
+  }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
