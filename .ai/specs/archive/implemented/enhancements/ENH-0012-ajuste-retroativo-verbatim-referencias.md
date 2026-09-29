@@ -1,13 +1,14 @@
 # ENH-0012 — Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA
 **Issue:** #99
 **Created on:** 2026-09-28
 **Decision:** ACCEPTED
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-09-28
+**Implemented Through:** `scripts/ajuste-retroativo-referencias.js` (script pontual idempotente) + `src/shared/referencias-sync/engine.test.ts` (testes AC2/AC7 verbatim) — dev 2026-09-29
 
 ## Problem
 
