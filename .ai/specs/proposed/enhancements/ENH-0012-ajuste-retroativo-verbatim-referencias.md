@@ -33,8 +33,9 @@ Script pontual que:
 1. Executa extração ANVISA em tempo real (nova extração antes de rodar — ver OQ2)
 2. Para cada referência global ativa no catálogo, busca correspondente na ANVISA por comparação **case-insensitive** de `nome+marca` (normalizado apenas para fins de lookup — não para persistência)
 3. Quando encontra correspondência: atualiza `nome` e `marca` no banco para o valor verbatim da ANVISA
-4. Quando não encontra correspondência: mantém o registro sem alteração e registra no log de execução
+4. Quando não encontra correspondência: mantém o registro sem alteração e registra no relatório
 5. **Nunca altera `fenil_mg_por_100g`** — apenas formatação de texto (`nome`, `marca`)
+6. Gera relatório local em `.ai/.temp/ENH-0012-ajuste-retroativo-YYYYMMDD.md` com tabela Markdown de todos os itens avaliados: `id | antes (nome / marca) | depois (nome / marca)`; itens sem correspondência registrados com `depois = (sem correspondência — mantido)`
 
 O script é idempotente: executado múltiplas vezes produz o mesmo resultado.
 
@@ -55,7 +56,8 @@ O script é idempotente: executado múltiplas vezes produz o mesmo resultado.
 
 - Auditoria do pipeline de sync (código + testes validando verbatim)
 - Script pontual de ajuste retroativo (`nome`, `marca`) — idempotente
-- Log de execução: itens atualizados × itens sem correspondência na ANVISA
+- Relatório local `.ai/.temp/ENH-0012-ajuste-retroativo-YYYYMMDD.md`: tabela Markdown com uma linha por item avaliado (`id | antes | depois`); itens sem correspondência registrados explicitamente
+- Log de execução (stdout): totais — avaliados, atualizados, sem correspondência
 - Testes de regressão: sync não modifica formatting/valores; itens atualizados são corretamente identificados pelo sync pós-ajuste
 
 ## Out of Scope
@@ -117,7 +119,8 @@ Nenhuma.
 - **AC3 (Script — ajuste retroativo):** script atualiza `nome` e `marca` dos registros do seed para o valor verbatim da ANVISA quando há correspondência case-insensitive.
 - **AC4 (Script — sem alteração de valor):** `fenil_mg_por_100g` inalterado em todos os registros após execução do script.
 - **AC5 (Script — idempotência):** segunda execução do script não produz novos UPDATEs.
-- **AC6 (Script — log):** execução produz log com: total avaliado, itens atualizados (nome/marca → verbatim ANVISA), itens sem correspondência (mantidos).
+- **AC6 (Script — log stdout):** execução produz log com: total avaliado, itens atualizados (nome/marca → verbatim ANVISA), itens sem correspondência (mantidos).
+- **AC8 (Script — relatório local):** execução gera `.ai/.temp/ENH-0012-ajuste-retroativo-YYYYMMDD.md` contendo tabela Markdown com uma linha por item avaliado — colunas `id`, `antes`, `depois`; itens sem correspondência na ANVISA têm `depois = "(sem correspondência — mantido)"`; segunda execução (idempotência) produz relatório com `antes = depois` para todos os itens já atualizados.
 - **AC7 (Pós-ajuste — sync):** após o script, uma execução de sync não gera `referencia_criada` para itens que foram atualizados (motor M3 os identifica corretamente como existentes).
 
 ## References
