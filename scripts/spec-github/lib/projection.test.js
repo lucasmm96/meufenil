@@ -7,7 +7,6 @@ import {
   issueTitle,
   labels,
   replaceProjectionBlock,
-  specLabel,
   typeLabel,
 } from './projection.js'
 
@@ -24,13 +23,15 @@ const spec = {
 }
 
 describe('projection', () => {
-  it('mapeia labels a partir do ID e do tipo', () => {
-    expect(specLabel('DEBT-0001')).toBe('spec:DEBT-0001')
-    expect(typeLabel('DEBT')).toBe('technical-debt')
-    expect(typeLabel('FEAT')).toBe('feat')
-    expect(typeLabel('TEST')).toBe('testing')
+  it('mapeia labels a partir do tipo', () => {
+    expect(typeLabel('DEBT')).toBe('Technical Debt')
+    expect(typeLabel('FEAT')).toBe('Feature')
+    expect(typeLabel('ENH')).toBe('Enhancement')
+    expect(typeLabel('REF')).toBe('Refactor')
+    expect(typeLabel('SEC')).toBe('Security')
+    expect(typeLabel('TEST')).toBe('Testing')
     expect(typeLabel('XX')).toBeNull()
-    expect(labels(spec)).toEqual(['spec-driven', 'spec:DEBT-0001', 'technical-debt'])
+    expect(labels(spec)).toEqual(['spec-driven', 'Technical Debt'])
   })
 
   it('gera o título [ID] Título', () => {
