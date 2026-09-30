@@ -9,7 +9,7 @@ import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
 import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { LayoutSkeleton, ReferenciasSkeleton } from "@skeletons";
 import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
-import { nomeComMarca, normalizarMarca } from "@/react-app/lib/referencias";
+import { nomeComMarca, normalizarMarca, toTitleCase } from "@/react-app/lib/referencias";
 
 interface PrefillCopiaReferencia {
   nome: string;
@@ -547,14 +547,14 @@ export default function ReferenciasPage() {
 
                           <td className="px-6 py-4">
                             <p className={`text-sm font-medium ${r.is_ativa ? "text-gray-900" : "text-gray-400 line-through"}`}>
-                              {r.nome}
+                              {toTitleCase(r.nome)}
                             </p>
                           </td>
 
                           <td className="px-6 py-4">
                             <p className={`text-sm ${r.is_ativa ? "text-gray-600" : "text-gray-400"}`}>
                               {marcaExibida ? (
-                                marcaExibida
+                                toTitleCase(marcaExibida)
                               ) : (
                                 <span className="text-gray-300">—</span>
                               )}

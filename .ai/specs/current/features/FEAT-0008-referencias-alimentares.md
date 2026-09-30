@@ -19,7 +19,7 @@ Gestão do catálogo de alimentos com fenilalanina por 100g: busca, filtros, ord
 
 ## Main Flow
 
-1. Página lista referências com busca debounced (por nome OU marca — server-side), filtros (inativas/favoritas/customizadas — aplicados no SERVIDOR), ordenação (nome/fenil) e paginação client-side (10/20/50/100); desktop exibe Nome e Marca em colunas próprias (Marca ao lado de Nome, desde 2026-09-04); mobile combina via `nomeComMarca` quando há marca declarada `[CONFIRMED: code — Referencias.tsx, useReferencias.ts:28-56,182-194]`.
+1. Página lista referências com busca debounced (por nome OU marca — server-side), filtros (inativas/favoritas/customizadas — aplicados no SERVIDOR), ordenação (nome/fenil) e paginação client-side (10/20/50/100); desktop exibe Nome e Marca em colunas próprias (Marca ao lado de Nome, desde 2026-09-04) normalizadas para **Title Case no display** via `toTitleCase` (ENH-0008 — banco permanece verbatim); mobile combina via `nomeComMarca` quando há marca declarada `[CONFIRMED: code — Referencias.tsx, useReferencias.ts:28-56,182-194]`.
 2. Criar/editar via `ModalReferencia` (nome + marca + fenil; marca opcional — em branco permanece EM BRANCO (não declarada), canônico revisto 2026-09-04; título dinâmico; validação NaN; **até 2 casas decimais no fenil** desde 2026-09-11, alinhado à coluna `numeric(10,2)` — mais de 2 bloqueia inline sem chamar o serviço) `[CONFIRMED: code — ModalReferencia.tsx:50-63,90-107]`.
 3. Favoritar (estrela) com reordenação client-side e rollback em erro `[CONFIRMED: code — useReferencias.ts:132-179]`.
 4. Editar referência GLOBAL: confirm de arquivamento ("Arquivar e criar nova...") → RPC arquiva a atual → modal pré-preenchido (prop `initial` com nome/marca/fenil) para criar a nova — nunca UPDATE substantivo de global (guarda do service: `REFERENCIA_GLOBAL_IMUTAVEL`; BR-034) `[CONFIRMED: code — Referencias.tsx:66-94; referencias.service.ts:242-261]`.
@@ -59,7 +59,7 @@ Gestão do catálogo de alimentos com fenilalanina por 100g: busca, filtros, ord
 
 ## Tests
 
-- `referencias.service.test.ts` (18 its: CRUD, busca nome+marca, sanitização da identidade, guarda de global), `useReferencias.test.ts` (5), `Referencias.test.tsx` (28 — 2 novos em 2026-09-11: fenil com 2 casas é aceito e com >2 é bloqueado no modal), `lib/referencias.test.ts` (12 — novo na ENH-0004: `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca`), suítes reais `rpc-ativar` (T2.0–T2.5) e `rpc-remover` (T3.0–T3.8, T3.7 = ENH-0004: global sempre arquiva — condicionado a `isEnh0004MigrationApplied`)
+- `referencias.service.test.ts` (18 its: CRUD, busca nome+marca, sanitização da identidade, guarda de global), `useReferencias.test.ts` (5), `Referencias.test.tsx` (28 — 2 novos em 2026-09-11: fenil com 2 casas é aceito e com >2 é bloqueado no modal), `lib/referencias.test.ts` (30 — ENH-0004: `normalizarMarca`, `extrairMarcaDoNome`, `nomeComMarca`; ENH-0008: `toTitleCase` + casos ALL CAPS/idempotência), suítes reais `rpc-ativar` (T2.0–T2.5) e `rpc-remover` (T3.0–T3.8, T3.7 = ENH-0004: global sempre arquiva — condicionado a `isEnh0004MigrationApplied`)
 - **Coverage status:** PARTIALLY TESTED (fluxo arquivar+criar da página e desativação com favoritos preservados sem teste dedicado)
 
 ## Dependencies
