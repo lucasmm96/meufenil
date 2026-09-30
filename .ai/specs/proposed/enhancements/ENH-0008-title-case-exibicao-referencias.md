@@ -1,13 +1,14 @@
 # ENH-0008 — Title Case dinâmico para exibição de referências alimentares
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Title Case dinâmico para exibição de referências alimentares
 **Issue:** #87
 **Created on:** 2026-09-18
 **Decision:** ACCEPTED
 **Approved by:** Lucas Martins Menezes
 **Approved on:** 2026-09-18
+**Implemented Through:** `src/react-app/lib/referencias.ts` (toTitleCase + nomeComMarca), `src/react-app/pages/Referencias.tsx`, `src/react-app/pages/Admin.tsx` — dev 2026-09-30
 
 > ⚠️ **BLOQUEADA — não implementar antes de [ENH-0012](enhancements/ENH-0012-ajuste-retroativo-verbatim-referencias.md) estar `IMPLEMENTED`.**
 > ENH-0012 ajusta os dados existentes para fidelidade verbatim com a ANVISA. Sem esse ajuste prévio, o Title Case será aplicado sobre dados com formatação inconsistente com a origem, desconectando a cadeia banco → display da realidade. **Implementar esta spec antes de ENH-0012 viola o princípio de verbatim fidelidade.**
