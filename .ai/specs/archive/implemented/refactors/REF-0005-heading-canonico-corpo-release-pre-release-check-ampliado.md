@@ -1,10 +1,11 @@
 # REF-0005 — Corpo de Release com heading canônico da tabela de rastreabilidade + pre-release-check ampliado
 
 **Type:** REF
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Corpo de Release com heading canônico da tabela de rastreabilidade + pre-release-check ampliado
 **Issue:** #54
 **Created on:** 2026-09-03
+**Implemented Through:** PR #102 → release v1.16.1 (PR #104, 2026-10-01)
 
 ## Problem
 
