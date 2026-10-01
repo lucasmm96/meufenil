@@ -30,11 +30,12 @@ const DOCS_TYPES = new Set(['FEAT', 'ENH'])
 
 /** Aceita as duas formas: `--pr=42` e `--pr 42` (o workflow usa a segunda). */
 export function parseArgs(argv) {
-  const args = { dryRun: false, bodyFile: null, pr: null, repo: 'lucasmm96/meufenil' }
+  const args = { dryRun: false, bodyFile: null, releaseBodyFile: null, pr: null, repo: 'lucasmm96/meufenil' }
   const value = (arg, i) => (arg.includes('=') ? arg.split('=')[1] : argv[i + 1])
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--dry-run') args.dryRun = true
+    else if (arg.startsWith('--release-body-file')) args.releaseBodyFile = value(arg, i)
     else if (arg.startsWith('--body-file')) args.bodyFile = value(arg, i)
     else if (arg.startsWith('--pr')) args.pr = Number(value(arg, i))
     else if (arg.startsWith('--repo')) args.repo = value(arg, i)
