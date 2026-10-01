@@ -1,8 +1,8 @@
-# FEAT-0002 — Exportar o histórico de medições em CSV
+# FEAT-0002 — Exportar o histórico de medições (CSV / JSON / PDF)
 
 **Type:** FEAT
 **Status:** PROPOSED
-**Title:** Exportar o histórico de medições em CSV
+**Title:** Exportar o histórico de medições (CSV / JSON / PDF)
 **Issue:** #31
 **Created on:** 2026-08-17
 
@@ -16,7 +16,13 @@ O app possui dashboard (`../current/features/FEAT-0005-dashboard.md`) e históri
 
 ## Proposed State
 
-Botão "Exportar CSV" no histórico (e/ou dashboard) que baixa as medições com data, valor de fenilalanina e alimento/referência associado, em formato CSV compatível com planilhas.
+Botão (ou menu) de exportação no histórico que permite baixar as medições em três formatos:
+
+- **CSV** — compatível com planilhas (separador, encoding e datas pt-BR).
+- **JSON** — estrutura de dados completa para integração/backup.
+- **PDF** — relatório formatado para impressão/compartilhamento.
+
+O usuário pode filtrar o período antes de exportar. O arquivo gerado inclui: data, valor de fenilalanina, e nome do alimento/refeição associado.
 
 ## Motivation
 
@@ -29,11 +35,11 @@ External #27 (Issue externa de teste do piloto da Fase 6 — ADR-0012).
 
 ## Scope
 
-Exportação CSV do histórico de registros (frontend, sem backend novo — dados já disponíveis no cliente/consulta existente).
+Exportação do histórico de registros nos formatos CSV, JSON e PDF, com filtro de período e coluna de nome do alimento. Implementação frontend — dados já disponíveis no cliente/consulta existente; sem novo backend. PDF gerado via jsPDF + jspdf-autotable.
 
 ## Out of Scope
 
-Exportação PDF · agendamento de envio por e-mail · integração com sistemas de nutricionista.
+Agendamento de envio por e-mail · integração com sistemas de nutricionista · exportação de outros tipos de dados (configurações, alimentos cadastrados).
 
 ## Impacted Features
 
@@ -49,36 +55,46 @@ N/A
 
 ## Impacted Frontend / Backend / Database / Security / Tests
 
-- Frontend: página de histórico (botão + geração do arquivo)
-- Tests: teste do fluxo de exportação
+- Frontend: página de histórico (seletor de formato, filtro de período, geração e download do arquivo)
+- Tests: testes do fluxo de exportação para cada formato (CSV, JSON, PDF), filtro de período e coluna de alimento
 - Backend / Database / Security: N/A
 
 ## Dependencies
 
-Nenhuma
+- `jspdf` + `jspdf-autotable` (geração de PDF no cliente)
 
 ## Risks
 
-- Formato de data/CSV deve respeitar o padrão local (pt-BR) e a TZ do produto — cobrir em testes.
-- Nenhum.
+- Formato de data/CSV/JSON deve respeitar o padrão local (pt-BR) e a TZ do produto — cobrir em testes.
+- PDF gerado via **jsPDF + jspdf-autotable** — bundle ~250 KB gzip; adequado para tabela de medições.
+- Filtro de período vazio (sem registros no intervalo) deve ser tratado graciosamente.
 
 ## Alternatives
 
-- **A.** Botão "Exportar CSV" no histórico (proposta).
-- **B.** Exportação PDF (mais trabalho de geração; menos manipulável).
-- **C.** Integração nativa com sistemas de nutricionista (fora do escopo de um app open source pequeno). **Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
+- **A.** Exportar apenas CSV (proposta original).
+- **B.** Exportar CSV + JSON + PDF (proposta atual — escolhida pelo autor).
+- **C.** Integração nativa com sistemas de nutricionista (fora do escopo).
+
+**Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
 
 ## Open Questions
 
-- Exportar apenas o histórico completo ou permitir seleção de período?
-- Incluir coluna de alimento/refeição ou apenas valores?
+N/A
 
 ## Acceptance Criteria
 
-- Botão de exportação visível no histórico; download gera CSV com cabeçalho em pt-BR.
-- CSV abre corretamente em planilhas (separador, encoding e datas consistentes com o produto).
-- Testes cobrindo a geração do CSV (incluindo TZ pt-BR).
+- Controle de exportação visível no histórico com opção de formato (CSV / JSON / PDF) e filtro de período.
+- CSV: cabeçalho em pt-BR, separador e encoding corretos, abre em planilhas sem erros.
+- JSON: estrutura válida com todos os campos (data, valor de fenilalanina, nome do alimento).
+- PDF: relatório legível e imprimível com os mesmos dados.
+- Filtro de período aplicado antes da exportação; intervalo vazio exibe mensagem adequada.
+- Coluna de nome do alimento presente em todos os formatos.
+- Testes cobrindo cada formato, filtro de período e TZ pt-BR.
 
 ## References
 
 - External #27 · `.ai/specs/current/features/FEAT-0006-historico-registros.md`
+
+---
+
+*Última atualização: 2026-10-01 — adicionados formatos JSON e PDF; OQ1 (filtro de período) e OQ2 (coluna de alimento) respondidos e incorporados ao escopo; jsPDF + jspdf-autotable definido como biblioteca de PDF.*
