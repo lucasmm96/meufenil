@@ -92,10 +92,10 @@ Nenhuma — causa raiz confirmada por evidência; a decisão pendente é a escol
 
 ## Acceptance Criteria
 
-- [ ] AC1: CONVENTIONS §18.9 documenta que o heading da tabela é exatamente `## Rastreabilidade` (sem sufixo), com contra-exemplo
-- [ ] AC2: `pre-release-check.js` valida o arquivo do corpo da Release antes do publish (mesma verificação do corpo do PR)
-- [ ] AC3: testes do pre-release-check atualizados cobrindo o corpo da Release
-- [ ] AC4: uso da checagem do corpo da Release documentado no fluxo §18.9 (comando + momento)
+- [x] AC1: CONVENTIONS §18.9 documenta que o heading da tabela é exatamente `## Rastreabilidade` (sem sufixo), com contra-exemplo
+- [x] AC2: `pre-release-check.js` valida o arquivo do corpo da Release antes do publish (mesma verificação do corpo do PR)
+- [x] AC3: testes do pre-release-check atualizados cobrindo o corpo da Release
+- [x] AC4: uso da checagem do corpo da Release documentado no fluxo §18.9 (comando + momento)
 
 ## References
 
