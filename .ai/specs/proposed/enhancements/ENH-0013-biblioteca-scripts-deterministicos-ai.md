@@ -66,7 +66,7 @@ Potencial: [ADR-0013](../../decisions/ADR-0013-fluxos-automaticos-deterministico
 - **Backend:** N/A
 - **Database:** N/A
 - **Security:** N/A
-- **Tests:** Os scripts em `.ai/scripts/` devem ter testes unitários básicos; podem reutilizar o padrão de testes de `scripts/spec-github/` (vitest, fixtures)
+- **Tests:** Todos os scripts em `scripts/ai-workflows/` devem ter testes automatizados seguindo o padrão de `scripts/spec-github/` (vitest, fixtures). Cobertura mínima obrigatória por script: (1) happy path — output JSON válido, exit code 0; (2) ao menos um error path — condição de falha esperada, exit code 1, mensagem em stderr. Scripts que dependem de git log ou filesystem usam fixtures locais (sem chamadas reais). A suite de testes de `scripts/ai-workflows/` deve ser integrada ao CI (W1) para garantir que nenhum script regrida silenciosamente.
 
 ## Dependencies
 
@@ -114,7 +114,7 @@ Abertas — resolvidas durante a varredura (2026-10-01):
 - AC3: Os 6 scripts candidatos implementados e funcionais, invocáveis via `node scripts/ai-workflows/<script>.js [args]`; `wiki-staleness.js` é a migração modernizada de `wiki-precheck.js`
 - AC4: Cada script retorna JSON válido em stdout; erros em stderr; exit code 0 (sucesso) / 1 (falha); comportamento local-first (sem dependência de GITHUB_TOKEN)
 - AC5: IA invoca ao menos um script via Bash, lê o JSON de output e age corretamente — demonstrado end-to-end em um workflow real
-- AC6: Testes básicos para cada script em `scripts/ai-workflows/`, seguindo o padrão de `scripts/spec-github/` (vitest, fixtures)
+- AC6: Todos os scripts em `scripts/ai-workflows/` têm testes automatizados seguindo o padrão de `scripts/spec-github/` (vitest, fixtures); cobertura mínima por script: happy path (JSON válido, exit 0) + ao menos um error path (exit 1, stderr); suite integrada ao CI (W1)
 - AC7: Nenhuma regressão nos workflows existentes; `npm run cli`, `npm run spec:github:*`, CI/CD e migrations funcionando com os novos paths
 
 ---
