@@ -103,7 +103,7 @@ Execução grava em `referencia_syncs` (unidade, `sync_status`, single-flight B1
 - E2 — Testes: `api/referencias-sync.test.ts`, `src/shared/powerbi/*.test.ts`, `src/shared/security/rpc-referencias-sync.test.ts`, `rpc-referencias-sync-rollback.test.ts` (M5), `rpc-referencias-sync-seed.test.ts` (M6) `[CONFIRMED: test]`
 - E3 — Cron: `vercel.json` `[CONFIRMED: configuration]`
 - E4 — Schema das tabelas de sync: `supabase/migrations/20260905000000_referencias_sync_tabelas.sql` `[CONFIRMED: database]`
-- E5 — RPCs de aplicação + ator Sistema: `supabase/migrations/20260906000000_referencias_sync_aplicacao_curadoria.sql`, `scripts/provisionar-ator-sistema.js`; RPCs de recuperação (M5): `supabase/migrations/20260906010000_referencias_sync_rollback_restauracao.sql`; seed (M6): `supabase/migrations/20260907000000_referencias_sync_seed_pre_sync_inativa.sql`; ENH-0009: `supabase/migrations/20260923000000_enh_0009_delecao_fisica_sync_simplificacao.sql` `[CONFIRMED: database]`
+- E5 — RPCs de aplicação + ator Sistema: `supabase/migrations/20260906000000_referencias_sync_aplicacao_curadoria.sql`, `scripts/db/provisionar-ator-sistema.js`; RPCs de recuperação (M5): `supabase/migrations/20260906010000_referencias_sync_rollback_restauracao.sql`; seed (M6): `supabase/migrations/20260907000000_referencias_sync_seed_pre_sync_inativa.sql`; ENH-0009: `supabase/migrations/20260923000000_enh_0009_delecao_fisica_sync_simplificacao.sql` `[CONFIRMED: database]`
 - E6 — Design: `.ai/.temp/feat0017-fase1-design-2026-09-04.md` §4.3/§6.2/§7.5/§8/§16 `[CONFIRMED: .temp — design FEAT-0017]`
 
 ## Veja também

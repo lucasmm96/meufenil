@@ -46,7 +46,7 @@ Todas as arestas do diagrama são confirmadas por código/configuração `[CONFI
 
 - Sem servidor de aplicação: lógica server-side distribuída entre RPCs do banco (PostgREST), 2 Edge Functions (Deno, service role + validação de Bearer) e 2 funções Vercel (keepalive diário + referencias-sync semanal — FEAT-0017) — [backend/overview](../backend/overview.md).
 - RPCs de negócio (frontend): `ativar_referencia`, `remover_ou_desativar_referencia`, `get_estatisticas_admin`; RPCs da sincronização de referências (FEAT-0017): `aplicar_sync_referencias` (service_role — rota `/api/referencias-sync`, estágio 7) e `decidir_pendencia_referencia` (authenticated admin — curadoria de divergências; chamada pela UI do Admin via `referencias-sync.service`, M6); RPCs de recuperação (FEAT-0017 M5): `reverter_sync_referencias`/`restaurar_referencias_de_backup` (authenticated admin com `pode_recuperacao` — rollback seletivo de sync e restauração excepcional por backup; chamadas pela UI de recuperação do Admin, M6 — ações humanas, nunca automatizadas); RPCs órfãs: `dashboard_hoje`/`dashboard_ultimos_dias` — [database/rpc](../database/rpc.md).
-- Operação: CLI (5 comandos) e `apply-supabase-migrations.sh` — [backend/cli](../backend/cli.md).
+- Operação: CLI (5 comandos em `scripts/db/cli/`) e `scripts/db/apply-supabase-migrations.sh` — [backend/cli](../backend/cli.md).
 
 ## Database
 

@@ -67,7 +67,7 @@ UNKNOWN não significa "escolha o que parece melhor". Se afeta a implementação
 
 Qualquer alteração que possa afetar **segurança, dados, autorização, regra de negócio, contrato externo ou arquitetura** é HIGH RISK: **não implemente automaticamente**, mesmo que pareça tecnicamente pequena.
 
-- **Database:** antes de qualquer mudança, consulte [`current/database/`](.ai/specs/current/database/) e [`current/security/`](.ai/specs/current/security/). Migrations usam o mecanismo oficial existente ([`scripts/apply-supabase-migrations.sh`](scripts/apply-supabase-migrations.sh)) — não invente outro. Mudança de schema/RLS/RPC = HIGH RISK = parar antes de implementar.
+- **Database:** antes de qualquer mudança, consulte [`current/database/`](.ai/specs/current/database/) e [`current/security/`](.ai/specs/current/security/). Migrations usam o mecanismo oficial existente ([`scripts/db/apply-supabase-migrations.sh`](scripts/db/apply-supabase-migrations.sh)) — não invente outro. Mudança de schema/RLS/RPC = HIGH RISK = parar antes de implementar.
 - **Segurança:** nunca trate autorização como preocupação de frontend — esconder UI não é autorizar. Consulte o [`security-model`](.ai/specs/current/security/security-model.md) e verifique authentication, authorization, ownership, RLS, RPC, admin, delegation, service_role e Edge Functions.
 - **Contrato externo** (payloads, respostas de edge functions/API, comportamento público): mudança = HIGH RISK.
 

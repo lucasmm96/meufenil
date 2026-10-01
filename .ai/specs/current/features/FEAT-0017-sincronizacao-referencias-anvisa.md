@@ -12,7 +12,7 @@ Mecanismo recorrente, controlado e auditável de sincronização do conjunto `is
 ## Actors
 
 - Vercel Cron (produtor agendado — semanal); Admin (UI de sincronizações/recuperação)
-- Ator Sistema (`sistema@meufenil.local` — identidade real no Supabase Auth, provisionada por `scripts/provisionar-ator-sistema.js`): autor das criações/arquivamentos automáticos
+- Ator Sistema (`sistema@meufenil.local` — identidade real no Supabase Auth, provisionada por `scripts/db/provisionar-ator-sistema.js`): autor das criações/arquivamentos automáticos
 - service_role (rota `/api/referencias-sync`)
 
 ## Preconditions
@@ -96,7 +96,7 @@ Afetadas (ressalvas em [business-rules.md](../domain/business-rules.md)): BR-023
 ## Dependencies
 
 - Vercel (cron semanal), Supabase (service_role; RLS), origem externa Power BI/ANVISA (payload via `query-payload.ts`)
-- ENH-0004 (modelo canônico — base do matching), ator Sistema provisionado (`scripts/provisionar-ator-sistema.js`)
+- ENH-0004 (modelo canônico — base do matching), ator Sistema provisionado (`scripts/db/provisionar-ator-sistema.js`)
 
 ## Related Features
 

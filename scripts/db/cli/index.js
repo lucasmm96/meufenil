@@ -18,7 +18,7 @@ const commands = {
 
 function printHelp() {
   console.log(`Uso:
-  node scripts/cli/index.js <comando> [--flags]
+  node scripts/db/cli/index.js <comando> [--flags]
 
 Comandos:
   list --table TABELA [--select campos] [--limit 20] [--order coluna] [--desc]
