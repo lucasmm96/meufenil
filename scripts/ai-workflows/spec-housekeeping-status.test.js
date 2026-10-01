@@ -77,11 +77,11 @@ describe('spec-housekeeping-status — error path (sem --spec)', () => {
 
 describe('spec-housekeeping-status — spec em proposed (pendente)', () => {
   it('detecta spec ainda em proposed e retorna allDone: false com exit 1', () => {
-    // Testa com ENH-0013 que ainda está em proposed/ no repo real
-    const result = spawnSync('node', [SCRIPT, '--spec', 'ENH-0013'], { encoding: 'utf8' })
+    // Testa com ENH-0001 que está em proposed/ no repo real (PROPOSED, sem Implemented Through)
+    const result = spawnSync('node', [SCRIPT, '--spec', 'ENH-0001'], { encoding: 'utf8' })
     expect(result.status).toBe(1)
     const parsed = JSON.parse(result.stdout)
-    expect(parsed.specId).toBe('ENH-0013')
+    expect(parsed.specId).toBe('ENH-0001')
     expect(parsed.allDone).toBe(false)
     expect(parsed.steps).toHaveProperty('specInProposed')
     expect(parsed.steps).toHaveProperty('specArchivedToImplemented')
