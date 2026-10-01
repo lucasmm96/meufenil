@@ -1,10 +1,11 @@
 # ENH-0013 — Biblioteca de scripts determinísticos para workflows de IA (`scripts/ai-workflows/`)
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Biblioteca de scripts determinísticos para workflows de IA (`scripts/ai-workflows/`)
 **Issue:** #103
 **Created on:** 2026-10-01
+**Implemented Through:** commits 2edabdd, b275838, 707bd62 em `development` (2026-10-01)
 
 ## Problem
 
@@ -85,9 +86,9 @@ Nenhuma dependência de outra proposta ativa. Dependência técnica interna: `sc
 - **C — Criar `.ai/scripts/` independente:** separação mais rígida entre tooling de IA e scripts operacionais — **descartado** pelo usuário; preferência por ponto único de acesso em `scripts/`
 - **D — Skills encapsuladas:** envolver cada script em uma skill Claude Code em vez de expô-lo como arquivo invocável diretamente — descartado; Bash direto é suficiente e mais simples
 
-**Decision:** TBD (aguarda aprovação formal)
-**Approved by:** —
-**Approved on:** —
+**Decision:** B — `scripts/ai-workflows/` como ponto único em `scripts/`
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-10-01
 
 ## Open Questions
 
