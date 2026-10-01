@@ -9,3 +9,5 @@ Pedido → verificar proposta existente → (não há?) criar Proposed Feature [
 ```
 
 Nenhuma feature sem specification. Se a solicitação vier com especificação completa e autorização explícita, prossiga respeitando segurança/arquitetura/dados.
+
+**Scripts:** `node scripts/ai-workflows/spec-index-check.js` → próximo ID disponível por categoria (invocar antes de criar a spec, para não reutilizar IDs).
