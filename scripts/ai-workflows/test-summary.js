@@ -14,41 +14,13 @@ function parseArgs(argv) {
   return { coverage: argv.includes('--coverage') }
 }
 
-function inferSkipReason(name) {
+export function inferSkipReason(name) {
   if (/SUPABASE_SERVICE_ROLE_KEY/i.test(name)) return 'SUPABASE_SERVICE_ROLE_KEY ausente'
   if (/supabase|database|db/i.test(name)) return 'variável de banco ausente'
   return 'condição de skip não identificada'
 }
 
-function run(argv) {
-  const { coverage } = parseArgs(argv)
-
-  const coverageFlag = coverage ? ' --coverage' : ''
-  const cmd = `node_modules/.bin/vitest run --reporter=json${coverageFlag}`
-
-  let raw
-  try {
-    raw = execSync(cmd, {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-  } catch (err) {
-    raw = err.stdout ?? ''
-    if (!raw.trim()) {
-      process.stderr.write(`test-summary: vitest falhou sem output JSON\n${err.stderr ?? ''}\n`)
-      process.exit(1)
-    }
-  }
-
-  let report
-  try {
-    report = JSON.parse(raw)
-  } catch {
-    process.stderr.write(`test-summary: output do vitest não é JSON válido\n`)
-    process.exit(1)
-  }
-
+export function parseVitestReport(report) {
   const allTests = (report.testResults ?? []).flatMap((suite) => suite.assertionResults ?? [])
 
   const failed = allTests
@@ -84,11 +56,46 @@ function run(argv) {
   }
 }
 
-try {
-  const result = run(process.argv.slice(2))
-  process.stdout.write(JSON.stringify(result, null, 2) + '\n')
-  if (!result.passed) process.exit(1)
-} catch (err) {
-  process.stderr.write(`test-summary: ${err.message}\n`)
-  process.exit(1)
+function run(argv) {
+  const { coverage } = parseArgs(argv)
+  const coverageFlag = coverage ? ' --coverage' : ''
+  const cmd = `node_modules/.bin/vitest run --reporter=json${coverageFlag}`
+
+  let raw
+  try {
+    raw = execSync(cmd, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+  } catch (err) {
+    raw = err.stdout ?? ''
+    if (!raw.trim()) {
+      process.stderr.write(`test-summary: vitest falhou sem output JSON\n${err.stderr ?? ''}\n`)
+      process.exit(1)
+    }
+  }
+
+  let report
+  try {
+    report = JSON.parse(raw)
+  } catch {
+    process.stderr.write(`test-summary: output do vitest não é JSON válido\n`)
+    process.exit(1)
+  }
+
+  return parseVitestReport(report)
+}
+
+const isMain = process.argv[1] && new URL(import.meta.url).pathname === new URL(process.argv[1], 'file:').pathname
+
+if (isMain) {
+  try {
+    const result = run(process.argv.slice(2))
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n')
+    if (!result.passed) process.exit(1)
+  } catch (err) {
+    process.stderr.write(`test-summary: ${err.message}\n`)
+    process.exit(1)
+  }
 }
