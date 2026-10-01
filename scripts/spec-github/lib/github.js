@@ -67,14 +67,12 @@ export class GitHubClient {
     return this.request('GET', `/repos/${this.owner}/${this.repo}/issues/${number}`)
   }
 
-  /** Busca Issues pela label spec:<ID> (exclui PRs). */
-  async findIssuesByLabel(label) {
-    const issues = await this.request(
-      'GET',
-      `/repos/${this.owner}/${this.repo}/issues?state=all&per_page=100&labels=${encodeURIComponent(label)}`
-    )
-    if (!Array.isArray(issues)) return []
-    return issues.filter((i) => !i.pull_request)
+  /** Busca Issues pelo título exato (GitHub Search API); exclui PRs. Fallback de dedup quando Issue: do frontmatter está ausente ou aponta para número inexistente. */
+  async findIssuesByTitle(title) {
+    const q = `repo:${this.owner}/${this.repo} "${title}" in:title`
+    const result = await this.request('GET', `/search/issues?q=${encodeURIComponent(q)}&per_page=100`)
+    if (!result || !Array.isArray(result.items)) return []
+    return result.items.filter((i) => !i.pull_request && i.title === title)
   }
 
   createIssue({ title, body, labels }) {

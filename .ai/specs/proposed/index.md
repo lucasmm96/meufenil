@@ -1,8 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-09-25 (DEBT-0008 IMPLEMENTED — 6 labels de categoria, migração retroativa 34 Issues)
+**Última verificação:** 2026-09-30 (ENH-0008 IMPLEMENTED — Title Case dinâmico para exibição de referências; PR #100)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (10) · ACCEPTED (1) · arquivadas = linhas da seção "Arquivadas" (7) · as 17 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (10) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 19 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008, ENH-0012, ENH-0008) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED** (exceto propostas já aprovadas com `Decision: ACCEPTED`). O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -12,10 +12,11 @@
 
 | ID | Type | Title | Status | Issue | Source |
 |---|---|---|---|---|---|
+| [ENH-0012](../archive/implemented/enhancements/ENH-0012-ajuste-retroativo-verbatim-referencias.md) | ENH | Ajuste retroativo de formatação das referências globais para fidelidade verbatim com a ANVISA | IMPLEMENTED | #99 | `scripts/ajuste-retroativo-referencias.js` + testes AC2/AC7 — dev 2026-09-29 |
 | [ENH-0011](../archive/implemented/enhancements/ENH-0011-motivo-remocao-audit-json.md) | ENH | Motivo de remoção no evento e no audit JSON | IMPLEMENTED | #95 | migration 20260925000000 + api/referencias-sync.ts (audit stage) — dev 2026-09-25 |
 | [ENH-0010](../archive/implemented/enhancements/ENH-0010-identidade-referencias-removidas-detalhes-sync.md) | ENH | Identidade das referências removidas nos detalhes técnicos do sync | IMPLEMENTED | #91 | sessão meuFenil017 (2026-09-25) — PR #92 (squash merge `964944c`, 2026-09-25) |
 | [ENH-0009](../archive/implemented/enhancements/ENH-0009-delecao-fisica-integrada-sync-simplificacao.md) | ENH | Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017) | IMPLEMENTED | #88 | sessão meuFenil014 (2026-09-18 a 2026-09-20) — PR #89 (squash merge `3255c11`, 2026-09-24) |
-| [ENH-0008](enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | ACCEPTED | #87 | sessão meuFenil013 (2026-09-18) — inconsistência ALL CAPS × Sentence Case confirmada |
+| [ENH-0008](../archive/implemented/enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | IMPLEMENTED | #87 | PR #100 — merge `development`, 2026-09-30 |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |

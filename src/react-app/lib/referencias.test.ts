@@ -1,7 +1,35 @@
 import { describe, it, expect } from "vitest";
-import { normalizarMarca, extrairMarcaDoNome, nomeComMarca } from "./referencias";
+import { normalizarMarca, extrairMarcaDoNome, nomeComMarca, toTitleCase } from "./referencias";
 
 describe("referencias lib (ENH-0004 — modelo de identidade, canônico revisto 2026-09-04)", () => {
+  describe("toTitleCase (ENH-0008)", () => {
+    it("ALL CAPS → Title Case", () => {
+      expect(toTitleCase("ALIMENTO ACHOCOLATADO EM PÓ")).toBe("Alimento Achocolatado Em Pó");
+    });
+
+    it("acentuados em maiúsculo → capitalizados corretamente", () => {
+      expect(toTitleCase("ÁCIDO FÓLICO")).toBe("Ácido Fólico");
+    });
+
+    it("já capitalizado → idempotente", () => {
+      expect(toTitleCase("Arroz")).toBe("Arroz");
+    });
+
+    it("vazio → vazio", () => {
+      expect(toTitleCase("")).toBe("");
+    });
+
+    it("espaços múltiplos preservados (split por espaço simples)", () => {
+      expect(toTitleCase("ARROZ  BRANCO")).toBe("Arroz  Branco");
+    });
+
+    it("palavras únicas", () => {
+      expect(toTitleCase("BANANA")).toBe("Banana");
+      expect(toTitleCase("banana")).toBe("Banana");
+    });
+  });
+
+
   describe("normalizarMarca", () => {
     it("devolve '' para vazio/undefined/null (marca não declarada)", () => {
       expect(normalizarMarca()).toBe("");
@@ -97,35 +125,57 @@ describe("referencias lib (ENH-0004 — modelo de identidade, canônico revisto 
     });
   });
 
-  describe("nomeComMarca", () => {
-    it("sem marca (em branco): retorna só o nome", () => {
+  describe("nomeComMarca (ENH-0008 — aplica Title Case no display)", () => {
+    it("sem marca (em branco): retorna só o nome em Title Case", () => {
       expect(nomeComMarca("Banana")).toBe("Banana");
       expect(nomeComMarca("Banana", "")).toBe("Banana");
       expect(nomeComMarca("Banana", "  ")).toBe("Banana");
     });
 
-    it("com marca: monta 'Nome (Marca: X)'", () => {
+    it("ALL CAPS sem marca → Title Case (AC4)", () => {
+      expect(nomeComMarca("ALIMENTO ACHOCOLATADO EM PÓ", "")).toBe("Alimento Achocolatado Em Pó");
+    });
+
+    it("ALL CAPS com marca ALL CAPS → Title Case em nome e marca (AC2)", () => {
+      expect(nomeComMarca("ARROZ", "TIO JOÃO")).toBe("Arroz (Marca: Tio João)");
+    });
+
+    it("já capitalizado → idempotente (AC3)", () => {
+      expect(nomeComMarca("Arroz", "Tio João")).toBe("Arroz (Marca: Tio João)");
+    });
+
+    it("com marca: monta 'Nome (Marca: X)' em Title Case", () => {
       expect(nomeComMarca("Arroz", "Tio João")).toBe(
         "Arroz (Marca: Tio João)"
       );
     });
 
-    it("marca 'Produto In Natura' (declarada pela fonte) aparece no sufixo", () => {
+    it("marca 'Produto In Natura' (declarada pela fonte) aparece no sufixo em Title Case", () => {
       expect(nomeComMarca("Abacate", "Produto In Natura")).toBe(
         "Abacate (Marca: Produto In Natura)"
       );
     });
 
-    it("marca com parênteses internos é exibida íntegra", () => {
+    it("marca 'PRODUTO IN NATURA' em ALL CAPS → Title Case no sufixo", () => {
+      expect(nomeComMarca("ABACATE", "PRODUTO IN NATURA")).toBe(
+        "Abacate (Marca: Produto In Natura)"
+      );
+    });
+
+    it("marca com parênteses internos — palavra após '(' não capitaliza (limitação do split por espaço)", () => {
+      // toTitleCase lowercaseia tudo e capitaliza por word[0]; '(' não é word
+      // char, então "(vegan)" permanece "(vegan)". Limitação aceita — análoga
+      // ao hífen ("Caju-limão"). O banco verbatim já tem "Kit Kat (Vegan)":
+      // toTitleCase aplicado sobre esse dado resulta em "(vegan)" minúsculo.
       expect(nomeComMarca("Wafer", "Kit Kat (Vegan)")).toBe(
-        "Wafer (Marca: Kit Kat (Vegan))"
+        "Wafer (Marca: Kit Kat (vegan))"
       );
     });
 
     it("marca que ainda carrega o invólucro não duplica o prefixo '(Marca:'", () => {
       expect(
         nomeComMarca("Alimento com soja com suco de maracujá", "(Marca: Sollys)")
-      ).toBe("Alimento com soja com suco de maracujá (Marca: Sollys)");
+      ).toBe("Alimento Com Soja Com Suco De Maracujá (Marca: Sollys)");
     });
   });
 });

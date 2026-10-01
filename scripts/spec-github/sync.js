@@ -2,13 +2,13 @@
 // Sync Spec ↔ GitHub Issue (Fase 2 — Blueprint v1.1-final §20).
 //
 // IDEMPOTENTE: executar duas vezes não cria duas Issues (chave: campo `Issue:` no frontmatter
-// ou busca por label `spec:<ID>`) e não duplica comentários.
+// ou busca por título `[SPEC-ID] Título`) e não duplica comentários.
 //
 // DIVERGÊNCIA (nunca corrigir silenciosamente — CONVENTIONS §18.5 / D-12 CASO 3):
-//   - Issue fechada com Spec ativa            → reporta, não toca
-//   - Issue aberta com Spec terminal          → reporta (fechamento é ato explícito do workflow)
-//   - corpo do Issue sem SPEC-PROJECTION      → reporta, não sobrescreve corpo
-//   - mais de um Issue com a label spec:<ID>  → reporta, não toca
+//   - Issue fechada com Spec ativa       → reporta, não toca
+//   - Issue aberta com Spec terminal     → reporta (fechamento é ato explícito do workflow)
+//   - corpo do Issue sem SPEC-PROJECTION → reporta, não sobrescreve corpo
+//   - mais de um Issue com o mesmo título → reporta, não toca
 //
 // Uso:
 //   node scripts/spec-github/sync.js                 # requer GITHUB_TOKEN (env ou .env.github)
@@ -18,7 +18,7 @@ import { writeFileSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 import { listSpecs, backfillIssueNumber, TERMINAL_STATUSES } from './lib/specs.js'
-import { buildBody, issueTitle, labels, replaceProjectionBlock, specLabel } from './lib/projection.js'
+import { buildBody, issueTitle, labels, replaceProjectionBlock } from './lib/projection.js'
 import { GitHubClient, GitHubApiError } from './lib/github.js'
 import { loadToken } from './lib/env.js'
 
@@ -73,14 +73,14 @@ export async function runSync({ token, owner, repo, baseDir, dryRun = false, cli
       existing = await api.getIssue(spec.issue)
       if (!existing) {
         entry.divergences.push(`Issue #${spec.issue} do frontmatter não existe no GitHub`)
-        const byLabel = await api.findIssuesByLabel(specLabel(spec.id))
-        if (byLabel.length === 1) existing = byLabel[0]
-        else if (byLabel.length > 1) entry.divergences.push(`múltiplas Issues com label ${specLabel(spec.id)}`)
+        const byTitle = await api.findIssuesByTitle(issueTitle(spec))
+        if (byTitle.length === 1) existing = byTitle[0]
+        else if (byTitle.length > 1) entry.divergences.push(`múltiplas Issues com título ${issueTitle(spec)}`)
       }
     } else {
-      const byLabel = await api.findIssuesByLabel(specLabel(spec.id))
-      if (byLabel.length === 1) existing = byLabel[0]
-      else if (byLabel.length > 1) entry.divergences.push(`múltiplas Issues com label ${specLabel(spec.id)}`)
+      const byTitle = await api.findIssuesByTitle(issueTitle(spec))
+      if (byTitle.length === 1) existing = byTitle[0]
+      else if (byTitle.length > 1) entry.divergences.push(`múltiplas Issues com título ${issueTitle(spec)}`)
     }
 
     if (!existing) {

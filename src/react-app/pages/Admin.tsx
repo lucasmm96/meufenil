@@ -32,6 +32,7 @@ import { useBackgroundJobsAdmin } from "@/react-app/hooks/useBackgroundJobsAdmin
 import { useReferenciasSyncAdmin } from "@/react-app/hooks/useReferenciasSyncAdmin";
 import ModalMensagemExecucao from "@/react-app/components/ModalMensagemExecucao";
 import { CURRENT_APP_ENVIRONMENT } from "@/react-app/lib/app-environment";
+import { toTitleCase } from "@/react-app/lib/referencias";
 import { LayoutSkeleton, AdminSkeleton } from "@skeletons";
 import {
   BackgroundJobExecutionDTO,
@@ -871,7 +872,7 @@ function idCurto(id?: string | null) {
 }
 
 function nomeComMarcaSync(nome: string, marca?: string | null) {
-  return marca ? `${nome} — ${marca}` : nome;
+  return marca ? `${toTitleCase(nome)} — ${toTitleCase(marca)}` : toTitleCase(nome);
 }
 
 function identidadeResumoSync(ident: IdentidadeSync | null | undefined) {

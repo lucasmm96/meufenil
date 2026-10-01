@@ -93,11 +93,26 @@ export function extrairMarcaDoNome(nome: string): {
 }
 
 /**
+ * Normaliza para Title Case simples (todas as palavras capitalizadas).
+ * Usa split(" ").map em vez de regex \b — o \b do JS é ASCII-only e não
+ * encontra limite de palavra em caracteres acentuados (ex.: "ÁCIDO" → "Ácido").
+ */
+export function toTitleCase(text: string): string {
+  return text
+    .toLowerCase()
+    .split(" ")
+    .map(word => word ? word[0].toUpperCase() + word.slice(1) : word)
+    .join(" ");
+}
+
+/**
  * Apresentação combinada "Nome (Marca: X)"; marca em branco (não declarada)
  * = só o nome. 'Produto In Natura' é marca declarada e aparece no sufixo.
+ * Nome e marca são normalizados para Title Case no ponto de exibição —
+ * o banco permanece verbatim (ENH-0008).
  */
 export function nomeComMarca(nome: string, marca?: string | null): string {
   const marcaNormalizada = normalizarMarca(marca);
-  if (!marcaNormalizada) return nome;
-  return `${nome} (Marca: ${marcaNormalizada})`;
+  if (!marcaNormalizada) return toTitleCase(nome);
+  return `${toTitleCase(nome)} (Marca: ${toTitleCase(marcaNormalizada)})`;
 }

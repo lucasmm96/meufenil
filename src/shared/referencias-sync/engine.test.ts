@@ -191,3 +191,47 @@ describe("construirPlanoSync — idempotência (§6.6)", () => {
 function evento(tipo: string, criadoEm: string): { tipo: string; criadoEm: string } {
   return { tipo, criadoEm };
 }
+
+describe("ENH-0012 — fidelidade verbatim e regressão pós-ajuste", () => {
+  it("AC2: valores ALL CAPS preservados sem normalização no identidade do plano", () => {
+    const plano = construirPlanoSync(
+      com({
+        origem: [linha("ARROZ AGULHINHA", "TIO JOÃO", 184)],
+        ativas: [],
+      }),
+    );
+
+    expect(plano.criacoes).toHaveLength(1);
+    expect(plano.criacoes[0]?.identidade).toEqual({
+      nome: "ARROZ AGULHINHA",
+      marca: "TIO JOÃO",
+      fenil_mg_por_100g: 184,
+    });
+  });
+
+  it("AC7 (pós-ajuste): ativa verbatim ALL CAPS é matched pela origem ALL CAPS — zero operações", () => {
+    const plano = construirPlanoSync(
+      com({
+        origem: [linha("ARROZ AGULHINHA", "TIO JOÃO", 184)],
+        ativas: [ativa("a1", "ARROZ AGULHINHA", "TIO JOÃO", 184)],
+      }),
+    );
+
+    expect(plano.criacoes).toHaveLength(0);
+    expect(plano.arquivamentos).toHaveLength(0);
+    expect(plano.resumo.equivalentes).toBe(1);
+  });
+
+  it("AC7 (pré-ajuste): ativa Sentence Case é matched por origem ALL CAPS — chave canônica normaliza os dois lados", () => {
+    const plano = construirPlanoSync(
+      com({
+        origem: [linha("ARROZ AGULHINHA", "TIO JOÃO", 184)],
+        ativas: [ativa("a1", "Arroz agulhinha", "Tio João", 184)],
+      }),
+    );
+
+    expect(plano.criacoes).toHaveLength(0);
+    expect(plano.arquivamentos).toHaveLength(0);
+    expect(plano.resumo.equivalentes).toBe(1);
+  });
+});

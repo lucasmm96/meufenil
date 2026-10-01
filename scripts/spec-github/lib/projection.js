@@ -5,16 +5,12 @@ export const MARKER_START = '<!-- SPEC-PROJECTION:START'
 export const MARKER_END = '<!-- SPEC-PROJECTION:END'
 
 const TYPE_LABELS = {
-  FEAT: 'feat',
-  ENH: 'enhancement',
-  REF: 'refactor',
-  DEBT: 'technical-debt',
-  SEC: 'security',
-  TEST: 'testing',
-}
-
-export function specLabel(id) {
-  return `spec:${id}`
+  FEAT: 'Feature',
+  ENH: 'Enhancement',
+  REF: 'Refactor',
+  DEBT: 'Technical Debt',
+  SEC: 'Security',
+  TEST: 'Testing',
 }
 
 export function typeLabel(type) {
@@ -22,7 +18,7 @@ export function typeLabel(type) {
 }
 
 export function labels(spec) {
-  const set = ['spec-driven', specLabel(spec.id)]
+  const set = ['spec-driven']
   const type = typeLabel(spec.type)
   if (type) set.push(type)
   return set

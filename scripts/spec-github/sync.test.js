@@ -88,6 +88,14 @@ function createFakeApi() {
       return respond(200, list)
     }
 
+    if (method === 'GET' && u.pathname === '/search/issues') {
+      const q = u.searchParams.get('q') ?? ''
+      const titleMatch = q.match(/"([^"]+)"/)
+      const title = titleMatch ? titleMatch[1] : null
+      const list = [...issues.values()].filter((i) => title === null || i.title === title)
+      return respond(200, { total_count: list.length, incomplete_results: false, items: list })
+    }
+
     return respond(404, { message: 'Not Found' })
   }
 
@@ -138,7 +146,7 @@ describe('sync Spec ↔ Issue', () => {
     expect(file).toContain('**Issue:** #1')
     const issue = api.issues.get(1)
     expect(issue.title).toBe('[DEBT-0001] Versionar objetos sem DDL versionado')
-    expect(issue.labels.map((l) => l.name).sort()).toEqual(['spec-driven', 'spec:DEBT-0001', 'technical-debt'].sort())
+    expect(issue.labels.map((l) => l.name).sort()).toEqual(['spec-driven', 'Technical Debt'].sort())
     expect(issue.body).toContain(MARKER_START)
   })
 
@@ -150,8 +158,8 @@ describe('sync Spec ↔ Issue', () => {
     await runSync({ client: makeClient(api), baseDir: base })
 
     expect(api.labelsSet.has('spec-driven')).toBe(true)
-    expect(api.labelsSet.has('spec:DEBT-0001')).toBe(true)
-    expect(api.labelsSet.has('technical-debt')).toBe(true)
+    expect(api.labelsSet.has('Technical Debt')).toBe(true)
+    expect(api.labelsSet.has('spec:DEBT-0001')).toBe(false)
   })
 
   it('é idempotente: segunda execução não cria nem altera nada', async () => {
@@ -219,7 +227,7 @@ describe('sync Spec ↔ Issue', () => {
         proposed: 'Versionar os objetos com migration de baseline.',
         acs: '- [ ] DDL versionado consistente com o catálogo.',
       }),
-      labels: [{ name: 'spec:DEBT-0001' }, { name: 'spec-driven' }, { name: 'technical-debt' }],
+      labels: [{ name: 'spec-driven' }, { name: 'Technical Debt' }],
     })
 
     const report = await runSync({ client: makeClient(api), baseDir: base })
@@ -253,7 +261,7 @@ describe('sync Spec ↔ Issue', () => {
       state: 'open',
       title: '[DEBT-0004] Reconciliar templates e convenções do Specification System',
       body: buildBody(spec),
-      labels: [{ name: 'spec:DEBT-0004' }, { name: 'spec-driven' }, { name: 'technical-debt' }],
+      labels: [{ name: 'spec-driven' }, { name: 'Technical Debt' }],
     })
 
     const report = await runSync({ client: makeClient(api), baseDir: base })
@@ -271,7 +279,7 @@ describe('sync Spec ↔ Issue', () => {
       state: 'open',
       title: '[DEBT-0001] Versionar objetos sem DDL versionado',
       body: 'Issue criado manualmente, sem bloco projetado.',
-      labels: [{ name: 'spec:DEBT-0001' }, { name: 'spec-driven' }, { name: 'technical-debt' }],
+      labels: [{ name: 'spec-driven' }, { name: 'Technical Debt' }],
     })
 
     const report = await runSync({ client: makeClient(api), baseDir: base })
@@ -279,7 +287,7 @@ describe('sync Spec ↔ Issue', () => {
     expect(api.issues.get(3).body).toBe('Issue criado manualmente, sem bloco projetado.')
   })
 
-  it('frontmatter com número errado é corrigido para o Issue encontrado por label', async () => {
+  it('frontmatter com número errado é corrigido para o Issue encontrado por título', async () => {
     const api = createFakeApi()
     const base = tempBase()
     copyFixture(base, 'proposed/testing/TEST-0002-suites-seguranca-policies.md')
@@ -300,7 +308,7 @@ describe('sync Spec ↔ Issue', () => {
       state: 'open',
       title: '[TEST-0002] Suítes de segurança para policies não cobertas',
       body: buildBody(spec),
-      labels: [{ name: 'spec:TEST-0002' }, { name: 'spec-driven' }, { name: 'testing' }],
+      labels: [{ name: 'spec-driven' }, { name: 'Testing' }],
     })
 
     const report = await runSync({ client: makeClient(api), baseDir: base })
