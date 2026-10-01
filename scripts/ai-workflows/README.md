@@ -27,6 +27,7 @@ node scripts/ai-workflows/<script>.js [args]
 | `spec-impl-readiness.js` | `node ... spec-impl-readiness.js --spec <ID>` | Prontidão de uma spec para implementação (status, decision, issue, branch) |
 | `spec-housekeeping-status.js` | `node ... spec-housekeeping-status.js --spec <ID>` | Estado do housekeeping pós-merge (arquivo, index, Implemented Through) |
 | `test-summary.js` | `node ... test-summary.js [--coverage]` | Executa vitest com reporter JSON e retorna resumo estruturado |
+| `spec-locate.js` | `node ... spec-locate.js <query>` | Localiza specs por identificador parcial (ex: `enh2`, `feat15`, `ref`) |
 
 ## Distinção frente a outros diretórios
 
