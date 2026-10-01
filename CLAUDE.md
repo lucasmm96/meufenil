@@ -46,36 +46,13 @@ Não comece editando código.
 
 **Princípio (ADR-0013):** toda interação com IA é acionada MANUALMENTE pelo dev, no modo interativo (sessão local). Fluxos automáticos (GitHub Actions) são DETERMINÍSTICOS, sem IA: proibido `ANTHROPIC_API_KEY`, Claude Code Action ou `repository_dispatch` em automação. Issues externas recebem resposta estática (W3) e produção é protegida por gate (W7) — sem IA em nenhum dos dois.
 
-### Nova feature
+Leia o playbook correspondente antes de iniciar qualquer trabalho:
 
-```
-Pedido → verificar proposta existente → (não há?) criar Proposed Feature [proposal-template] + Issue canônica + item no Project
-→ APROVAÇÃO HUMANA (Decision na Spec) → ACCEPTED → Feature Spec → work branch feature/<id>-<slug> → Implementation → Tests
-→ Validation → Update Current Specs → Update Proposed status → System Map
-→ PR (Part of #N) → aprovação humana → merge → housekeeping (ACs → IMPLEMENTED → archive/ → Issue fechada → Project)
-→ validação da documentação
-```
-
-Nenhuma feature sem specification. Se a solicitação vier com especificação completa e autorização explícita, prossiga respeitando segurança/arquitetura/dados.
-
-### Bug
-
-```
-Reproduzir → CURRENT behavior → EXPECTED behavior → verificar spec → teste de regressão
-→ corrigir → testes → validar → avaliar documentação
-```
-
-Se o comportamento atual contradiz a spec: **STOP** — determine se o código está errado, a spec está obsoleta ou o requisito mudou; se não for possível determinar, peça decisão humana. Não assuma automaticamente que a spec está errada.
-
-### Implementar uma proposta existente (quando explicitamente solicitado)
-
-1. Abrir a proposta; verificar Status, Decision, Open Questions, Acceptance Criteria e impactos.
-2. Se houver Open Question relevante não resolvida ou Decision ausente: **STOP**.
-3. Localizar a Issue canônica (`Issue: #N` no frontmatter ou busca por título `[SPEC-ID]`) e o item do Project.
-4. Implementar em work branch `<tipo>/<id>-<slug>` → testar → atualizar Current Specs no mesmo commit.
-5. **PUSH: STOP — solicitar autorização explícita** (resumo: branch, commits, testes, PR proposto) antes de qualquer push.
-6. Após push: criar PR (`Part of #N`, template `.github/pull_request_template.md`) → **verificar resultado do CI** (aguardar runs concluírem; verde = prosseguir, vermelho = investigar e reportar ao usuário antes de declarar concluído, distinguindo falhas causadas pela mudança de falhas pré-existentes) → aprovação humana → merge.
-7. Housekeeping pós-merge: validar ACs → marcar proposta `IMPLEMENTED` com **Implemented Through** → mover para `archive/implemented/<categoria>/` → atualizar `proposed/index.md` → fechar a Issue (cadeia CONVENTIONS §18.6) → atualizar Project → validar documentação → **deletar a work branch** (local: `git branch -d <ref>`; remota: `git push origin --delete <ref>` — o `gh pr merge --delete-branch` remove a remota mas não garante a local).
+| Tipo de trabalho | Playbook |
+|---|---|
+| Nova feature | [`.claude/playbooks/workflow-nova-feature.md`](.claude/playbooks/workflow-nova-feature.md) |
+| Bug | [`.claude/playbooks/workflow-bug.md`](.claude/playbooks/workflow-bug.md) |
+| Implementar proposta existente | [`.claude/playbooks/workflow-spec-implementation.md`](.claude/playbooks/workflow-spec-implementation.md) |
 
 ## 6. Evidência — nunca transforme UNKNOWN em CONFIRMED sem evidência
 
@@ -132,7 +109,7 @@ Após qualquer mudança de comportamento: revise as specs afetadas usando a matr
 ## 12. Git e ambiente
 
 - Branch de desenvolvimento oficial: **`development`**. Branch default público: **`master`**. Não troque de branch sem autorização.
-- **Branch model:** work branches `<tipo>/<id>-<slug>` (`feature/`, `fix/`, `debt/`, `test/`, `refactor/`, `security/`, `enhancement/`) criadas de `development`; PRs têm `development` como alvo. Release: `development` → `release/vX.Y.Z` → PR → `master` → production. Não altere esse modelo sem decisão explícita.
+- **Branch model:** spec branches `spec/<id>` (ex: `spec/ENH-0001`) criadas de `development` e mergeadas de volta em `development` sem PR — use para toda implementação de spec. Outros work branches `<tipo>/<id>-<slug>` (`fix/`, `debt/`, `test/`, `refactor/`, `security/`) seguem o mesmo fluxo. Release: `development` → `release/vX.Y.Z` → PR → `master` → production. Ao final de cada processo devem restar apenas `development` e `master` — remova todos os branches temporários. Não altere esse modelo sem decisão explícita.
 - **Commits: automáticos** no escopo do trabalho autorizado — commits lógicos e pequenos (implementação, Specs, documentação), sem confirmação individual.
 - **Push: NUNCA automático.** Sempre apresente primeiro: resumo, branch, commits, testes, arquivos relevantes e o PR proposto; aguarde autorização explícita ("Sim, pode fazer push") antes de executar. Push direto em `development`/`master` não faz parte do workflow do agente. `git push` nunca entra na allowlist permanente (`.claude/settings.local.json`): a autorização é pontual, via mecanismo de permissão do Claude Code (revisão final D-13).
 - **Merge:** apenas após aprovação humana do PR. O agente nunca aprova o próprio PR; após aprovação explícita, executa o merge sem nova confirmação.
