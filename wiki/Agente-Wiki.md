@@ -27,7 +27,7 @@ O `wiki-documenter` gera e atualiza a documentação pública do MeuFenil (pasta
 4. Se mudou, regenera completamente e atualiza o estado.
 5. Salva o novo estado em `wiki/.wiki-state.json`.
 
-O script `scripts/wiki-precheck.js` pode ser executado antes da invocação do agent para computar deterministicamente quais páginas precisam regeneração — o agent lê o relatório e salta direto para a geração de conteúdo.
+O script `scripts/ai-workflows/wiki-staleness.js` pode ser executado antes da invocação do agent para computar deterministicamente quais páginas precisam regeneração — o agent lê o JSON de output e salta direto para a geração de conteúdo.
 
 ## Páginas gerenciadas
 
