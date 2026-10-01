@@ -82,7 +82,9 @@ N/A — nenhum risco formal registrado; mudança de processo com checagem mecân
 - **Manter o status quo** (checagem só do PR + correção manual retroativa quando o W6 falhar) — observado falhar em 2 releases consecutivas (v1.10.0 e v1.10.1). [decisão humana]
 - **Caminho proposto** (nota §18.9 + pre-release-check do corpo da Release): fecha a lacuna na origem, sem afrouxar o parser. [decisão humana]
 
-**Decision:** TBD — escolha humana (registrar **Approved by:** e **Approved on:** na aprovação).
+**Decision:** ACCEPTED — Alternative A (nota §18.9 + pre-release-check do corpo da Release).
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-10-01
 
 ## Open Questions
 
