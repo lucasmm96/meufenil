@@ -17,7 +17,7 @@
 | [ENH-0010](../archive/implemented/enhancements/ENH-0010-identidade-referencias-removidas-detalhes-sync.md) | ENH | Identidade das referências removidas nos detalhes técnicos do sync | IMPLEMENTED | #91 | sessão meuFenil017 (2026-09-25) — PR #92 (squash merge `964944c`, 2026-09-25) |
 | [ENH-0009](../archive/implemented/enhancements/ENH-0009-delecao-fisica-integrada-sync-simplificacao.md) | ENH | Deleção física integrada ao sync e simplificação do processo de sincronização (revisão de FEAT-0017) | IMPLEMENTED | #88 | sessão meuFenil014 (2026-09-18 a 2026-09-20) — PR #89 (squash merge `3255c11`, 2026-09-24) |
 | [ENH-0008](../archive/implemented/enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | IMPLEMENTED | #87 | PR #100 — merge `development`, 2026-09-30 |
-| [ENH-0013](enhancements/ENH-0013-biblioteca-scripts-deterministicos-ai.md) | ENH | Biblioteca de scripts determinísticos para workflows de IA | PROPOSED | TBD | Draft 007-local-scripts-possibility (arquivado) — 2026-10-01 |
+| [ENH-0013](enhancements/ENH-0013-biblioteca-scripts-deterministicos-ai.md) | ENH | Biblioteca de scripts determinísticos para workflows de IA | PROPOSED | #103 | Draft 007-local-scripts-possibility (arquivado) — 2026-10-01 |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |

@@ -1,9 +1,9 @@
-# ENH-0013 — Biblioteca de scripts determinísticos para workflows de IA (`.ai/scripts/`)
+# ENH-0013 — Biblioteca de scripts determinísticos para workflows de IA (`scripts/ai-workflows/`)
 
 **Type:** ENH
 **Status:** PROPOSED
-**Title:** Biblioteca de scripts determinísticos para workflows de IA
-**Issue:** TBD
+**Title:** Biblioteca de scripts determinísticos para workflows de IA (`scripts/ai-workflows/`)
+**Issue:** #103
 **Created on:** 2026-10-01
 
 ## Problem
@@ -16,7 +16,7 @@ O projeto possui suporte robusto à IA em `.ai/specs/` (regras, especificações
 
 ## Proposed State
 
-Criar a pasta `.ai/scripts/` como biblioteca de scripts determinísticos para processos elegíveis identificados na varredura documentada nesta spec. A IA mantém seu papel de gerenciamento e orquestração: invoca os scripts via Bash, analisa o output JSON estruturado e age sobre os resultados — sem gastar tokens refazendo dinamicamente o que é fixo. O processo de implementação exige, nesta ordem: (1) aprovação humana desta spec; (2) implementação dos scripts elegíveis confirmados na seção de análise abaixo; (3) documentação da interface em `.ai/scripts/README.md`.
+Criar o diretório `scripts/ai-workflows/` dentro de `scripts/` (ponto único de acesso para todos os scripts do projeto) como biblioteca de scripts determinísticos para processos elegíveis identificados na varredura documentada nesta spec. A IA mantém seu papel de gerenciamento e orquestração: invoca os scripts via Bash, analisa o output JSON estruturado e age sobre os resultados — sem gastar tokens refazendo dinamicamente o que é fixo. O processo de implementação exige, nesta ordem: (1) aprovação humana desta spec; (2) implementação dos scripts elegíveis confirmados na seção de análise abaixo; (3) documentação da interface em `scripts/ai-workflows/README.md`.
 
 ## Motivation
 
@@ -35,16 +35,18 @@ Criar a pasta `.ai/scripts/` como biblioteca de scripts determinísticos para pr
 
 ## Scope
 
-1. Criação da pasta `.ai/scripts/` com os 6 scripts candidatos confirmados na análise abaixo
-2. Invocação via Bash, output em JSON estruturado (decisões das Open Questions resolvidas)
-3. Documentação da interface IA ↔ script em `.ai/scripts/README.md` (convenção de invocação, schema de output, lifecycle de manutenção, fronteira com `scripts/`)
+1. Reorganização de `scripts/` em subdiretórios por domínio (detalhada na seção "Organização de `scripts/`" abaixo), incluindo atualização de todas as referências afetadas
+2. Criação do diretório `scripts/ai-workflows/` com os 6 scripts candidatos confirmados na análise abaixo
+3. Migração e modernização de `scripts/wiki-precheck.js` → `scripts/ai-workflows/wiki-staleness.js` (CJS → ESM, write-file → stdout JSON)
+4. Invocação via Bash, output em JSON estruturado, local-first sem dependência de API externa
+5. Documentação da interface IA ↔ script em `scripts/ai-workflows/README.md` (convenção de invocação, schema de output, lifecycle de manutenção)
 
 ## Out of Scope
 
-- Scripts operacionais já em `scripts/` (migrations, CLI, CI/CD) — não são gerenciados pela IA como orquestradora
+- Alteração do conteúdo dos scripts existentes em `scripts/spec-github/` ou CI/CD — a reutilização é por import, não por modificação; os caminhos de `spec-github/` também não mudam (CI depende deles)
 - Automação sem supervisão da IA — a IA permanece como orquestradora e responsável pelo resultado
 - Processos que exijam interpretação de conteúdo não-estruturado ou tomada de decisão contextual — esses permanecem dinâmicos
-- Alteração dos scripts existentes em `scripts/spec-github/` (a reutilização é por import, não por modificação)
+- Criação de `.ai/scripts/` como diretório independente — os scripts vivem em `scripts/ai-workflows/` (ponto único de acesso em `scripts/`)
 
 ## Impacted Features
 
@@ -68,7 +70,7 @@ Potencial: [ADR-0013](../../decisions/ADR-0013-fluxos-automaticos-deterministico
 
 ## Dependencies
 
-Nenhuma dependência de outra proposta ativa. Dependência técnica interna: `scripts/spec-github/lib/specs.js` (reutilizável via import — ver Open Question OQ-5).
+Nenhuma dependência de outra proposta ativa. Dependência técnica interna: `scripts/spec-github/lib/specs.js` e `scripts/spec-github/lib/release-traceability.js` — importáveis via ESM por scripts em `scripts/ai-workflows/` (mesma árvore de `scripts/`).
 
 ## Risks
 
@@ -79,8 +81,8 @@ Nenhuma dependência de outra proposta ativa. Dependência técnica interna: `sc
 ## Alternatives
 
 - **A — Status quo:** manter tudo dinâmico; a IA continua executando todos os processos sem scripts locais
-- **B — Expandir `scripts/spec-github/`:** adicionar novos scripts dentro da pasta existente em vez de criar `.ai/scripts/`
-- **C — Criar `.ai/scripts/` (proposta):** separação clara entre scripts operacionais (`scripts/`) e scripts de suporte ao workflow de IA (`.ai/scripts/`) — **escolha desta proposta**
+- **B — Criar `scripts/ai-workflows/` (proposta):** ponto único de acesso em `scripts/`; separação por subdiretório (`ai-workflows/` vs `spec-github/` vs `cli/`); importação natural da lib existente — **escolha desta proposta** `[CONFIRMED: decisão do usuário 2026-10-01]`
+- **C — Criar `.ai/scripts/` independente:** separação mais rígida entre tooling de IA e scripts operacionais — **descartado** pelo usuário; preferência por ponto único de acesso em `scripts/`
 - **D — Skills encapsuladas:** envolver cada script em uma skill Claude Code em vez de expô-lo como arquivo invocável diretamente — descartado; Bash direto é suficiente e mais simples
 
 **Decision:** TBD (aguarda aprovação formal)
@@ -99,26 +101,21 @@ Resolvidas em sessão de refinamento (2026-10-01):
 
 4. **Formato de output:** JSON estruturado (machine-readable). `[CONFIRMED: decisão do usuário 2026-10-01]`
 
-Abertas — surgidas durante a varredura (2026-10-01):
+Abertas — resolvidas durante a varredura (2026-10-01):
 
-5. **Compartilhamento de código:** os scripts em `.ai/scripts/` podem importar de `scripts/spec-github/lib/` (ex.: `specs.js`, `release-traceability.js`)? Isso elimina duplicação mas cria acoplamento entre as duas áreas.
-   - A) Sim — importar diretamente via ESM (DRY; acoplamento explícito e aceitável)
-   - B) Não — `.ai/scripts/` é completamente standalone (sem acoplamento; mais duplicação de código)
-   - C) Extrair utilitários compartilhados para uma `lib/` comum acessível por ambos (melhor longo prazo; mais esforço inicial)
+5. **Localização e compartilhamento de código:** os scripts vivem em `scripts/ai-workflows/` (ponto único de acesso em `scripts/`); por estarem na mesma árvore de `scripts/`, importam naturalmente de `scripts/spec-github/lib/` via ESM sem acoplamento extra. `[CONFIRMED: decisão do usuário 2026-10-01]`
 
-6. **Dados do GitHub nos scripts:** alguns candidatos (S-002, S-004) podem se beneficiar de dados da API do GitHub (estado de PRs, Issues). Qual abordagem adotar?
-   - A) Local-first — scripts usam apenas arquivos locais e git log; sem chamadas à API
-   - B) API-first — scripts chamam a API GitHub quando token disponível, campo ausente quando não está
-   - C) Degradação graceful — tentam a API, preenchem com `null` o que não conseguiram, sinalizam no output
+6. **Dados do GitHub nos scripts:** local-first — scripts usam apenas arquivos locais e git log; sem chamadas à API do GitHub; campos não deriváveis localmente ficam `null` no JSON de output. Todos os 6 candidatos são viáveis neste modelo: PR numbers vêm de commits de merge no git log; Issue numbers vêm do frontmatter das specs. `[CONFIRMED: recomendação aceita 2026-10-01]`
 
 ## Acceptance Criteria
 
-- AC1: Pasta `.ai/scripts/` criada; `README.md` documenta convenção de invocação Bash, schema JSON de output, regras de lifecycle/manutenção e fronteira com `scripts/`
-- AC2: Os 6 scripts candidatos confirmados na análise estão implementados, funcionais, invocáveis via `node .ai/scripts/<script>.js [args]`
-- AC3: Cada script retorna JSON válido em stdout; erros em stderr; exit code 0 (sucesso) / 1 (falha)
-- AC4: IA invoca ao menos um script via Bash, lê o JSON de output e age corretamente — demonstrado end-to-end em um workflow real
-- AC5: Testes básicos (unitários ou de integração) para cada script, seguindo o padrão de `scripts/spec-github/`
-- AC6: Nenhuma regressão nos workflows existentes
+- AC1: Reorganização de `scripts/` concluída conforme estrutura definida na seção "Organização de `scripts/`"; todas as referências afetadas atualizadas; CI verde
+- AC2: Diretório `scripts/ai-workflows/` criado; `README.md` documenta convenção de invocação Bash, schema JSON de output, regras de lifecycle/manutenção e distinção frente aos demais subdiretórios
+- AC3: Os 6 scripts candidatos implementados e funcionais, invocáveis via `node scripts/ai-workflows/<script>.js [args]`; `wiki-staleness.js` é a migração modernizada de `wiki-precheck.js`
+- AC4: Cada script retorna JSON válido em stdout; erros em stderr; exit code 0 (sucesso) / 1 (falha); comportamento local-first (sem dependência de GITHUB_TOKEN)
+- AC5: IA invoca ao menos um script via Bash, lê o JSON de output e age corretamente — demonstrado end-to-end em um workflow real
+- AC6: Testes básicos para cada script em `scripts/ai-workflows/`, seguindo o padrão de `scripts/spec-github/` (vitest, fixtures)
+- AC7: Nenhuma regressão nos workflows existentes; `npm run cli`, `npm run spec:github:*`, CI/CD e migrations funcionando com os novos paths
 
 ---
 
@@ -181,7 +178,7 @@ Estes processos são **completamente scriptados** e **não consomem tokens de IA
 
 **Pode reutilizar:** `scripts/spec-github/lib/specs.js` → `listSpecs()`, `parseSpec()` (ver OQ-5)
 
-**Invocação:** `node .ai/scripts/spec-index-check.js`
+**Invocação:** `node scripts/ai-workflows/spec-index-check.js`
 
 **Schema de output JSON:**
 ```json
@@ -219,7 +216,7 @@ Estes processos são **completamente scriptados** e **não consomem tokens de IA
 
 **Pode reutilizar:** `scripts/spec-github/lib/specs.js`, `scripts/spec-github/lib/release-traceability.js` (ver OQ-5)
 
-**Invocação:** `node .ai/scripts/release-context.js [--since=v1.16.0]`
+**Invocação:** `node scripts/ai-workflows/release-context.js [--since=v1.16.0]`
 
 **Schema de output JSON:**
 ```json
@@ -258,7 +255,7 @@ Estes processos são **completamente scriptados** e **não consomem tokens de IA
 
 **Pode reutilizar:** Lógica de mapeamento página → fontes (replicar o mapeamento definido no wiki-documenter agent)
 
-**Invocação:** `node .ai/scripts/wiki-staleness.js`
+**Invocação:** `node scripts/ai-workflows/wiki-staleness.js`
 
 **Schema de output JSON:**
 ```json
@@ -290,7 +287,7 @@ Estes processos são **completamente scriptados** e **não consomem tokens de IA
 
 **O que o script faz:** Dado um ID de spec, localiza o arquivo, extrai os campos de prontidão (Status, Decision, presença de "TBD" nas Open Questions resolvidas, Issue number, Dependencies), verifica via git se o branch `spec/<id>` existe local e remotamente, e retorna um relatório de prontidão com lista de bloqueadores.
 
-**Invocação:** `node .ai/scripts/spec-impl-readiness.js --spec ENH-0013`
+**Invocação:** `node scripts/ai-workflows/spec-impl-readiness.js --spec ENH-0013`
 
 **Schema de output JSON:**
 ```json
@@ -326,7 +323,7 @@ Estes processos são **completamente scriptados** e **não consomem tokens de IA
 
 **O que o script faz:** Dado um ID de spec, verifica mecanicamente cada etapa do housekeeping pós-merge: se o arquivo está em `proposed/` ou já em `archive/implemented/`, se a linha correspondente em `index.md` indica `IMPLEMENTED`, se o campo `Implemented Through:` está preenchido, se o `Issue:` tem número. Retorna lista de passos pendentes.
 
-**Invocação:** `node .ai/scripts/spec-housekeeping-status.js --spec ENH-0013`
+**Invocação:** `node scripts/ai-workflows/spec-housekeeping-status.js --spec ENH-0013`
 
 **Schema de output JSON:**
 ```json
@@ -363,7 +360,7 @@ Estes processos são **completamente scriptados** e **não consomem tokens de IA
 
 **O que o script faz:** Executa vitest com o reporter JSON (`--reporter=json`), parseia o output estruturado e retorna um resumo compacto. Inclui contagens, nomes dos testes que falharam e testes pulados com razão inferida.
 
-**Invocação:** `node .ai/scripts/test-summary.js [--coverage]`
+**Invocação:** `node scripts/ai-workflows/test-summary.js [--coverage]`
 
 **Schema de output JSON:**
 ```json
@@ -397,6 +394,81 @@ Estes processos são **completamente scriptados** e **não consomem tokens de IA
 | Wrapper JSON para `sync.js --dry-run` | `sync.js` já exporta `runSync()` com relatório estruturado; a IA pode chamar `npm run spec:github:sync:dry` e receber output legível; não gera valor suficiente para justificar novo script |
 | Spec-sync phase do wiki-documenter (transformação de links) | Elevada complexidade de manutenção do mapeamento de links; benefício moderado; pode ser considerado em versão futura como S-007 |
 | Branch status geral | Coberto por S-004 no contexto de implementação; generalizar para outros branches aumentaria complexidade sem caso de uso claro |
+
+---
+
+## Organização de `scripts/` (2026-10-01)
+
+> Análise e plano de reorganização do diretório `scripts/` em subdiretórios por domínio, elaborada em conjunto com a varredura de ENH-0013. Faz parte do escopo de implementação desta spec.
+
+### Estrutura atual (problemas)
+
+```
+scripts/
+  apply-supabase-migrations.sh   ← raiz — sem agrupamento
+  provisionar-ator-sistema.js    ← raiz — sem agrupamento
+  wiki-precheck.js               ← raiz — sem agrupamento; já é o S-003 conceptualmente
+  url-encode.js                  ← raiz — utilitário avulso
+  cli/                           ← DB CLI, logicamente pertence ao domínio de banco
+  spec-github/                   ← automação GitHub (bem organizado, não muda)
+```
+
+### Estrutura proposta
+
+```
+scripts/
+  spec-github/                        ← inalterado (CI/CD depende dos paths)
+  ai-workflows/                       ← NOVO — scripts de suporte aos workflows de IA
+    spec-index-check.js
+    release-context.js
+    wiki-staleness.js                 ← migrado+modernizado de wiki-precheck.js
+    spec-impl-readiness.js
+    spec-housekeeping-status.js
+    test-summary.js
+    README.md
+  db/                                 ← NOVO — tudo relacionado a banco de dados
+    cli/                              ← movido de scripts/cli/
+      commands/
+        diag.js
+        list.js
+        login-oauth.js
+        run-sql.js
+        seed-referencia.js
+      db.js
+      env.js
+      index.js
+      parseArgs.js
+      utils.js
+    apply-supabase-migrations.sh      ← movido da raiz
+    provisionar-ator-sistema.js       ← movido da raiz
+  utils/                              ← NOVO — utilitários avulsos
+    url-encode.js                     ← movido da raiz
+```
+
+### Decisões de design
+
+- **`spec-github/` inalterado:** CI/CD (W2, W4, W6, W7, W8) referencia paths diretamente nos YAMLs; renomear quebraria todos os workflows.
+- **`cli/` → `db/cli/`:** a pasta é exclusivamente operações de banco via Supabase — semanticamente pertence a `db/`. Import interno de `provisionar-ator-sistema.js` (`./cli/env.js`) continua válido após a mudança porque os dois arquivos ficam dentro de `db/` juntos.
+- **`wiki-precheck.js` → `ai-workflows/wiki-staleness.js`:** o script já faz o que S-003 propunha (hash de fontes para detectar páginas obsoletas). A implementação de S-003 é a migração e modernização deste arquivo (CJS → ESM; write-file → stdout JSON), não a criação de um novo.
+- **`utils/`:** reservado para utilitários one-off sem domínio definido. Atualmente contém apenas `url-encode.js`.
+
+### Referências a atualizar na implementação
+
+Arquivos que referenciam paths que mudam. Wiki (`wiki/`) é regenerada pelo wiki-documenter ao atualizar as specs — não listada como atualização manual.
+
+| Path que muda | Arquivos a atualizar manualmente |
+|---|---|
+| `scripts/cli/` → `scripts/db/cli/` | `package.json` (npm script `cli`), `scripts/db/cli/index.js` (help string interna), `CLAUDE.md` (referência à CLI), `.ai/specs/current/backend/cli.md`, `.ai/specs/current/backend/overview.md`, `.ai/specs/current/architecture/overview.md`, `.ai/specs/current/security/secrets-and-environments.md`, `.ai/specs/current/database/referencias.md` |
+| `scripts/apply-supabase-migrations.sh` → `scripts/db/` | `package.json` (npm script `supabase:migrations:apply`), `CLAUDE.md`, `README.md` (2 ocorrências), `.ai/specs/current/backend/cli.md`, `.ai/specs/current/backend/overview.md`, `.ai/specs/current/architecture/overview.md`, `.ai/specs/current/security/secrets-and-environments.md`, `.ai/specs/current/database/overview.md`, `.ai/specs/decisions/ADR-0009-*.md` |
+| `scripts/provisionar-ator-sistema.js` → `scripts/db/` | `.ai/specs/current/backend/api-referencias-sync.md`, `.ai/specs/current/features/FEAT-0017-*.md`, `.ai/specs/current/database/rpc.md` (comentários); import interno inalterado |
+| `scripts/wiki-precheck.js` → `scripts/ai-workflows/wiki-staleness.js` | `wiki/Agente-Wiki.md` (1 referência) |
+| `scripts/url-encode.js` → `scripts/utils/` | Nenhuma referência externa |
+
+### Nota sobre `provisionar-ator-sistema.js` — import interno
+
+O script importa `./cli/env.js`. Após a reorganização, tanto ele quanto `cli/` estão dentro de `db/`, então o path relativo `./cli/env.js` permanece correto sem nenhuma alteração.
+
+---
 
 ## References
 
