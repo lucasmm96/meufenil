@@ -143,7 +143,7 @@ chaveRef = (lower(trim(nome)), lower(trim(marca)), fenil_mg_por_100g)
 
 - `lower(trim(nome))` — nome sem espaços marginais e em minúsculas (apenas para comparação)
 - `lower(trim(marca))` — idem para a marca
-- O **valor armazenado no banco preserva a capitalização original da fonte** — a normalização existe só para o matching, não para modificar o dado
+- O **valor armazenado no banco preserva a capitalização original da fonte** — a normalização existe só para o matching, não para modificar o dado. Os ~2.959 itens do seed histórico (que estavam em Sentence/Title Case) foram retroativamente convertidos para o formato verbatim da ANVISA (ALL CAPS) via ENH-0012, completando a fidelidade de todo o catálogo. A normalização para exibição (Title Case na UI) é feita pelo frontend (ENH-0008) e não afeta o banco.
 
 O matching é **determinístico**: a mesma chave sempre produz o mesmo resultado. Heurísticas ou IA nunca decidem identidade — no máximo auxiliam curadoria. (BR-041)
 
