@@ -1,6 +1,6 @@
 # Funcionalidades do MeuFenil
 
-Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada item implementado corresponde a uma Feature Spec em `.ai/specs/current/features/` (IDs FEAT-0001 a FEAT-0014 e FEAT-0017).
+Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada item implementado corresponde a uma Feature Spec em `.ai/specs/current/features/` (IDs FEAT-0001 a FEAT-0014, FEAT-0015 e FEAT-0017).
 
 ## Sumário
 
@@ -22,32 +22,25 @@ Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada it
 | FEAT-0009 | Exames PKU | implementada | Registro e acompanhamento de exames laboratoriais: resumo (último exame, variação, total), gráfico de histórico e lista com exclusão. |
 | FEAT-0010 | Perfil do usuário + privacidade | implementada | Gestão de nome e limite diário; exportação de dados (JSON) e exclusão de conta com dupla confirmação. |
 | FEAT-0011 | Delegação de acesso (login-as) | implementada | Concessão/revogação de acesso para outros usuários operarem em seu nome (ex.: nutricionistas e cuidadores), com aviso visual e retorno à própria conta. |
-| FEAT-0012 | Painel administrativo | implementada | Visão administrativa (somente leitura) de usuários, uso do banco de dados e monitoramento de background jobs (filtros, paginação, detalhes). Desde o FEAT-0017 (M6), inclui seções de sincronização de referências, curadoria de pendências (aprovação/rejeição individual e em lote, botão "Aprovar tudo") e recuperação (rollback/restauração). |
+| FEAT-0012 | Painel administrativo | implementada | Visão administrativa (somente leitura) de usuários, uso do banco de dados e monitoramento de background jobs (filtros, paginação, detalhes). Desde o FEAT-0017 (M6), inclui seções de sincronização de referências, curadoria de pendências (aprovação/rejeição individual e em lote, botão "Aprovar tudo") e recuperação (rollback/restauração). Desde o FEAT-0015, inclui seção de gestão de papéis de usuário (badge Admin/Usuário, botões "Tornar admin" / "Remover admin") com enforcement via RPC. |
 | FEAT-0013 | Background jobs (keepalive) | implementada | Infraestrutura server-side de rotinas em background com persistência centralizada; job atual: keepalive diário dos dois projetos Supabase (prod e dev). O cron semanal de sincronização de referências (FEAT-0017) usa a mesma plataforma Vercel Cron com tabela própria. |
 | FEAT-0014 | PWA / multi-dispositivo | implementada (parcial) | Instalação como aplicativo em dispositivos móveis/desktop (manifest, ícones, tema). Sem suporte offline (sem service worker). |
+| FEAT-0015 | Gestão de papéis de usuário (admin) | implementada | Seção "Gestão de Papéis" no painel administrativo: badge de papel (Admin/Usuário) e botões "Tornar admin" / "Remover admin" para cada usuário; botão desabilitado na própria linha do admin logado. Alterações de papel executadas exclusivamente via RPC SECURITY DEFINER `toggle_role_usuario` — único caminho de escrita para `usuarios.role`. Column-level REVOKE em `authenticated` bloqueia UPDATE direto via API. |
 | FEAT-0017 | Sincronização de referências (ANVISA/Power BI) | implementada | Mecanismo recorrente, controlado e auditável de sincronização do conjunto global de referências com a origem (relatório Power BI associado à ANVISA): extração, validação (com rejeição de duplicidades conflitantes por par inteiro — BR-044), snapshot/backup por execução, aplicação automática de mudanças seguras (cron semanal Vercel) e curadoria humana de divergências no painel admin (individual e em lote, com "Aprovar tudo"), com rollback seletivo e restauração excepcional auditados. Valores de fenilalanina exibidos com precisão de 2 casas decimais em toda a UI. |
 
-> Status "implementada" conforme as Feature Specs de `current/features/` (todas com status Implementada na última verificação). Para detalhes técnicos, veja as specs: `.ai/specs/current/features/`. (Fonte: `current/features/FEAT-0001` a `FEAT-0014` e `FEAT-0017`)
+> Status "implementada" conforme as Feature Specs de `current/features/` (todas com status Implementada na última verificação). Para detalhes técnicos, veja as specs: `.ai/specs/current/features/`. (Fonte: `current/features/FEAT-0001` a `FEAT-0014`, `FEAT-0015` e `FEAT-0017`)
 >
 > Observação histórica: a FEAT-0016 (geração automática desta documentação via agente wiki-documenter) foi implementada e arquivada como IMPLEMENTED — esta wiki é o seu resultado (Fonte: `proposed/index.md` — linha FEAT-0016).
 
 ## Em breve (propostas ativas)
 
-As propostas abaixo estão em `.ai/specs/proposed/` com status **PROPOSED** — são **planos futuros, ainda não implementados**. Nada aqui representa comportamento atual do sistema. (Fonte: `proposed/index.md` — 11 propostas ativas)
+As propostas abaixo estão em `.ai/specs/proposed/` com status **PROPOSED** — são **planos futuros, ainda não implementados**. Nada aqui representa comportamento atual do sistema. (Fonte: `proposed/index.md` — 3 propostas ativas)
 
 | ID | Tipo | Proposta | Status |
 |---|---|---|---|
-| FEAT-0015 | FEAT | Fluxo de atribuição de papel admin | PROPOSED |
 | ENH-0001 | ENH | PWA offline / service worker | PROPOSED |
-| ENH-0002 | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED |
-| REF-0001 | REF | Consolidar modal de concessão duplicado | PROPOSED |
-| REF-0002 | REF | Destino das RPCs órfãs de dashboard | PROPOSED |
-| REF-0005 | REF | Corpo de Release com heading canônico da tabela de rastreabilidade + pre-release-check ampliado | PROPOSED |
 | SEC-0001 | SEC | Autorização das funções de consulta sem verificação interna | PROPOSED |
-| TEST-0002 | TEST | Suítes de segurança para policies não cobertas | PROPOSED |
-| TEST-0003 | TEST | Testes server-side (edge functions, triggers, CLI) | PROPOSED |
-| TEST-0004 | TEST | Completar testes de services faltantes | PROPOSED |
-| TEST-0005 | TEST | Determinismo dos testes de segurança | PROPOSED |
+| DEBT-0007 | DEBT | Gate de validação não cobre rotas Vercel em modo Node.js ESM | PROPOSED |
 
 > Observação: o ID "FEAT-0002" foi usado para duas features distintas — a spec atual (Consentimento LGPD, `current/features/FEAT-0002-consentimento-lgpd.md`) e a spec arquivada (Exportar histórico, `archive/implemented/features/FEAT-0002-exportar-historico.md`). A exportação foi implementada via PR #107 (2026-10-02) e aparece incorporada na descrição da FEAT-0006 acima.
 >
