@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseVitestReport, inferSkipReason } from './test-summary.js'
+import { parseVitestReport, inferSkipReason } from './test-summary-core.js'
 
 const MOCK_REPORT_ALL_PASSED = {
   startTime: 1000,
