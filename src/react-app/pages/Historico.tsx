@@ -1,11 +1,17 @@
 import { useMemo, useState } from "react";
 import Layout from "@/react-app/components/Layout";
-import { Trash2, Calendar, Filter } from "lucide-react";
+import { Trash2, Calendar, Filter, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useRegistros } from "@/react-app/hooks/useRegistros";
 import { LayoutSkeleton, HistoricoSkeleton } from "@skeletons";
 import { useAuth } from "@/react-app/context/AuthContext";
+import {
+  FormatoExportacao,
+  exportarCSV,
+  exportarJSON,
+  exportarPDF,
+} from "@/react-app/lib/exportarHistorico";
 
 export default function HistoricoPage() {
   const { ready, usuarioAtivoId } = useAuth();
@@ -15,6 +21,9 @@ export default function HistoricoPage() {
 
   const [dataInicioTemp, setDataInicioTemp] = useState("");
   const [dataFimTemp, setDataFimTemp] = useState("");
+
+  const [formato, setFormato] = useState<FormatoExportacao>("csv");
+  const [exportando, setExportando] = useState(false);
 
   const { data: registros = [], loading, remove } = useRegistros(
     ready && usuarioAtivoId
@@ -41,6 +50,18 @@ export default function HistoricoPage() {
     setDataFim("");
     setDataInicioTemp("");
     setDataFimTemp("");
+  };
+
+  const handleExportar = async () => {
+    if (registros.length === 0) return;
+    setExportando(true);
+    try {
+      if (formato === "csv") exportarCSV(registros);
+      else if (formato === "json") exportarJSON(registros);
+      else await exportarPDF(registros);
+    } finally {
+      setExportando(false);
+    }
   };
 
   const agrupadosPorData = useMemo(() => {
@@ -120,6 +141,46 @@ export default function HistoricoPage() {
               </button>
             )}
           </div>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg space-y-4">
+          <div className="flex items-center gap-2">
+            <Download className="w-5 h-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Exportar</h2>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="flex rounded-xl border border-gray-300 overflow-hidden">
+              {(["csv", "json", "pdf"] as FormatoExportacao[]).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFormato(f)}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    formato === f
+                      ? "bg-indigo-600 text-white"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {f.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handleExportar}
+              disabled={exportando || registros.length === 0}
+              className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {exportando ? "Exportando…" : `Exportar ${formato.toUpperCase()}`}
+            </button>
+          </div>
+
+          {registros.length === 0 && (
+            <p className="text-sm text-gray-500">
+              Nenhum registro no período selecionado para exportar.
+            </p>
+          )}
         </div>
 
         {Object.keys(agrupadosPorData).length === 0 ? (

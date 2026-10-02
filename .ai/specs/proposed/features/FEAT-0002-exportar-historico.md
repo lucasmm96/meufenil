@@ -5,6 +5,9 @@
 **Title:** Exportar o histórico de medições (CSV / JSON / PDF)
 **Issue:** #31
 **Created on:** 2026-08-17
+**Decision:** ACCEPTED
+**Approved by:** Lucas
+**Approved on:** 2026-10-02
 
 ## Problem
 
@@ -75,7 +78,7 @@ N/A
 - **B.** Exportar CSV + JSON + PDF (proposta atual — escolhida pelo autor).
 - **C.** Integração nativa com sistemas de nutricionista (fora do escopo).
 
-**Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
+**Decision:** Exportar CSV + JSON + PDF (alternativa B — proposta atual)
 
 ## Open Questions
 
