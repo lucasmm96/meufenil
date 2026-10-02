@@ -7,7 +7,7 @@
 
 ## Purpose
 
-Consultar todos os registros de consumo do usuário ativo, agrupados por dia (decrescente), com filtros por período e exclusão individual.
+Consultar todos os registros de consumo do usuário ativo, agrupados por dia (decrescente), com filtros por período, exclusão individual e exportação em CSV, JSON ou PDF (FEAT-0002).
 
 ## Actors
 
@@ -23,6 +23,7 @@ Consultar todos os registros de consumo do usuário ativo, agrupados por dia (de
 2. Filtros em 2 estágios: rascunho (inputs de data) → "Aplicar filtros" promove → nova consulta; "Limpar filtros" zera `[CONFIRMED: code — Historico.tsx:13-44]`.
 3. Agrupamento client-side por `data`; cada grupo mostra título formatado pt-BR, contagem e "Total do dia {X} mg" `[CONFIRMED: code — Historico.tsx:46-52,137-172]`.
 4. Exclusão: `confirm("Tem certeza que deseja excluir este registro?")` → `remove(id)` `[CONFIRMED: code — Historico.tsx:29-32]`.
+5. Exportação: seletor de formato (CSV / JSON / PDF) + botão "Exportar" — opera sobre os registros já filtrados; estado vazio exibe mensagem adequada; PDF carregado via dynamic import (jsPDF + jspdf-autotable) `[CONFIRMED: code — Historico.tsx, lib/exportarHistorico.ts]`.
 
 ## Alternative Flows
 
@@ -56,7 +57,8 @@ Consultar todos os registros de consumo do usuário ativo, agrupados por dia (de
 ## Tests
 
 - `useRegistros.test.ts` (4, 100%), `registros.service.test.ts` (6)
-- **Coverage status:** PARTIALLY TESTED (página, filtros e agrupamento sem teste)
+- `lib/exportarHistorico.test.ts` (18) — cobre CSV/JSON (conteúdo e download), BOM UTF-8, fuso pt-BR, escape de aspas, array vazio
+- **Coverage status:** PARTIALLY TESTED (página, filtros e agrupamento sem teste; exportação coberta via lib)
 
 ## Dependencies
 
