@@ -1,6 +1,6 @@
 # Página Histórico
 
-**Última verificação:** 2026-10-02 (ajuste PDF — Paciente + Período)
+**Última verificação:** 2026-10-02 (ajuste exportações — Paciente + Período em CSV/JSON/PDF)
 **Rota:** `/historico` — `src/react-app/App.tsx:20`
 
 ## Propósito
@@ -22,7 +22,7 @@ Sem checagem de papel; opera sobre `usuarioAtivoId` `[CONFIRMED: code — Histor
 
 1. **Header:** título + "Todos os seus registros de consumo".
 2. **Card Filtros:** dois `input type="date"` (Data Início / Data Fim, labels visíveis) + botões "Aplicar filtros" (indigo) e "Limpar filtros" (texto indigo, só quando há filtro aplicado) `[CONFIRMED: code]`.
-3. **Card Exportar:** seletor de formato (CSV / JSON / PDF — botões toggle indigo) + botão "Exportar {FORMATO}" com ícone Download; desabilitado quando não há registros; estado de loading "Exportando…"; mensagem quando array vazio `[CONFIRMED: code — Historico.tsx, FEAT-0002]`. **PDF inclui cabeçalho de identificação:** "Paciente: {nome}" (abaixo do título) + "Gerado em: {data}  •  Período: {inicio} à {fim}" (linha seguinte) — período derivado do filtro ativo ou do intervalo real dos dados `[CONFIRMED: code — exportarHistorico.ts]`.
+3. **Card Exportar:** seletor de formato (CSV / JSON / PDF — botões toggle indigo) + botão "Exportar {FORMATO}" com ícone Download; desabilitado quando não há registros; estado de loading "Exportando…"; mensagem quando array vazio `[CONFIRMED: code — Historico.tsx, FEAT-0002]`. **Todos os formatos incluem identificação:** nome do paciente e período dos dados (derivado do filtro ativo ou do intervalo real dos registros exportados). PDF: como linhas de cabeçalho acima da tabela. CSV: como linhas de metadados (`Paciente;...`, `Período;...`, `Gerado em;...`) antes do cabeçalho da tabela. JSON: como envelope `{ paciente, periodo, gerado_em, registros }` ao redor do array `[CONFIRMED: code — exportarHistorico.ts]`.
 4. **Grupos por dia:** card por data — cabeçalho com `format(..., "EEEE, d 'de' MMMM", {locale: ptBR})`, contagem ("1 registro"/"N registros") e "Total do dia {X.toFixed(1)} mg" em `text-indigo-600`; linhas dos registros em `bg-gray-50` com nome do alimento, "{peso_g}g • {fenil_mg.toFixed(1)} mg" e botão `Trash2` vermelho `[CONFIRMED: code — Historico.tsx:137-201]`.
 
 ## Estados de UI
@@ -52,7 +52,7 @@ Labels visíveis; botão de ícone SEM `title`/aria (fato) `[CONFIRMED: code]`. 
 
 - E1 — `src/react-app/pages/Historico.tsx` completo `[CONFIRMED: code]`
 - E2 — `src/react-app/lib/exportarHistorico.ts` (geração e download CSV/JSON/PDF) `[CONFIRMED: code]`
-- E3 — `src/react-app/lib/exportarHistorico.test.ts` (24 testes) `[CONFIRMED: test]`
+- E3 — `src/react-app/lib/exportarHistorico.test.ts` (31 testes) `[CONFIRMED: test]`
 
 ## Veja também
 

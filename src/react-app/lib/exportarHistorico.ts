@@ -22,7 +22,7 @@ function triggerDownload(blob: Blob, nome: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function gerarConteudoCSV(registros: RegistroDTO[]): string {
+export function gerarConteudoCSV(registros: RegistroDTO[], opcoes?: OpcoesExportacao): string {
   const cabecalho = ["Data", "Alimento", "Peso (g)", "Fenilalanina (mg)"];
   const linhas = registros.map((r) => [
     dataFormatada(r.data),
@@ -30,11 +30,22 @@ export function gerarConteudoCSV(registros: RegistroDTO[]): string {
     r.peso_g.toString(),
     r.fenil_mg.toFixed(1),
   ]);
-  return [cabecalho.join(";"), ...linhas.map((l) => l.join(";"))].join("\r\n");
+  const dados = [cabecalho.join(";"), ...linhas.map((l) => l.join(";"))].join("\r\n");
+
+  if (!opcoes) return dados;
+
+  const periodo = derivarPeriodoPDF(registros, opcoes);
+  const meta = [
+    `Paciente;${opcoes.nomeUsuario?.trim() || "Não informado"}`,
+    ...(periodo ? [`Período;${periodo.inicio} à ${periodo.fim}`] : []),
+    `Gerado em;${format(new Date(), "dd/MM/yyyy", { locale: ptBR })}`,
+  ].join("\r\n");
+
+  return meta + "\r\n" + dados;
 }
 
-export function exportarCSV(registros: RegistroDTO[]): void {
-  const conteudo = "﻿" + gerarConteudoCSV(registros);
+export function exportarCSV(registros: RegistroDTO[], opcoes?: OpcoesExportacao): void {
+  const conteudo = "﻿" + gerarConteudoCSV(registros, opcoes);
   const blob = new Blob([conteudo], { type: "text/csv;charset=utf-8;" });
   triggerDownload(blob, nomePadrao("csv"));
 }
@@ -57,15 +68,27 @@ export function gerarConteudoJSON(registros: RegistroDTO[]): RegistroExportadoJS
   }));
 }
 
-export function exportarJSON(registros: RegistroDTO[]): void {
-  const dados = gerarConteudoJSON(registros);
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {
+export function exportarJSON(registros: RegistroDTO[], opcoes?: OpcoesExportacao): void {
+  const registrosJSON = gerarConteudoJSON(registros);
+  let conteudo: object = registrosJSON;
+
+  if (opcoes) {
+    const periodo = derivarPeriodoPDF(registros, opcoes);
+    conteudo = {
+      paciente: opcoes.nomeUsuario?.trim() || "Não informado",
+      ...(periodo ? { periodo: { inicio: periodo.inicio, fim: periodo.fim } } : {}),
+      gerado_em: format(new Date(), "yyyy-MM-dd"),
+      registros: registrosJSON,
+    };
+  }
+
+  const blob = new Blob([JSON.stringify(conteudo, null, 2)], {
     type: "application/json;charset=utf-8;",
   });
   triggerDownload(blob, nomePadrao("json"));
 }
 
-export interface OpcoesExportacaoPDF {
+export interface OpcoesExportacao {
   nomeUsuario?: string | null;
   dataInicio?: string;
   dataFim?: string;
@@ -73,7 +96,7 @@ export interface OpcoesExportacaoPDF {
 
 export function derivarPeriodoPDF(
   registros: RegistroDTO[],
-  opcoes: Pick<OpcoesExportacaoPDF, "dataInicio" | "dataFim">
+  opcoes: Pick<OpcoesExportacao, "dataInicio" | "dataFim">
 ): { inicio: string; fim: string } | null {
   const datas = registros.map((r) => r.data).sort();
   const rawInicio = opcoes.dataInicio || datas[0];
@@ -84,7 +107,7 @@ export function derivarPeriodoPDF(
 
 export async function exportarPDF(
   registros: RegistroDTO[],
-  opcoes: OpcoesExportacaoPDF = {}
+  opcoes: OpcoesExportacao = {}
 ): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");

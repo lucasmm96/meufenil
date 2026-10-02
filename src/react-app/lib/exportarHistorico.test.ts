@@ -116,6 +116,49 @@ describe("gerarConteudoJSON", () => {
   });
 });
 
+describe("gerarConteudoCSV — com opcoes (bloco de metadados)", () => {
+  it("inclui linha Paciente com nome do usuário", () => {
+    const csv = gerarConteudoCSV([registroBase], { nomeUsuario: "Maria Silva" });
+    expect(csv).toContain("Paciente;Maria Silva");
+  });
+
+  it("usa 'Não informado' quando nomeUsuario é null", () => {
+    const csv = gerarConteudoCSV([registroBase], { nomeUsuario: null });
+    expect(csv).toContain("Paciente;Não informado");
+  });
+
+  it("inclui linha Período quando período é derivável", () => {
+    const csv = gerarConteudoCSV([registroBase], { nomeUsuario: "Maria" });
+    expect(csv).toContain("Período;15/01/2026 à 15/01/2026");
+  });
+
+  it("inclui linha Período com datas do filtro quando fornecidas", () => {
+    const csv = gerarConteudoCSV([registroBase], {
+      nomeUsuario: "Maria",
+      dataInicio: "2026-01-01",
+      dataFim: "2026-01-31",
+    });
+    expect(csv).toContain("Período;01/01/2026 à 31/01/2026");
+  });
+
+  it("inclui linha Gerado em", () => {
+    const csv = gerarConteudoCSV([registroBase], { nomeUsuario: "Maria" });
+    expect(csv).toContain("Gerado em;");
+  });
+
+  it("metadados aparecem antes do cabeçalho da tabela", () => {
+    const csv = gerarConteudoCSV([registroBase], { nomeUsuario: "Maria" });
+    const idxPaciente = csv.indexOf("Paciente;");
+    const idxHeader = csv.indexOf("Data;Alimento");
+    expect(idxPaciente).toBeLessThan(idxHeader);
+  });
+
+  it("sem opcoes: formato original sem metadados", () => {
+    const csv = gerarConteudoCSV([registroBase]);
+    expect(csv.startsWith("Data;Alimento")).toBe(true);
+  });
+});
+
 describe("exportarCSV", () => {
   let mockUrl: string;
   let mockClick: ReturnType<typeof vi.fn>;

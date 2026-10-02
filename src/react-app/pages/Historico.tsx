@@ -57,10 +57,11 @@ export default function HistoricoPage() {
   const handleExportar = async () => {
     if (registros.length === 0) return;
     setExportando(true);
+    const opcoes = { nomeUsuario: perfil?.nome, dataInicio, dataFim };
     try {
-      if (formato === "csv") exportarCSV(registros);
-      else if (formato === "json") exportarJSON(registros);
-      else await exportarPDF(registros, { nomeUsuario: perfil?.nome, dataInicio, dataFim });
+      if (formato === "csv") exportarCSV(registros, opcoes);
+      else if (formato === "json") exportarJSON(registros, opcoes);
+      else await exportarPDF(registros, opcoes);
     } finally {
       setExportando(false);
     }
