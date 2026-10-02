@@ -78,16 +78,24 @@ describe("admin.service", () => {
     expect(result).toHaveLength(2);
   });
 
-  it("toggleRoleUsuario atualiza role", async () => {
-    fromMock.mockReturnValueOnce({
-      update: vi.fn().mockReturnValueOnce({
-        eq: vi.fn().mockResolvedValueOnce({
-          error: null,
-        }),
-      }),
+  it("toggleRoleUsuario chama RPC toggle_role_usuario com sucesso", async () => {
+    rpcMock.mockResolvedValueOnce({ error: null });
+
+    await expect(toggleRoleUsuario("abc", "admin")).resolves.toBeUndefined();
+    expect(rpcMock).toHaveBeenCalledWith("toggle_role_usuario", {
+      alvo_id: "abc",
+      novo_role: "admin",
+    });
+  });
+
+  it("toggleRoleUsuario lança AppError com mensagem do banco se RPC falhar", async () => {
+    rpcMock.mockResolvedValueOnce({
+      error: { message: "Permissão negada: apenas administradores podem alterar papéis" },
     });
 
-    await expect(toggleRoleUsuario("1", "admin")).resolves.toBeUndefined();
+    await expect(toggleRoleUsuario("abc", "admin")).rejects.toMatchObject({
+      message: "Permissão negada: apenas administradores podem alterar papéis",
+    });
   });
 
   it("getEstatisticasAdmin calcula percentual corretamente", async () => {

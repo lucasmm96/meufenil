@@ -124,13 +124,17 @@ function jobsAdminMock(overrides: Record<string, unknown> = {}) {
 }
 
 /** Monta os mocks da página como admin e devolve o mock do hook de sync. */
-function renderAdminComoAdmin(overrides: Record<string, unknown> = {}) {
+function renderAdminComoAdmin(overrides: Record<string, unknown> = {}, adminOverrides: Record<string, unknown> = {}) {
   useAuthMock.mockReturnValue({ authUser: { id: "admin-1" } });
   useAdminMock.mockReturnValue({
     perfilUsuario: { id: "admin-1", role: "admin" },
     usuarios: [],
     estatisticasDB: null,
     loading: false,
+    toggleRole: vi.fn(),
+    toggleRoleId: null,
+    toggleRoleError: null,
+    ...adminOverrides,
   });
   useBackgroundJobsAdminMock.mockReturnValue(jobsAdminMock());
   const syncMock = syncAdminMock(overrides);
@@ -437,5 +441,95 @@ describe("Admin page", () => {
     await waitFor(() => {
       expect(screen.getByText(/Backup restaurado: 1 reativadas/)).toBeTruthy();
     });
+  });
+
+  it("exibe lista de usuários com badge de papel e botão de toggle na seção Gestão de Papéis", () => {
+    const toggleRole = vi.fn();
+    useAuthMock.mockReturnValue({ authUser: { id: "admin-1" } });
+    useAdminMock.mockReturnValue({
+      perfilUsuario: { id: "admin-1", role: "admin" },
+      usuarios: [
+        { id: "admin-1", nome: "Admin", email: "admin@ex.com", role: "admin" },
+        { id: "user-2", nome: "Maria", email: "maria@ex.com", role: "user" },
+      ],
+      estatisticasDB: null,
+      loading: false,
+      toggleRole,
+      toggleRoleId: null,
+      toggleRoleError: null,
+    });
+    useBackgroundJobsAdminMock.mockReturnValue(jobsAdminMock());
+    useReferenciasSyncAdminMock.mockReturnValue(syncAdminMock());
+
+    render(<Admin />);
+
+    expect(screen.getByText("Gestão de Papéis")).toBeTruthy();
+    expect(screen.getAllByText("Admin").length).toBeGreaterThan(0);
+    expect(screen.getByText("Usuário")).toBeTruthy();
+  });
+
+  it("desabilita o botão de toggle na própria linha do admin logado", () => {
+    const toggleRole = vi.fn();
+    useAuthMock.mockReturnValue({ authUser: { id: "admin-1" } });
+    useAdminMock.mockReturnValue({
+      perfilUsuario: { id: "admin-1", role: "admin" },
+      usuarios: [
+        { id: "admin-1", nome: "Admin", email: "admin@ex.com", role: "admin" },
+        { id: "user-2", nome: "Maria", email: "maria@ex.com", role: "user" },
+      ],
+      estatisticasDB: null,
+      loading: false,
+      toggleRole,
+      toggleRoleId: null,
+      toggleRoleError: null,
+    });
+    useBackgroundJobsAdminMock.mockReturnValue(jobsAdminMock());
+    useReferenciasSyncAdminMock.mockReturnValue(syncAdminMock());
+
+    render(<Admin />);
+
+    const botoes = screen.getAllByRole("button", { name: /remover admin|tornar admin/i });
+    const botaoSelf = botoes.find((b) => (b as HTMLButtonElement).disabled);
+    expect(botaoSelf).toBeTruthy();
+  });
+
+  it("chama toggleRole ao clicar em outro usuário", async () => {
+    const toggleRole = vi.fn().mockResolvedValue(undefined);
+    useAuthMock.mockReturnValue({ authUser: { id: "admin-1" } });
+    useAdminMock.mockReturnValue({
+      perfilUsuario: { id: "admin-1", role: "admin" },
+      usuarios: [
+        { id: "admin-1", nome: "Admin", email: "admin@ex.com", role: "admin" },
+        { id: "user-2", nome: "Maria", email: "maria@ex.com", role: "user" },
+      ],
+      estatisticasDB: null,
+      loading: false,
+      toggleRole,
+      toggleRoleId: null,
+      toggleRoleError: null,
+    });
+    useBackgroundJobsAdminMock.mockReturnValue(jobsAdminMock());
+    useReferenciasSyncAdminMock.mockReturnValue(syncAdminMock());
+
+    render(<Admin />);
+
+    const botaoTornarAdmin = screen.getByRole("button", { name: /tornar admin/i });
+    fireEvent.click(botaoTornarAdmin);
+
+    await waitFor(() => {
+      expect(toggleRole).toHaveBeenCalledWith("user-2", "user");
+    });
+  });
+
+  it("exibe mensagem de erro quando toggleRoleError está preenchido", () => {
+    renderAdminComoAdmin({}, {
+      usuarios: [{ id: "user-2", nome: "Maria", email: "maria@ex.com", role: "user" }],
+      toggleRoleError: "Permissão negada: apenas administradores podem alterar papéis",
+    });
+    useBackgroundJobsAdminMock.mockReturnValue(jobsAdminMock());
+
+    render(<Admin />);
+
+    expect(screen.getByText(/Permissão negada/)).toBeTruthy();
   });
 });

@@ -1,8 +1,8 @@
 # Funções SQL (RPC) — Schema public
 
-**Última verificação:** 2026-10-02 (REF-0002 — migration 20261002000000 — `dashboard_hoje` e `dashboard_ultimos_dias` eliminadas; total: 11 funções. Antes: 2026-09-25 — ENH-0009 — migrations 20260923000000 + corretivas 20260924000000/20260924010000)
+**Última verificação:** 2026-10-02 (FEAT-0015 — migration 20261002010000 — `toggle_role_usuario` adicionada; total: 12 funções. Antes: REF-0002 — migration 20261002000000 — `dashboard_hoje` e `dashboard_ultimos_dias` eliminadas)
 
-Inventário das **11 funções** do schema `public` no estado pós-REF-0002 (migration 20261002000000, dev 2026-10-02) `[CONFIRMED: migration 20261002000000]`. As funções de trigger `fn_normalizar_nome_referencia()` e `fn_remover_favoritos_referencia_inativa()` foram **eliminadas** pela ENH-0004. O FEAT-0017 acrescentou 7 funções em dev (M1–M5); a ENH-0009 **eliminou 2**: `decidir_pendencia_referencia` (curadoria — ver seção Funções eliminadas) e `reverter_sync_referencias` (rollback seletivo — ver seção Funções eliminadas), **reescreveu** `aplicar_sync_referencias` (deleção física + sweep + sem pendências) e `restaurar_referencias_de_backup` (pendencias_canceladas=0, tabela pendências dropped). A REF-0002 **eliminou 2**: `dashboard_hoje` e `dashboard_ultimos_dias` (orphaned — sem chamadores, SECURITY DEFINER sem autorização interna — ver seção Funções eliminadas). Prod: estado pós-release v1.18.0 (13 funções); REF-0002 e ENH-0009 ainda não aplicados em prod `[CONFIRMED: database — catálogo prod 2026-09-11; migration 20260923000000]`.
+Inventário das **12 funções** do schema `public` no estado pós-FEAT-0015 (migration 20261002010000, dev 2026-10-02) `[CONFIRMED: migration 20261002010000]`. As funções de trigger `fn_normalizar_nome_referencia()` e `fn_remover_favoritos_referencia_inativa()` foram **eliminadas** pela ENH-0004. O FEAT-0017 acrescentou 7 funções em dev (M1–M5); a ENH-0009 **eliminou 2**: `decidir_pendencia_referencia` (curadoria — ver seção Funções eliminadas) e `reverter_sync_referencias` (rollback seletivo — ver seção Funções eliminadas), **reescreveu** `aplicar_sync_referencias` (deleção física + sweep + sem pendências) e `restaurar_referencias_de_backup` (pendencias_canceladas=0, tabela pendências dropped). A REF-0002 **eliminou 2**: `dashboard_hoje` e `dashboard_ultimos_dias` (orphaned — sem chamadores, SECURITY DEFINER sem autorização interna — ver seção Funções eliminadas). Prod: estado pós-release v1.18.0 (13 funções); REF-0002 e ENH-0009 ainda não aplicados em prod `[CONFIRMED: database — catálogo prod 2026-09-11; migration 20260923000000]`.
 
 | Função | Tipo | SECURITY DEFINER | search_path | Versionada? |
 |---|---|---|---|---|
@@ -13,6 +13,7 @@ Inventário das **11 funções** do schema `public` no estado pós-REF-0002 (mig
 | ~~`reverter_sync_referencias(uuid)`~~ | ~~negócio (sync — recuperação)~~ | — | — | Eliminada (20260923000000) |
 | `restaurar_referencias_de_backup(uuid)` | negócio (sync — recuperação) | Sim | `public` | Sim (20260906010000; reescrita 20260923000000) |
 | `pode_operar_recuperacao(uuid)` | autorização | Sim | `public` | Sim (20260906010000) |
+| `toggle_role_usuario(uuid, text)` | negócio (admin) | Sim | `public` | Sim (20261002010000) |
 | `is_admin_user(uuid)` | autorização | Sim | `public` | Sim (20260810) |
 | ~~`dashboard_hoje(uuid)`~~ | ~~consulta~~ | — | — | Eliminada (20261002000000) |
 | ~~`dashboard_ultimos_dias(uuid, integer)`~~ | ~~consulta~~ | — | — | Eliminada (20261002000000) |
@@ -105,6 +106,21 @@ Grants (fato do catálogo): as funções legadas têm EXECUTE para todas as role
 - **Chamadores no código:** não chamada diretamente pela aplicação — guarda interna dos RPCs `reverter_sync_referencias` e `restaurar_referencias_de_backup` `[CONFIRMED: database, migration]`
 - **Testes:** coberta indiretamente pelos testes de permissão das RPCs M5 (admin com flag autorizado; admin sem flag → permissão negada) `[CONFIRMED: test]`
 - **Evidências:** E1 — definição no banco = migration `[CONFIRMED: database, migration]`
+
+## public.toggle_role_usuario
+
+**Última verificação:** 2026-10-02 (FEAT-0015 — migration 20261002010000)
+**Definição em:** `20261002010000_feat0015_toggle_role_rpc.sql` `[CONFIRMED: migration]`
+
+- **Assinatura:** `toggle_role_usuario(alvo_id uuid, novo_role text) RETURNS void` — plpgsql
+- **SECURITY DEFINER?** Sim — `SET search_path TO 'public'`
+- **Autorização implementada:** (1) `novo_role NOT IN ('admin', 'user')` → `RAISE EXCEPTION 'Papel inválido: %'`; (2) `auth.uid() = alvo_id` → `RAISE EXCEPTION 'Não é permitido alterar o próprio papel'`; (3) `NOT is_admin_user(auth.uid())` → `RAISE EXCEPTION 'Permissão negada: apenas administradores podem alterar papéis'`; (4) `NOT EXISTS (SELECT 1 FROM usuarios WHERE id = alvo_id)` → `RAISE EXCEPTION 'Usuário não encontrado'`
+- **Efeitos:** `UPDATE usuarios SET role = novo_role WHERE id = alvo_id`
+- **Restrição de coluna:** `REVOKE UPDATE(role) ON TABLE public.usuarios FROM authenticated` (mesma migration) — único caminho de escrita de `usuarios.role` pela aplicação é via esta RPC
+- **Grants:** EXECUTE para `authenticated` e `service_role` (REVOKE FROM PUBLIC)
+- **Chamadores no código:** `admin.service.ts:toggleRoleUsuario` (via `supabase.rpc`) → `useAdmin.ts:toggleRole` → `Admin.tsx:SecaoGestaoRoles` `[CONFIRMED: code]`
+- **Testes:** `admin.service.test.ts` (mock RPC — sucesso, erro com mensagem do banco) `[CONFIRMED: test]`
+- **Evidências:** E1 — migration 20261002010000 `[CONFIRMED: migration]`
 
 ## public.is_admin_user
 
