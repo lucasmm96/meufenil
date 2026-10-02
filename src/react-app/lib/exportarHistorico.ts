@@ -65,7 +65,27 @@ export function exportarJSON(registros: RegistroDTO[]): void {
   triggerDownload(blob, nomePadrao("json"));
 }
 
-export async function exportarPDF(registros: RegistroDTO[]): Promise<void> {
+export interface OpcoesExportacaoPDF {
+  nomeUsuario?: string | null;
+  dataInicio?: string;
+  dataFim?: string;
+}
+
+export function derivarPeriodoPDF(
+  registros: RegistroDTO[],
+  opcoes: Pick<OpcoesExportacaoPDF, "dataInicio" | "dataFim">
+): { inicio: string; fim: string } | null {
+  const datas = registros.map((r) => r.data).sort();
+  const rawInicio = opcoes.dataInicio || datas[0];
+  const rawFim = opcoes.dataFim || datas[datas.length - 1];
+  if (!rawInicio || !rawFim) return null;
+  return { inicio: dataFormatada(rawInicio), fim: dataFormatada(rawFim) };
+}
+
+export async function exportarPDF(
+  registros: RegistroDTO[],
+  opcoes: OpcoesExportacaoPDF = {}
+): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
 
@@ -73,15 +93,21 @@ export async function exportarPDF(registros: RegistroDTO[]): Promise<void> {
 
   doc.setFontSize(16);
   doc.text("Histórico de Fenilalanina", 14, 15);
+
+  doc.setFontSize(11);
+  doc.text(`Paciente: ${opcoes.nomeUsuario?.trim() || "Não informado"}`, 14, 23);
+
+  const periodo = derivarPeriodoPDF(registros, opcoes);
+  const periodoTexto = periodo ? `  •  Período: ${periodo.inicio} à ${periodo.fim}` : "";
   doc.setFontSize(10);
   doc.text(
-    `Gerado em: ${format(new Date(), "dd/MM/yyyy", { locale: ptBR })}`,
+    `Gerado em: ${format(new Date(), "dd/MM/yyyy", { locale: ptBR })}${periodoTexto}`,
     14,
-    23
+    30
   );
 
   autoTable(doc, {
-    startY: 30,
+    startY: 38,
     head: [["Data", "Alimento", "Peso (g)", "Fenilalanina (mg)"]],
     body: registros.map((r) => [
       dataFormatada(r.data),

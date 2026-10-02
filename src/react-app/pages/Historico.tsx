@@ -4,6 +4,7 @@ import { Trash2, Calendar, Filter, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useRegistros } from "@/react-app/hooks/useRegistros";
+import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { LayoutSkeleton, HistoricoSkeleton } from "@skeletons";
 import { useAuth } from "@/react-app/context/AuthContext";
 import {
@@ -15,6 +16,7 @@ import {
 
 export default function HistoricoPage() {
   const { ready, usuarioAtivoId } = useAuth();
+  const { perfil } = usePerfil(usuarioAtivoId ?? undefined);
 
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -58,7 +60,7 @@ export default function HistoricoPage() {
     try {
       if (formato === "csv") exportarCSV(registros);
       else if (formato === "json") exportarJSON(registros);
-      else await exportarPDF(registros);
+      else await exportarPDF(registros, { nomeUsuario: perfil?.nome, dataInicio, dataFim });
     } finally {
       setExportando(false);
     }

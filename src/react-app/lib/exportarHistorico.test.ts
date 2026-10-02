@@ -5,6 +5,7 @@ import {
   gerarConteudoJSON,
   exportarCSV,
   exportarJSON,
+  derivarPeriodoPDF,
 } from "./exportarHistorico";
 
 const registroBase: RegistroDTO = {
@@ -160,6 +161,47 @@ describe("exportarCSV", () => {
     expect(capturedBlob).toBeDefined();
     // Verifica que o blob foi criado com conteúdo (BOM + CSV)
     expect(capturedBlob!.size).toBeGreaterThan(3); // BOM = 3 bytes
+  });
+});
+
+describe("derivarPeriodoPDF", () => {
+  const r1 = { ...registroBase, data: "2026-01-15" };
+  const r2 = { ...registroBase, id: "r2", data: "2026-03-20" };
+  const r3 = { ...registroBase, id: "r3", data: "2026-02-10" };
+
+  it("sem filtro: usa min/max dos registros", () => {
+    const periodo = derivarPeriodoPDF([r1, r2, r3], {});
+    expect(periodo).not.toBeNull();
+    expect(periodo!.inicio).toBe("15/01/2026");
+    expect(periodo!.fim).toBe("20/03/2026");
+  });
+
+  it("filtro completo: usa as datas do filtro, ignora dados", () => {
+    const periodo = derivarPeriodoPDF([r1, r2], { dataInicio: "2026-02-01", dataFim: "2026-02-28" });
+    expect(periodo!.inicio).toBe("01/02/2026");
+    expect(periodo!.fim).toBe("28/02/2026");
+  });
+
+  it("filtro parcial (só início): usa início do filtro e fim dos dados", () => {
+    const periodo = derivarPeriodoPDF([r1, r2], { dataInicio: "2026-02-01" });
+    expect(periodo!.inicio).toBe("01/02/2026");
+    expect(periodo!.fim).toBe("20/03/2026");
+  });
+
+  it("filtro parcial (só fim): usa início dos dados e fim do filtro", () => {
+    const periodo = derivarPeriodoPDF([r1, r2], { dataFim: "2026-02-28" });
+    expect(periodo!.inicio).toBe("15/01/2026");
+    expect(periodo!.fim).toBe("28/02/2026");
+  });
+
+  it("registros vazios sem filtro: retorna null", () => {
+    expect(derivarPeriodoPDF([], {})).toBeNull();
+  });
+
+  it("registro único: início e fim são a mesma data", () => {
+    const periodo = derivarPeriodoPDF([r1], {});
+    expect(periodo!.inicio).toBe("15/01/2026");
+    expect(periodo!.fim).toBe("15/01/2026");
   });
 });
 
