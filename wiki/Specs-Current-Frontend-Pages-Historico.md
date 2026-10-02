@@ -13,15 +13,17 @@ Sem checagem de papel; opera sobre `usuarioAtivoId` `[CONFIRMED: code — Histor
 
 ## Estado e dados
 
-- `useAuth()` → `{ ready, usuarioAtivoId }`; `useRegistros({usuarioId, dataInicio, dataFim})` → `{ data: registros, loading, remove }` `[CONFIRMED: code]`.
-- Estado local (filtros em 2 estágios): `dataInicio/dataFim` (aplicados) e `dataInicioTemp/dataFimTemp` (rascunho); "Aplicar filtros" promove temp → aplicado; "Limpar filtros" zera os 4 `[CONFIRMED: code — Historico.tsx:13-44]`.
+- `useAuth()` → `{ ready, usuarioAtivoId }`; `usePerfil(usuarioAtivoId)` → `{ perfil }` (nome do paciente para exportação); `useRegistros({usuarioId, dataInicio, dataFim})` → `{ data: registros, loading, remove }` `[CONFIRMED: code]`.
+- Estado local (filtros em 2 estágios): `dataInicio/dataFim` (aplicados) e `dataInicioTemp/dataFimTemp` (rascunho); "Aplicar filtros" promove temp → aplicado; "Limpar filtros" zera os 4 `[CONFIRMED: code — Historico.tsx:22-55]`.
+- Estado de exportação: `formato` (FormatoExportacao: `"csv" | "json" | "pdf"`, default `"csv"`) e `exportando` (boolean) `[CONFIRMED: code — Historico.tsx:27-28]`.
 - Agrupamento client-side por `data` via `useMemo` (reduce) `[CONFIRMED: code]`.
 
 ## UI
 
 1. **Header:** título + "Todos os seus registros de consumo".
 2. **Card Filtros:** dois `input type="date"` (Data Início / Data Fim, labels visíveis) + botões "Aplicar filtros" (indigo) e "Limpar filtros" (texto indigo, só quando há filtro aplicado) `[CONFIRMED: code]`.
-3. **Grupos por dia:** card por data — cabeçalho com `format(..., "EEEE, d 'de' MMMM", {locale: ptBR})`, contagem ("1 registro"/"N registros") e "Total do dia {X.toFixed(1)} mg" em `text-indigo-600`; linhas dos registros em `bg-gray-50` com nome do alimento, "{peso_g}g • {fenil_mg.toFixed(1)} mg" e botão `Trash2` vermelho `[CONFIRMED: code — Historico.tsx:137-201]`.
+3. **Card Exportar:** seletor de formato segmentado (CSV | JSON | PDF, botão indigo no selecionado) + botão "Exportar {FORMATO}" com ícone `Download`; desabilitado quando não há registros ou está exportando; mensagem "Nenhum registro no período selecionado para exportar." quando lista vazia `[CONFIRMED: code — Historico.tsx:149-187]`.
+4. **Grupos por dia:** card por data — cabeçalho com `format(..., "EEEE, d 'de' MMMM", {locale: ptBR})`, contagem ("1 registro"/"N registros") e "Total do dia {X.toFixed(1)} mg" em `text-indigo-600`; linhas dos registros em `bg-gray-50` com nome do alimento, "{peso_g}g • {fenil_mg.toFixed(1)} mg" e botão `Trash2` vermelho `[CONFIRMED: code — Historico.tsx:199-265]`.
 
 ## Estados de UI
 
@@ -32,7 +34,9 @@ Sem checagem de papel; opera sobre `usuarioAtivoId` `[CONFIRMED: code — Histor
 
 ## Fluxos de interação
 
-- Exclusão: `confirm("Tem certeza que deseja excluir este registro?")` → `remove(id)` (delete via service; reload) `[CONFIRMED: code — Historico.tsx:29-32]`.
+- Exclusão: `confirm("Tem certeza que deseja excluir este registro?")` → `remove(id)` (delete via service; reload) `[CONFIRMED: code — Historico.tsx:40-43]`.
+- Exportação: `handleExportar` → verifica `registros.length > 0`; passa `{ nomeUsuario: perfil?.nome, dataInicio, dataFim }` como `OpcoesExportacao`; despacha para `exportarCSV` / `exportarJSON` / `exportarPDF` conforme `formato`; `exportarPDF` é async (dynamic import jsPDF) `[CONFIRMED: code — Historico.tsx:57-68, lib/exportarHistorico.ts]`.
+- Arquivo exportado: nome `historico-fenil-{YYYY-MM-DD}.{formato}` `[CONFIRMED: code — exportarHistorico.ts:11-14]`; inclui nome do paciente e período derivado dos filtros aplicados ou das datas dos registros; CSV tem BOM UTF-8 `[CONFIRMED: code — exportarHistorico.ts:48]`.
 
 ## Responsividade
 
@@ -44,11 +48,12 @@ Labels visíveis; botão de ícone SEM `title`/aria (fato) `[CONFIRMED: code]`. 
 
 ## Testes
 
-`useRegistros.test.ts`, `registros.service.test.ts`. Página sem teste próprio `[CONFIRMED: test, ausência]`.
+`useRegistros.test.ts`, `registros.service.test.ts`. `lib/exportarHistorico.test.ts` (18 testes — cobre CSV/JSON, BOM UTF-8, fuso pt-BR, escape de aspas, array vazio). Página sem teste próprio `[CONFIRMED: test, ausência]`.
 
 ## Evidências
 
 - E1 — `src/react-app/pages/Historico.tsx` completo `[CONFIRMED: code]`
+- E2 — `src/react-app/lib/exportarHistorico.ts` (exportarCSV, exportarJSON, exportarPDF, gerarConteudoCSV, gerarConteudoJSON, derivarPeriodoPDF) `[CONFIRMED: code]`
 
 ## Veja também
 
