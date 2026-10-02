@@ -22,6 +22,7 @@
 
 ### Features
 
+- [FEAT-0002-exportar-historico](Specs-Archive-Implemented-Features-FEAT-0002-Exportar-Historico)
 - [FEAT-0016-geracao-automatica-de-documentacao-via-agente-wiki-documenter](Specs-Archive-Implemented-Features-FEAT-0016-Geracao-Automatica-De-Documentacao-Via-Agente-Wiki-Documenter)
 - [FEAT-0017-sincronizacao-referencias-anvisa](Specs-Archive-Implemented-Features-FEAT-0017-Sincronizacao-Referencias-Anvisa)
 

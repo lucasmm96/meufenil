@@ -71,6 +71,16 @@ Na página **Histórico** você vê todos os seus registros de consumo, agrupado
 - Para filtrar por período, use os campos **Data Início** e **Data Fim** e toque em **"Aplicar filtros"**. Para voltar a ver tudo, toque em **"Limpar filtros"**.
 - Para apagar um registro, toque no ícone de lixeira e confirme a exclusão.
 
+**Exportar o histórico:**
+
+1. (Opcional) Aplique os filtros de Data Início / Data Fim para delimitar o período desejado.
+2. Na seção **Exportar**, escolha o formato: **CSV** (planilha), **JSON** (dados estruturados) ou **PDF** (relatório formatado).
+3. Toque em **"Exportar"** — o arquivo é baixado para o seu aparelho.
+
+O arquivo gerado inclui a identificação do paciente e o período selecionado. Se não houver registros no período filtrado, o botão de exportação fica desabilitado e aparece a mensagem "Nenhum registro no período selecionado para exportar."
+
+> CSV e JSON podem ser abertos em planilhas ou editores de texto — úteis para compartilhar com seu nutricionista. O PDF gera um relatório pronto para impressão.
+
 ## Estatísticas e exportação
 
 Na página **Estatísticas** você analisa o consumo por período:

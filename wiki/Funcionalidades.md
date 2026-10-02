@@ -16,7 +16,7 @@ Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada it
 | FEAT-0003 | Registro diário de consumo | implementada | Registro de consumo (alimento + peso) com cálculo automático de fenilalanina; exclusão de registros. Base do dashboard, histórico e estatísticas. |
 | FEAT-0004 | Limite diário personalizado | implementada | Teto pessoal de fenilalanina por dia (padrão 500 mg), com indicadores de total, percentual, restante e alerta de ultrapassagem. |
 | FEAT-0005 | Dashboard diário | implementada | Visão do dia: consumo total vs. limite, percentual com barra de progresso, restante, gráfico dos últimos 7 dias e alerta de ultrapassagem. |
-| FEAT-0006 | Histórico de registros | implementada | Lista de registros de consumo agrupados por dia, com filtros por período e exclusão individual. |
+| FEAT-0006 | Histórico de registros + exportação | implementada | Lista de registros de consumo agrupados por dia, com filtros por período, exclusão individual e exportação do histórico filtrado em CSV, JSON ou PDF. O arquivo exportado inclui identificação do paciente e período. (Exportação implementada via FEAT-0002 arquivada.) |
 | FEAT-0007 | Estatísticas + exportação | implementada | Análise por período (semana/mês): total, média diária e maior consumo, com gráfico e exportação em CSV ou JSON. |
 | FEAT-0008 | Referências alimentares | implementada | Catálogo de alimentos com fenilalanina por 100g: busca (por nome ou marca), filtros, ordenação, favoritos e criação/edição com nome + marca opcional. Desde a ENH-0004, a identidade de referências globais é imutável: editar uma global = arquivar e criar a nova; globais nunca são excluídas fisicamente (arquivamento sempre, por admin) e reativação de global é exclusiva de admin. Desde a ENH-0008, nome e marca são exibidos em Title Case na UI independentemente da caixa armazenada no banco (o banco permanece verbatim, fiel à origem ANVISA). |
 | FEAT-0009 | Exames PKU | implementada | Registro e acompanhamento de exames laboratoriais: resumo (último exame, variação, total), gráfico de histórico e lista com exclusão. |
@@ -33,12 +33,11 @@ Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada it
 
 ## Em breve (propostas ativas)
 
-As propostas abaixo estão em `.ai/specs/proposed/` com status **PROPOSED** — são **planos futuros, ainda não implementados**. Nada aqui representa comportamento atual do sistema. (Fonte: `proposed/index.md` — 12 propostas ativas)
+As propostas abaixo estão em `.ai/specs/proposed/` com status **PROPOSED** — são **planos futuros, ainda não implementados**. Nada aqui representa comportamento atual do sistema. (Fonte: `proposed/index.md` — 11 propostas ativas)
 
 | ID | Tipo | Proposta | Status |
 |---|---|---|---|
 | FEAT-0015 | FEAT | Fluxo de atribuição de papel admin | PROPOSED |
-| FEAT-0002 | FEAT | Exportar o histórico de medições em CSV | PROPOSED |
 | ENH-0001 | ENH | PWA offline / service worker | PROPOSED |
 | ENH-0002 | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED |
 | REF-0001 | REF | Consolidar modal de concessão duplicado | PROPOSED |
@@ -50,6 +49,6 @@ As propostas abaixo estão em `.ai/specs/proposed/` com status **PROPOSED** — 
 | TEST-0004 | TEST | Completar testes de services faltantes | PROPOSED |
 | TEST-0005 | TEST | Determinismo dos testes de segurança | PROPOSED |
 
-> Observação: existem duas propostas distintas com o ID "FEAT-0002" — a **implementada** (Consentimento LGPD, em `current/features/`) e a **proposta** "Exportar o histórico de medições em CSV" (em `proposed/features/`), que é um plano futuro. Elas não se referem à mesma coisa.
+> Observação: o ID "FEAT-0002" foi usado para duas features distintas — a spec atual (Consentimento LGPD, `current/features/FEAT-0002-consentimento-lgpd.md`) e a spec arquivada (Exportar histórico, `archive/implemented/features/FEAT-0002-exportar-historico.md`). A exportação foi implementada via PR #107 (2026-10-02) e aparece incorporada na descrição da FEAT-0006 acima.
 >
 > Observação: DEBT-0005 (pendências de lint), DEBT-0006 (restauração do keepalive dev), ENH-0003 (seletor de page size no Admin), ENH-0004 (modelo canônico de referências) e REF-0004 (automação do gate de release) foram implementados e saíram do catálogo ativo (arquivados como IMPLEMENTED — Fonte: `proposed/index.md`).
