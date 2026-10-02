@@ -1,10 +1,16 @@
 # FEAT-0002 — Exportar o histórico de medições em CSV
 
+> **Esta proposta foi implementada.** A spec foi arquivada em `.ai/specs/archive/implemented/features/FEAT-0002-exportar-historico.md` — veja a página de archive: [FEAT-0002 — Exportar o histórico de medições (CSV / JSON / PDF)](Specs-Archive-Implemented-Features-FEAT-0002-Exportar-Historico).
+
 **Type:** FEAT
-**Status:** PROPOSED
-**Title:** Exportar o histórico de medições em CSV
+**Status:** IMPLEMENTED
+**Title:** Exportar o histórico de medições (CSV / JSON / PDF)
 **Issue:** #31
 **Created on:** 2026-08-17
+**Decision:** ACCEPTED
+**Approved by:** Lucas
+**Approved on:** 2026-10-02
+**Implemented Through:** PR #107 (merge `235571d`, development, 2026-10-02) + commits `e9845cb` + `f9cd5c7`
 
 ## Problem
 

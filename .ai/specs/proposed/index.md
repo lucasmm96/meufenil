@@ -1,8 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-10-01 (ENH-0002 IMPLEMENTED — PR #105, squash merge `4021112`, development)
+**Última verificação:** 2026-10-02 (FEAT-0002 implementado — PR #107 + commits `e9845cb`/`f9cd5c7`; housekeeping concluído)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (8) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 22 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008, ENH-0012, ENH-0008, REF-0005, ENH-0013, ENH-0002) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (7) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 24 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008, ENH-0012, ENH-0008, REF-0005, ENH-0013, ENH-0002, DEBT-0009, FEAT-0002) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED** (exceto propostas já aprovadas com `Decision: ACCEPTED`). O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -19,7 +19,7 @@
 | [ENH-0008](../archive/implemented/enhancements/ENH-0008-title-case-exibicao-referencias.md) | ENH | Title Case dinâmico para exibição de referências alimentares | IMPLEMENTED | #87 | PR #100 — merge `development`, 2026-09-30 |
 | [ENH-0013](../archive/implemented/enhancements/ENH-0013-biblioteca-scripts-deterministicos-ai.md) | ENH | Biblioteca de scripts determinísticos para workflows de IA | IMPLEMENTED | #103 | Draft 007-local-scripts-possibility (arquivado) — 2026-10-01 |
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
-| [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
+| [FEAT-0002](../archive/implemented/features/FEAT-0002-exportar-historico.md) | FEAT | Exportar o histórico de medições (CSV / JSON / PDF) | IMPLEMENTED | #31 | PR #107 (merge `235571d`, development, 2026-10-02) + commits `e9845cb`/`f9cd5c7` — identificação de paciente e período |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
 | [ENH-0002](../archive/implemented/enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | IMPLEMENTED | #21 | PR #105 (squash merge `4021112`, development) — 2026-10-01 |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | #12 | Divergência Fase 5 |
@@ -37,6 +37,7 @@
 | [REF-0004](../archive/implemented/refactors/REF-0004-automacao-residuo-gate-e-prevencao-tentativa-erro.md) | REF | Automação de limpeza de resíduo do gate + padrão preventivo para release | IMPLEMENTED | #51 | W7 + ADR-0013 — descoberto no PR #48 (release v1.10.0), PR #52 (squash merge) — 2026-09-03 |
 | [REF-0005](../archive/implemented/refactors/REF-0005-heading-canonico-corpo-release-pre-release-check-ampliado.md) | REF | Corpo de Release com heading canônico da tabela de rastreabilidade + pre-release-check ampliado | IMPLEMENTED | #54 | PR #102 → release v1.16.1 (PR #104, 2026-10-01) |
 | [DEBT-0007](technical-debt/DEBT-0007-gate-validacao-rotas-vercel.md) | DEBT | Gate de validação não cobre rotas Vercel em modo Node.js ESM | PROPOSED | TBD | ERR_MODULE_NOT_FOUND em prod (v1.11.0, 2026-09-10) — fix `2ea335c` |
+| [DEBT-0009](../archive/implemented/technical-debt/DEBT-0009-test-summary-shebang-falha-vitest.md) | DEBT | SyntaxError em test-summary.test.js — shebang não stripped pelo Vitest transform | IMPLEMENTED | #109 | PR #108 (squash merge `106a9cd`, development, 2026-10-02) |
 | [DEBT-0008](../archive/implemented/technical-debt/DEBT-0008-labels-spec-por-categoria.md) | DEBT | Labels de spec por categoria em vez de labels por ID | IMPLEMENTED | #94 | Alternativa C — 6 labels de categoria, dedup por título — sessão meuFenil018 (2026-09-25) |
 | [ENH-0005](../archive/implemented/enhancements/ENH-0005-revisao-tooling-ia.md) | ENH | Revisão e melhoria do tooling de IA do projeto | IMPLEMENTED | #76 | commits `ccf8733`/`bc880ef` (dev, 2026-09-15) |
 | [ENH-0006](../archive/implemented/enhancements/ENH-0006-espelho-specs-wiki.md) | ENH | Espelho das Specs do Projeto na Wiki | IMPLEMENTED | #79 | Draft 005-specs-reflected-on-wiki (arquivado) — PR #81, merge `83f9618` — 2026-09-16 |

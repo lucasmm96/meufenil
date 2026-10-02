@@ -26,7 +26,6 @@
 
 ## Features
 
-- [FEAT-0002-exportar-historico-csv](Specs-Proposed-Features-FEAT-0002-Exportar-Historico-Csv)
 - [FEAT-0015-atribuicao-papel-admin](Specs-Proposed-Features-FEAT-0015-Atribuicao-Papel-Admin)
 
 ## Refactors
