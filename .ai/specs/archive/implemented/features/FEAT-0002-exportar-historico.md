@@ -1,13 +1,15 @@
 # FEAT-0002 — Exportar o histórico de medições (CSV / JSON / PDF)
 
 **Type:** FEAT
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Exportar o histórico de medições (CSV / JSON / PDF)
 **Issue:** #31
 **Created on:** 2026-08-17
 **Decision:** ACCEPTED
 **Approved by:** Lucas
 **Approved on:** 2026-10-02
+
+**Implemented Through:** PR #107 (merge `235571d`, development, 2026-10-02) + commits `e9845cb` + `f9cd5c7` — identificação de paciente e período nos três formatos (development, 2026-10-02)
 
 ## Problem
 
@@ -100,4 +102,4 @@ N/A
 
 ---
 
-*Última atualização: 2026-10-01 — adicionados formatos JSON e PDF; OQ1 (filtro de período) e OQ2 (coluna de alimento) respondidos e incorporados ao escopo; jsPDF + jspdf-autotable definido como biblioteca de PDF.*
+*Última atualização: 2026-10-02 — IMPLEMENTED via PR #107 + commits de identificação de paciente e período.*
