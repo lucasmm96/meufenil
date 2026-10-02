@@ -103,7 +103,9 @@ Reescrever `test-summary.test.js` para executar o script via `spawnSync` / `exec
 testando output JSON em vez de funções individuais.
 → Consistente com os outros testes; não testa funções isoladamente (menos granular).
 
-**Decision:** TBD — escolha humana entre A, B ou C; registrar **Approved by:** e **Approved on:**
+**Decision:** Alternativa A — extrair funções puras para test-summary-core.js (sem shebang)
+**Approved by:** Lucas
+**Approved on:** 2026-10-02
 
 ## Open Questions
 
