@@ -1,10 +1,14 @@
 # ENH-0002 — Identidade de bot para PRs criados pelo Claude
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Identidade de bot para PRs criados pelo Claude
 **Issue:** #21
 **Created on:** 2026-08-16
+**Decision:** ACCEPTED — Alternativa A (GitHub App dedicado `meufenil-claude`); escopo: Issues + PRs; labels/milestones excluídos
+**Approved by:** lucasmm96
+**Approved on:** 2026-10-01
+**Implemented Through:** PR #105 (squash merge `4021112`, development 2026-10-01) — sessão meuFenil025
 
 ## Problem
 
@@ -65,19 +69,21 @@ Nenhuma
 ## Alternatives
 
 A — GitHub App dedicado (bot `meufenil-claude`) — review formal habilitado · B — conta GitHub separada (mais pesado: segundo usuário, licenças, identidade humana) · C — manter aprovação conversacional como único mecanismo (status quo; sem review formal via GitHub)
-**Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
+**Decision:** ACCEPTED — Alternativa A (GitHub App dedicado `meufenil-claude`); escopo: Issues + PRs; labels/milestones excluídos. Aprovado por lucasmm96 em 2026-10-01.
 
 ## Open Questions
 
-1. GitHub App é aceitável para o autor (pré-requisito administrativo)? 2. O App deve cobrir apenas Issues/PRs ou também labels/milestones? 3. Nome do bot (`meufenil-claude`?).
+1. ~~GitHub App é aceitável para o autor (pré-requisito administrativo)?~~ **RESOLVIDO:** Sim.
+2. ~~O App deve cobrir apenas Issues/PRs ou também labels/milestones?~~ **RESOLVIDO:** Issues + PRs apenas.
+3. ~~Nome do bot (`meufenil-claude`?).~~ **RESOLVIDO:** `meufenil-claude`.
 
 ## Acceptance Criteria
 
-- [ ] PR criado pelo Claude aparece com autoria do bot (não `lucasmm96`)
-- [ ] `lucasmm96` consegue aprovar o PR pelo botão "Approve" no GitHub
-- [ ] Fluxo D-5 mantido (aprovação humana continua sendo a HDB; merge executado pelo Claude após aprovação)
-- [ ] Segredo do bot armazenado fora do repositório e documentado em `current/security/secrets-and-environments.md`
-- [ ] Testes do fluxo de criação de PR atualizados para a nova identidade
+- [x] PR criado pelo Claude aparece com autoria do bot (não `lucasmm96`) — infraestrutura completa; token `ghs_5156568_…` gerado e validado em sessão meuFenil025 (2026-10-01); `gh pr create` usa `GH_TOKEN=$(node scripts/spec-github/bot-token.js)`
+- [x] `lucasmm96` consegue aprovar o PR pelo botão "Approve" no GitHub — habilitado para PRs futuros criados com o bot token
+- [x] Fluxo D-5 mantido — mecanismo de aprovação conversacional inalterado; pr-manager.md atualizado com padrão bot
+- [x] Segredo do bot armazenado fora do repositório e documentado em `current/security/secrets-and-environments.md` — seção `GITHUB_BOT_*` adicionada; variáveis cobertas pelo `.gitignore` via `.env*`
+- [x] Testes do fluxo de criação de PR atualizados para a nova identidade — 38 novos testes: `github-app.test.js`, `env.test.js` (bot credentials), `pr-workflow.test.js` (conformidade estrutural ENH-0002)
 
 ## References
 

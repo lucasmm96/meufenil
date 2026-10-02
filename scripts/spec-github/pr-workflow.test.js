@@ -103,3 +103,31 @@ describe('agentes da F5 — conformidade estrutural', () => {
     expect(a).toMatch(/agentes NÃO chamam agentes/i)
   })
 })
+
+describe('identidade de bot para PRs/Issues (ENH-0002)', () => {
+  it('github-app.js existe e exporta generateJWT, getInstallationToken, generateBotToken', async () => {
+    const mod = await import('./lib/github-app.js')
+    expect(typeof mod.generateJWT).toBe('function')
+    expect(typeof mod.getInstallationToken).toBe('function')
+    expect(typeof mod.generateBotToken).toBe('function')
+  })
+
+  it('bot-token.js existe e importa generateBotToken', () => {
+    const src = read('scripts/spec-github/bot-token.js')
+    expect(src).toMatch(/generateBotToken/)
+    expect(src).toMatch(/GH_TOKEN|bot.?token/i)
+  })
+
+  it('pr-manager.md documenta uso do bot token (GH_TOKEN) ao criar PRs', () => {
+    const a = read('.claude/agents/pr-manager.md')
+    expect(a).toMatch(/GITHUB_BOT|bot.?token|meufenil.?claude/i)
+    expect(a).toMatch(/GH_TOKEN/i)
+  })
+
+  it('env.js exporta loadBotAppId, loadBotPrivateKey, loadBotInstallationId', async () => {
+    const mod = await import('./lib/env.js')
+    expect(typeof mod.loadBotAppId).toBe('function')
+    expect(typeof mod.loadBotPrivateKey).toBe('function')
+    expect(typeof mod.loadBotInstallationId).toBe('function')
+  })
+})

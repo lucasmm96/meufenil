@@ -68,13 +68,28 @@ A rota de sincronização grava em `referencia_syncs` (com `environment` = `ambi
 
 | Variável | Uso | Evidência |
 |---|---|---|
-| `SUPABASE_URL` / `VITE_SUPABASE_URL` | cliente Supabase do CLI | `scripts/cli/db.js` |
-| `SUPABASE_ANON_KEY` / `VITE_SUPABASE_ANON_KEY` | cliente (anon) do CLI | `scripts/cli/db.js` |
-| `SUPABASE_SERVICE_ROLE_KEY` | cliente service role do CLI (`--service-role --i-understand-rls`) | `scripts/cli/db.js`, `index.js` |
-| `SUPABASE_DATABASE_URL` / `SUPABASE_DB_URL` / `DATABASE_URL` | conexão direta pg do comando `run-sql` (precedência nesta ordem) | `scripts/cli/commands/run-sql.js` |
-| `SUPABASE_PROJECT_ID` + senha extraída de `SUPABASE_DATABASE_URL` (ou `SUPABASE_DB_PASSWORD`) | `supabase link` / `migration repair` / `db push` no script de migrations | `scripts/apply-supabase-migrations.sh` |
-| `TOKEN_FILE` | caminho do JWT do CLI (default `.cli-token`) | `scripts/cli/db.js` |
-| `ENV_FILE` / `NODE_ENV` | seleção do arquivo `.env` do CLI (default `.env.development`; `production` → `.env.production`) | `scripts/cli/env.js` |
+| `SUPABASE_URL` / `VITE_SUPABASE_URL` | cliente Supabase do CLI | `scripts/db/cli/db.js` |
+| `SUPABASE_ANON_KEY` / `VITE_SUPABASE_ANON_KEY` | cliente (anon) do CLI | `scripts/db/cli/db.js` |
+| `SUPABASE_SERVICE_ROLE_KEY` | cliente service role do CLI (`--service-role --i-understand-rls`) | `scripts/db/cli/db.js`, `index.js` |
+| `SUPABASE_DATABASE_URL` / `SUPABASE_DB_URL` / `DATABASE_URL` | conexão direta pg do comando `run-sql` (precedência nesta ordem) | `scripts/db/cli/commands/run-sql.js` |
+| `SUPABASE_PROJECT_ID` + senha extraída de `SUPABASE_DATABASE_URL` (ou `SUPABASE_DB_PASSWORD`) | `supabase link` / `migration repair` / `db push` no script de migrations | `scripts/db/apply-supabase-migrations.sh` |
+| `TOKEN_FILE` | caminho do JWT do CLI (default `.cli-token`) | `scripts/db/cli/db.js` |
+| `ENV_FILE` / `NODE_ENV` | seleção do arquivo `.env` do CLI (default `.env.development`; `production` → `.env.production`) | `scripts/db/cli/env.js` |
+
+### GitHub App — identidade de bot (ENH-0002)
+
+Variáveis configuradas em `.env.github` (não versionado). Permitem que o Claude crie PRs e Issues como o bot `meufenil-claude` em vez de `lucasmm96`.
+
+| Variável | Uso | Evidência |
+|---|---|---|
+| `GITHUB_BOT_APP_ID` | ID do GitHub App `meufenil-claude` | `scripts/spec-github/lib/env.js`, `lib/github-app.js` |
+| `GITHUB_BOT_PRIVATE_KEY_PATH` | Caminho para o arquivo `.pem` da chave privada RSA do App (preferido sobre inline) | `scripts/spec-github/lib/env.js` |
+| `GITHUB_BOT_PRIVATE_KEY` | Conteúdo PEM inline (alternativa ao PATH; `\n` literais são decodificados) | `scripts/spec-github/lib/env.js` |
+| `GITHUB_BOT_INSTALLATION_ID` | ID da instalação do App no repositório `lucasmm96/meufenil` | `scripts/spec-github/lib/env.js`, `lib/github-app.js` |
+
+**Uso:** `GH_TOKEN=$(node scripts/spec-github/bot-token.js) gh pr create ...` — o installation token tem validade de ~1h; gerar no início de cada sessão. Nenhuma dessas variáveis vai para o repositório ou para o GitHub Actions (CI usa o `GITHUB_TOKEN` gerado automaticamente pelo runner).
+
+**Pré-requisito administrativo:** criar o GitHub App `meufenil-claude` em github.com/settings/apps/new (Permissions: Issues:RW, Pull requests:RW, Contents:R), instalar no repo e baixar a private key.
 
 ### Testes
 
@@ -92,7 +107,7 @@ A rota de sincronização grava em `referencia_syncs` (com `environment` = `ambi
 | `supabase/functions/delegar-acesso/index.ts` | validação de token (`auth.getUser`), escrita em `delegacoes_acesso`, consultas de `usuarios` (bypass de RLS) |
 | `supabase/functions/delete-account/index.ts` | exclusão de `registros`, `usuarios` e `auth.admin.deleteUser` |
 | `src/shared/security/*.test.ts` (+ `test-helpers.ts`) | criação de usuários de teste e validação com JWTs reais |
-| `scripts/cli/` (`--service-role --i-understand-rls`) | comandos administrativos via Supabase client |
+| `scripts/db/cli/` (`--service-role --i-understand-rls`) | comandos administrativos via Supabase client |
 
 ## 4. Plataformas e integrações (o que existe de fato)
 
@@ -103,8 +118,8 @@ A rota de sincronização grava em `referencia_syncs` (com `environment` = `ambi
 
 ## 5. Segurança operacional (estado atual)
 
-- **Aplicação de migrations:** `scripts/apply-supabase-migrations.sh` exige `--env development|production` explícito, valida o valor, nunca aplica nos dois ambientes na mesma execução, e para production exige digitação de `PRODUCTION` como confirmação. Fluxo: `supabase link` (com senha extraída de `SUPABASE_DATABASE_URL`) → `migration repair` do baseline → `supabase db push` `[CONFIRMED: code — scripts/apply-supabase-migrations.sh]`.
-- **CLI:** comandos de escrita exigem confirmação (`--confirm`); bypass de RLS exige `--service-role` + `--i-understand-rls` `[CONFIRMED: code — scripts/cli/index.js, utils.js]`.
+- **Aplicação de migrations:** `scripts/db/apply-supabase-migrations.sh` exige `--env development|production` explícito, valida o valor, nunca aplica nos dois ambientes na mesma execução, e para production exige digitação de `PRODUCTION` como confirmação. Fluxo: `supabase link` (com senha extraída de `SUPABASE_DATABASE_URL`) → `migration repair` do baseline → `supabase db push` `[CONFIRMED: code — scripts/db/apply-supabase-migrations.sh]`.
+- **CLI:** comandos de escrita exigem confirmação (`--confirm`); bypass de RLS exige `--service-role` + `--i-understand-rls` `[CONFIRMED: code — scripts/db/cli/index.js, utils.js]`.
 - **Secrets:** nenhum secret hardcoded no código (todos via env) `[CONFIRMED: code — grep 2026-08-13; analise 11 validada]`; `.env*`, `.cli-token`, `.cli-sql*` ignorados pelo Git `[CONFIRMED: .gitignore]`.
 - **Background jobs:** cada execução registra `environment` (`prod`/`dev`) em `background_job_executions`; retenção de 365 dias por trigger; leitura admin-only `[CONFIRMED: code, database — ../database/background_job_executions.md]`.
 - **Crons:** keepalive diário (`/api/keepalive`) e sincronização semanal de referências (`/api/referencias-sync`, segunda 12:00 UTC) via Vercel Cron — a plataforma envia `Authorization: Bearer $CRON_SECRET` automaticamente quando a env existe `[CONFIRMED: vercel.json, code — api/referencias-sync.ts]`.

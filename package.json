@@ -1,7 +1,7 @@
 {
   "name": "meufenil",
   "private": true,
-  "version": "1.16.1",
+  "version": "1.17.0",
   "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
@@ -49,8 +49,8 @@
     "check": "tsc && vite build && wrangler deploy --dry-run",
     "dev": "vite",
     "lint": "eslint .",
-    "supabase:migrations:apply": "bash scripts/apply-supabase-migrations.sh",
-    "cli": "node scripts/cli/index.js",
+    "supabase:migrations:apply": "bash scripts/db/apply-supabase-migrations.sh",
+    "cli": "node scripts/db/cli/index.js",
     "spec:github:sync": "node scripts/spec-github/sync.js",
     "spec:github:sync:dry": "node scripts/spec-github/sync.js --dry-run",
     "spec:github:gate": "node scripts/spec-github/release-gate.js",

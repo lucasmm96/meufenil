@@ -20,12 +20,12 @@ Ao implementar ou investigar uma capability, carregue contexto em ordem crescent
 4. **Camadas afetadas** → abra somente as camadas relevantes: `current/frontend/`, `current/backend/`, `current/database/`, `current/security/`.
 5. **Testing** → `.ai/specs/current/testing/testing-strategy.md` + testes existentes — antes de criar testes, verifique o que já existe.
 6. **Architecture/ADRs** → `.ai/specs/current/architecture/overview.md` + `.ai/specs/decisions/` — somente se houver impacto arquitetural.
-7. **Proposed** → `.ai/specs/proposed/index.md` — existe proposta relacionada? Existe UNKNOWN que afete a mudança?
+7. **Proposed** → para localizar um arquivo específico por ID parcial, invocar `node scripts/ai-workflows/spec-locate.js <query>` (ex: `enh2`, `feat15`, `ref`) antes de tentar ler ou adivinhar o caminho. Para verificar o índice geral: `.ai/specs/proposed/index.md`. Existe proposta relacionada? Existe UNKNOWN que afete a mudança?
 8. **Código** — somente o código citado nas evidências das specs.
 
 ## Pontos de entrada rápidos
 
-| Propósito | Arquivo |
+| Propósito | Arquivo / Script |
 |---|---|
 | Hub geral | `.ai/specs/README.md` |
 | Mapa funcional | `.ai/specs/current/system-map.md` |
@@ -35,6 +35,20 @@ Ao implementar ou investigar uma capability, carregue contexto em ordem crescent
 | Testes | `.ai/specs/current/testing/testing-strategy.md` |
 | ADRs | `.ai/specs/decisions/` |
 | Templates | `.ai/specs/templates/` |
+
+## Scripts determinísticos (`scripts/ai-workflows/`)
+
+Invocar via Bash **antes de ler arquivos** — economizam tokens em processos de fluxo fixo:
+
+| Script | Quando usar |
+|---|---|
+| `spec-locate.js <query>` | Localizar arquivo de spec por ID parcial (`enh2`, `feat15`, `ref`) |
+| `spec-impl-readiness.js --spec <ID>` | Antes de iniciar implementação — verifica Status, Decision, Issue, branch |
+| `spec-housekeeping-status.js --spec <ID>` | Verificar passos pendentes do housekeeping pós-merge |
+| `spec-index-check.js` | Próximo ID disponível por categoria + consistência do `proposed/index.md` |
+| `release-context.js [--since=vX.Y.Z]` | Contexto de release (commits, specs, bump SEMVER proposto) |
+| `wiki-staleness.js` | Detectar páginas wiki com fontes alteradas antes de regenerar |
+| `test-summary.js [--coverage]` | Resumo estruturado dos testes vitest (total, falhas, skips) |
 
 ## Regra de evidência
 

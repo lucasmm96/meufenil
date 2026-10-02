@@ -1,15 +1,15 @@
 # CLI e Script de Migrations
 
 **Última verificação:** 2026-08-13 (commit 6323664)
-**Código:** `scripts/cli/` (Node ESM) e `scripts/apply-supabase-migrations.sh` (bash)
+**Código:** `scripts/db/cli/` (Node ESM) e `scripts/db/apply-supabase-migrations.sh` (bash)
 
 ## Propósito
 
 Ferramentas de linha de comando para diagnóstico, consulta e gestão do banco pelo desenvolvedor — executadas na máquina local, fora do runtime da aplicação.
 
-## scripts/cli/ — CLI de gestão
+## scripts/db/cli/ — CLI de gestão
 
-Entrypoint: `node scripts/cli/index.js <comando> [--flags]` (`npm run cli -- ...`) `[CONFIRMED: code — scripts/cli/index.js, package.json]`.
+Entrypoint: `node scripts/db/cli/index.js <comando> [--flags]` (`npm run cli -- ...`) `[CONFIRMED: code — scripts/db/cli/index.js, package.json]`.
 
 ### Estrutura
 
@@ -31,13 +31,13 @@ Entrypoint: `node scripts/cli/index.js <comando> [--flags]` (`npm run cli -- ...
 | `login-oauth [--provider google] [--port 54321] [--path /callback] [--token-file .cli-token]` | sobe servidor HTTP local, abre fluxo OAuth no navegador, captura o hash na página de callback e salva o token no arquivo `TOKEN_FILE` | grava arquivo local | — | `commands/login-oauth.js` |
 | `run-sql --file .cli-sql --confirm --service-role --i-understand-rls [--transaction]` | executa arquivo SQL via conexão **PostgreSQL direta** (`pg`) usando `DATABASE_URL`/`SUPABASE_DB_URL`/`SUPABASE_DATABASE_URL`; `--transaction` envolve em BEGIN/COMMIT com ROLLBACK em erro | sim (arbitrário) | `--confirm` + `--service-role` + `--i-understand-rls` | `commands/run-sql.js` |
 
-`[CONFIRMED: code — scripts/cli/commands/*]`
+`[CONFIRMED: code — scripts/db/cli/commands/*]`
 
 ### Tratamento de erros
 
-Comandos lançam `Error` com mensagens pt-BR; `index.js` captura e imprime `[cli] erro: <mensagem>` com `process.exitCode = 1` `[CONFIRMED: code — scripts/cli/index.js]`.
+Comandos lançam `Error` com mensagens pt-BR; `index.js` captura e imprime `[cli] erro: <mensagem>` com `process.exitCode = 1` `[CONFIRMED: code — scripts/db/cli/index.js]`.
 
-## scripts/apply-supabase-migrations.sh — aplicador de migrations
+## scripts/db/apply-supabase-migrations.sh — aplicador de migrations
 
 ### Fluxo
 
@@ -49,7 +49,7 @@ Comandos lançam `Error` com mensagens pt-BR; `index.js` captura e imprime `[cli
 6. `[2/3] npx supabase migration repair $BASELINE_MIGRATION_VERSION --status applied` (baseline = `20260103015052`)
 7. `[3/3] npx supabase db push --password $SUPABASE_DB_PASSWORD`
 
-`[CONFIRMED: code — scripts/apply-supabase-migrations.sh]`
+`[CONFIRMED: code — scripts/db/apply-supabase-migrations.sh]`
 
 ### Observações factuais
 
@@ -58,11 +58,11 @@ Comandos lançam `Error` com mensagens pt-BR; `index.js` captura e imprime `[cli
 
 ## Testes
 
-- Nenhum teste identificado para `scripts/cli/` ou para o script de migrations `[CONFIRMED: ausência — filesystem]`.
+- Nenhum teste identificado para `scripts/db/cli/` ou para o script de migrations `[CONFIRMED: ausência — filesystem]`.
 
 ## Evidências
 
-- E1 — Código completo de `scripts/cli/` e `scripts/apply-supabase-migrations.sh` `[CONFIRMED: code]`
+- E1 — Código completo de `scripts/db/cli/` e `scripts/db/apply-supabase-migrations.sh` `[CONFIRMED: code]`
 - E2 — `package.json` (`cli` script, `supabase` devDependency) `[CONFIRMED: configuration]`
 - E3 — Variáveis usadas: inventário em [../security/secrets-and-environments.md](../security/secrets-and-environments.md) `[CONFIRMED: code]`
 - E4 — Ausência de testes da CLI `[CONFIRMED: ausência]`

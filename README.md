@@ -111,10 +111,10 @@ Para aplicar migrations pendentes:
 
 ```bash
 # Desenvolvimento
-./scripts/apply-supabase-migrations.sh --env development
+./scripts/db/apply-supabase-migrations.sh --env development
 
 # Produção (exige confirmação adicional)
-./scripts/apply-supabase-migrations.sh --env production
+./scripts/db/apply-supabase-migrations.sh --env production
 ```
 
 ### Instalação e execução

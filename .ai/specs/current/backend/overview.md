@@ -19,8 +19,8 @@ Documenta a arquitetura REAL do backend do MeuFenil: componentes server-side, on
 | `src/shared/background-jobs.ts` | Vercel (helper importado pelo keepalive) | `api/keepalive.ts` | usa o client passado (service role) | [background-jobs.md](background-jobs.md) |
 | `src/shared/powerbi/` (5 módulos) | Vercel (helpers importados pela rota) | `api/referencias-sync.ts` | resource key de env (`POWERBI_RESOURCE_KEY`) | [api-referencias-sync.md](api-referencias-sync.md) |
 | `src/shared/referencias-sync/` (4 módulos — `canonical.ts`, `compare.ts`, `engine.ts`, `types.ts`) | Vercel (helpers importados pela rota — motor puro, sem banco) | `api/referencias-sync.ts` | nenhum (motor puro) | [api-referencias-sync.md](api-referencias-sync.md) |
-| `scripts/cli/` (5 comandos) | máquina local (Node ESM) | desenvolvedor | anon/JWT do `.cli-token` ou service role (`--service-role --i-understand-rls`) ou conexão pg direta (`run-sql`) | [cli.md](cli.md) |
-| `scripts/apply-supabase-migrations.sh` | máquina local (bash + Supabase CLI) | desenvolvedor | `supabase link`/`db push` com senha extraída de `SUPABASE_DATABASE_URL` | [cli.md](cli.md) |
+| `scripts/db/cli/` (5 comandos) | máquina local (Node ESM) | desenvolvedor | anon/JWT do `.cli-token` ou service role (`--service-role --i-understand-rls`) ou conexão pg direta (`run-sql`) | [cli.md](cli.md) |
+| `scripts/db/apply-supabase-migrations.sh` | máquina local (bash + Supabase CLI) | desenvolvedor | `supabase link`/`db push` com senha extraída de `SUPABASE_DATABASE_URL` | [cli.md](cli.md) |
 | Funções do banco em `public` (dev pós-FEAT-0017 M1–M6: 15 — 8 pós-ENH-0004 + 2 de trigger do M1 + 2 RPCs do M4 + 3 do M5: helper `pode_operar_recuperacao` + RPCs `reverter_sync_referencias`/`restaurar_referencias_de_backup`; M6 não adiciona funções — seed é CREATE OR REPLACE da `aplicar_sync_referencias`; prod: as mesmas 15 desde a release v1.11.0, 2026-09-10) | PostgreSQL (PostgREST) | frontend (`referencias.service`, `admin.service`, `referencias-sync.service` — UI do Admin M6: `decidir_pendencia_referencia`/`reverter_sync_referencias`/`restaurar_referencias_de_backup`), rota de sync (`aplicar_sync_referencias` — service role) e policies | SECURITY DEFINER (15/15 em dev) | [../database/rpc.md](../database/rpc.md) |
 | Triggers do banco (dev e prod: 4 — 3 em `public` + 1 em `auth.users`; prod desde a release v1.11.0, 2026-09-10) | PostgreSQL | eventos de INSERT/UPDATE | conforme a função (definer/invoker) | [../database/triggers.md](../database/triggers.md) |
 | PostgREST + Supabase Auth | Supabase (BaaS) | frontend (via `supabase-js`) | anon key + JWT do usuário | [../security/security-model.md](../security/security-model.md) |
@@ -49,7 +49,7 @@ flowchart LR
     ED1 -->|service role| PG
     ED2 -->|service role| PG
     subgraph Local
-        CLI[scripts/cli] --> PG
+        CLI[scripts/db/cli] --> PG
         MIG[apply-supabase-migrations.sh] --> PG
     end
 ```
@@ -89,7 +89,7 @@ Não há um padrão único — cada componente tem seu próprio estilo, document
 | `api/keepalive.ts` | 405 para método inválido; 200 ok / 500 falha no ping; persistência de log NÃO bloqueia a resposta; `console.info`/`console.error` com prefixo `[keepalive]` | `api/keepalive.ts` |
 | `api/referencias-sync.ts` | 401 (cron) / 403 (manual) / 405 / 409 (single-flight) / 500; respostas `{ sync_id, status }`; falha vira sync `failure` com evento do estágio; origem inválida vira `origin_invalid` (200); `console.*` com prefixo `[referencias-sync]` | `api/referencias-sync.ts` |
 | `background-jobs.ts` | lança `Error(message)` quando o INSERT falha | `src/shared/background-jobs.ts:34-37` |
-| CLI | lança erros com mensagem pt-BR; `index.js` captura e imprime `[cli] erro:` com `exitCode = 1` | `scripts/cli/index.js`, `commands/*` |
+| CLI | lança erros com mensagem pt-BR; `index.js` captura e imprime `[cli] erro:` com `exitCode = 1` | `scripts/db/cli/index.js`, `commands/*` |
 
 ## Observabilidade (o que existe)
 
@@ -120,7 +120,7 @@ Não há um padrão único — cada componente tem seu próprio estilo, document
 ## Evidências
 
 - E1 — Inventário de componentes: filesystem (2026-08-13) `[CONFIRMED: filesystem]`
-- E2 — Código: `api/keepalive.ts`, `src/shared/background-jobs.ts`, `supabase/functions/*`, `scripts/cli/*`, `scripts/apply-supabase-migrations.sh` `[CONFIRMED: code]`
+- E2 — Código: `api/keepalive.ts`, `src/shared/background-jobs.ts`, `supabase/functions/*`, `scripts/db/cli/*`, `scripts/db/apply-supabase-migrations.sh` `[CONFIRMED: code]`
 - E3 — Chamadores: grep de `.rpc(`, `functions.invoke`, `fetch(FUNCTION_URL` (2026-08-13) `[CONFIRMED: code]`
 - E4 — Configuração: `vercel.json`, `supabase/config.toml` `[CONFIRMED: configuration]`
 - E5 — Divergência README × código no keepalive (1 alvo por execução): `api/keepalive.ts:158-166` × `README.md` seção "Keepalive diário" — RESOLVIDA pelo DEBT-0003 (2026-08-15) `[CONFIRMED: code × documentation]`
