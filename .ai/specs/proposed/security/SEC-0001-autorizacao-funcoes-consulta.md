@@ -11,7 +11,7 @@ Três funções SECURITY DEFINER de consulta não possuem verificação interna 
 
 ## Current State
 
-Fatos documentados na Fase 3: as funções existem como descritas; `get_estatisticas_admin` é chamada pelo painel admin (`admin.service.ts:75`); as dashboard_* não têm chamadores; grants amplos por default privileges `[CONFIRMED: database, code — rpc.md, security-model.md seção 10]`.
+Fatos documentados na Fase 3: as funções existem como descritas; `get_estatisticas_admin` é chamada pelo painel admin (`admin.service.ts:75`); grants amplos por default privileges `[CONFIRMED: database, code — rpc.md, security-model.md seção 10]`. **Atualização (REF-0002, 2026-10-02):** `dashboard_hoje` e `dashboard_ultimos_dias` foram eliminadas — escopo desta spec agora limitado a `get_estatisticas_admin`.
 
 ## Proposed State
 
@@ -28,7 +28,7 @@ AVALIAR restrição de acesso a essas funções (grants ou verificação interna
 
 ## Scope
 
-get_estatisticas_admin, dashboard_hoje, dashboard_ultimos_dias (+ reavaliar grants de funções de trigger, se for o caso).
+`get_estatisticas_admin` (+ reavaliar grants de funções de trigger, se for o caso). **Nota:** `dashboard_hoje` e `dashboard_ultimos_dias` foram **eliminadas** pela REF-0002 (migration 20261002000000, dev 2026-10-02) — escopo desta spec reduzido.
 
 ## Out of Scope
 

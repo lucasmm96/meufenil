@@ -7,7 +7,7 @@
 
 ## Context
 
-Não existe servidor de aplicação: os 12 services são client-side (browser, anon key), agregações de dashboard/estatísticas são feitas no cliente (reduce no browser), e o único backend próprio são 2 Edge Functions + 1 função Vercel. As RPCs `dashboard_hoje`/`dashboard_ultimos_dias` existem no banco (baseline) mas NÃO têm chamadores — indicando agregação que migrou para o cliente `[CONFIRMED: code — Fases 4–5; INFERRED: histórico da migração]`.
+Não existe servidor de aplicação: os 12 services são client-side (browser, anon key), agregações de dashboard/estatísticas são feitas no cliente (reduce no browser), e o único backend próprio são 2 Edge Functions + 1 função Vercel. As RPCs `dashboard_hoje`/`dashboard_ultimos_dias` existiam no banco (baseline) sem chamadores — indicando agregação que migrou para o cliente; foram **eliminadas** pela REF-0002 (migration 20261002000000, dev 2026-10-02) `[CONFIRMED: code — Fases 4–5; INFERRED: histórico da migração; migration 20261002000000]`.
 
 ## Decision
 
@@ -21,7 +21,7 @@ RECONSTRUCTED — nenhum documento declara a decisão; reconstruída do inventá
 
 - Ausência de servidor de aplicação no repositório `[CONFIRMED: filesystem]`
 - `dashboard.service.ts`, `estatisticas.service.ts` (agregação client-side) `[CONFIRMED: code]`
-- RPCs `dashboard_hoje`/`dashboard_ultimos_dias` sem chamadores (grep, 2026-08-13) `[CONFIRMED: ausência — code]`
+- RPCs `dashboard_hoje`/`dashboard_ultimos_dias` eliminadas pela REF-0002 (migration 20261002000000) — zero chamadores confirmados desde 2026-08-13 `[CONFIRMED: ausência — code; migration 20261002000000]`
 - [../current/backend/overview.md](../current/backend/overview.md) (inventário)
 
 ## Consequences (OBSERVED)
