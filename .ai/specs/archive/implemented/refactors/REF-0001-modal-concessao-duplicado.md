@@ -1,9 +1,11 @@
 # REF-0001 — Consolidar modal de concessão duplicado
 
 **Type:** REF
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #12
 **Title:** Consolidar modal de concessão duplicado
+**Created on:** 2026-08-14
+**Implemented Through:** PR #111 (merge `659fece`, development, 2026-10-02)
 
 ## Problem
 

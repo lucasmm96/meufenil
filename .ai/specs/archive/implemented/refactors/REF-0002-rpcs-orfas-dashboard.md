@@ -1,9 +1,11 @@
 # REF-0002 — Destino das RPCs órfãs de dashboard
 
 **Type:** REF
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #13
 **Title:** Destino das RPCs órfãs `dashboard_hoje` e `dashboard_ultimos_dias`
+**Created on:** 2026-08-14
+**Implemented Through:** PR #112 (merge `a1df1c6`, development, 2026-10-02)
 
 ## Problem
 

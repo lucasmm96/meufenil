@@ -1,9 +1,14 @@
 # FEAT-0015 — Fluxo de atribuição de papel admin
 
 **Type:** FEAT
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #11
 **Title:** Fluxo de atribuição de papel admin
+**Created on:** 2026-08-14
+**Decision:** A — UI administrativa no painel admin existente (FEAT-0012), com RPC SECURITY DEFINER como único caminho de escrita para `role`. Autorizado 2026-10-02.
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-10-02
+**Implemented Through:** PR #113 (merge `6b33f37`, development, 2026-10-02)
 
 ## Problem
 
@@ -82,4 +87,3 @@ A — UI administrativa para atribuir/remover role · B — comando CLI dedicado
 - AC5: `novo_role` fora de `{'admin', 'user'}` retorna erro de papel inválido.
 - AC6: UPDATE direto de `role` via sessão `authenticated` é bloqueado pelo banco (REVOKE column-level).
 - AC7: specs (BR-016, security-model, rpc.md, usuarios.md) atualizadas no mesmo commit.
-
