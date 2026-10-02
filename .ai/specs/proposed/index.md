@@ -1,8 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-10-01 (ENH-0013 IMPLEMENTED — commits 2edabdd+b275838+707bd62, development)
+**Última verificação:** 2026-10-01 (ENH-0002 IMPLEMENTED — PR #105, squash merge `4021112`, development)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (9) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 21 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008, ENH-0012, ENH-0008, REF-0005, ENH-0013) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (8) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 22 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008, ENH-0012, ENH-0008, REF-0005, ENH-0013, ENH-0002) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED** (exceto propostas já aprovadas com `Decision: ACCEPTED`). O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -21,7 +21,7 @@
 | [FEAT-0015](features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | PROPOSED | #11 | U-7.2; R-003 (análise 23) |
 | [FEAT-0002](features/FEAT-0002-exportar-historico-csv.md) | FEAT | Exportar o histórico de medições em CSV | PROPOSED | #31 | External #27 (piloto F6) — 2026-08-17 |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
-| [ENH-0002](enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | PROPOSED | #21 | PRs #4/#5/#20 (autoria `lucasmm96`) — decisão do autor 2026-08-16 |
+| [ENH-0002](../archive/implemented/enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | IMPLEMENTED | #21 | PR #105 (squash merge `4021112`, development) — 2026-10-01 |
 | [REF-0001](refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | PROPOSED | #12 | Divergência Fase 5 |
 | [REF-0002](refactors/REF-0002-rpcs-orfas-dashboard.md) | REF | Destino das RPCs órfãs de dashboard | PROPOSED | #13 | Fase 4; O-003 (análise 25) |
 | [REF-0003](../archive/implemented/refactors/REF-0003-fluxos-automaticos-deterministicos.md) | REF | Fluxos automáticos determinísticos sem IA — resposta estática de Issues externas e gate de produção (Spec + Documentação) | IMPLEMENTED | #44 | W3 + W7 + ADR-0013 (PR #45, merge `b7090d4`) — 2026-08-24 |
