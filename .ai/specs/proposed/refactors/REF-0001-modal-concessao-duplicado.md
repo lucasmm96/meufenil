@@ -57,11 +57,13 @@ Baixo (UI); regressão de textos/validações ao unificar.
 ## Alternatives
 
 A — remover `ConcederAcessoModal` (órfão) · B — unificar os dois em um componente · C — manter status quo documentado
-**Decision:** TBD
+**Decision:** A — remover `ConcederAcessoModal` (orphan, sem consumidor)
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-10-02
 
 ## Open Questions
 
-Qual dos dois comportamentos (erro inline vs. validação própria) é o desejado?
+~~Qual dos dois comportamentos (erro inline vs. validação própria) é o desejado?~~ Resolvido: mantém `ModalConcederAcesso` (comportamento em uso); `ConcederAcessoModal` removido.
 
 ## Acceptance Criteria
 
