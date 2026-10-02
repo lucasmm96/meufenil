@@ -1,10 +1,13 @@
 # ENH-0002 — Identidade de bot para PRs criados pelo Claude
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Identidade de bot para PRs criados pelo Claude
 **Issue:** #21
 **Created on:** 2026-08-16
+**Decision:** ACCEPTED — Alternativa A (GitHub App dedicado `meufenil-claude`); escopo: Issues + PRs; labels/milestones excluídos
+**Approved by:** lucasmm96
+**Approved on:** 2026-10-01
 
 ## Problem
 
@@ -65,11 +68,13 @@ Nenhuma
 ## Alternatives
 
 A — GitHub App dedicado (bot `meufenil-claude`) — review formal habilitado · B — conta GitHub separada (mais pesado: segundo usuário, licenças, identidade humana) · C — manter aprovação conversacional como único mecanismo (status quo; sem review formal via GitHub)
-**Decision:** TBD — a escolha é humana e é obrigatória para ACCEPTED/IMPLEMENTED; na aprovação registrar **Approved by:** e **Approved on:**
+**Decision:** ACCEPTED — Alternativa A (GitHub App dedicado). Respostas às OQs: (1) App aceitável; (2) escopo Issues + PRs apenas (labels/milestones excluídos); (3) nome `meufenil-claude`. Aprovado por lucasmm96 em 2026-10-01.
 
 ## Open Questions
 
-1. GitHub App é aceitável para o autor (pré-requisito administrativo)? 2. O App deve cobrir apenas Issues/PRs ou também labels/milestones? 3. Nome do bot (`meufenil-claude`?).
+1. ~~GitHub App é aceitável para o autor (pré-requisito administrativo)?~~ **RESOLVIDO:** Sim.
+2. ~~O App deve cobrir apenas Issues/PRs ou também labels/milestones?~~ **RESOLVIDO:** Issues + PRs apenas.
+3. ~~Nome do bot (`meufenil-claude`?).~~ **RESOLVIDO:** `meufenil-claude`.
 
 ## Acceptance Criteria
 
