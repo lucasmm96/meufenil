@@ -1,10 +1,11 @@
 # DEBT-0009 — Falha de SyntaxError em test-summary.test.js (shebang × Vitest transform)
 
 **Type:** DEBT
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Title:** Falha de SyntaxError em test-summary.test.js (shebang × Vitest transform)
-**Issue:** TBD
+**Issue:** #109
 **Created on:** 2026-10-02
+**Implemented Through:** Alternativa A — extrair funções puras (`parseVitestReport`, `inferSkipReason`) para `test-summary-core.js` (sem shebang); `test-summary.js` e `test-summary.test.js` importam de lá — PR #108 (squash merge `106a9cd`, development, 2026-10-02)
 
 ## Problem
 
@@ -123,11 +124,13 @@ N/A — causa raiz confirmada; as alternativas são claras.
 ## References
 
 - Commit introdutor: `707bd62` (ENH-0013/AC6)
-- `scripts/ai-workflows/test-summary.js` — script com shebang + funções exportadas
-- `scripts/ai-workflows/test-summary.test.js` — arquivo de teste com 5 describes
+- `scripts/ai-workflows/test-summary.js` — script com shebang + entry point
+- `scripts/ai-workflows/test-summary-core.js` — módulo com funções puras (sem shebang)
+- `scripts/ai-workflows/test-summary.test.js` — arquivo de teste com 5 describes / 15 testes
 - `vitest.config.ts` — `environment: 'jsdom'`, sem transform customizado
 - ENH-0013 (IMPLEMENTED) — contexto da criação dos scripts e testes
+- PR #108 — implementação da Alternativa A
 
 ---
 
-*Criado em 2026-10-02 — investigação pós-FEAT-0002: falha detectada na suite completa, causa raiz identificada (shebang × Vitest transform na importação direta).*
+*Criado em 2026-10-02 — investigação pós-FEAT-0002: falha detectada na suite completa, causa raiz identificada (shebang × Vitest transform na importação direta). Implementado em PR #108 (2026-10-02).*
