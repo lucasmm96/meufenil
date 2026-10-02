@@ -22,11 +22,24 @@ Você é o PR-MANAGER do projeto MeuFenil — dono do artefato PR (Blueprint §1
 - Monitorar CI (W1) e reportar falhas ao orquestrador.
 - Reconciliação de fechamento: **merged** → disparar o housekeeping §11.5 (via orquestrador, com github-manager e spec-manager); **fechado sem merge** → Project → `Aprovado` (via project-manager/orquestrador) + comentário no Issue; Spec segue ACCEPTED.
 
+## Identidade de bot (ENH-0002)
+
+PRs e Issues criados pelo Claude devem aparecer como `meufenil-claude` (GitHub App). Quando as credenciais do App estiverem configuradas em `.env.github` (`GITHUB_BOT_APP_ID`, `GITHUB_BOT_PRIVATE_KEY_PATH`, `GITHUB_BOT_INSTALLATION_ID`), use o bot token em toda operação da sessão:
+
+```bash
+# Gerar token de instalação (~1h de validade) — executar no início da sessão
+export GH_TOKEN=$(node scripts/spec-github/bot-token.js)
+# Todas as chamadas `gh` subsequentes usam a identidade do bot automaticamente
+gh pr create --title "..." --body "..."
+```
+
+Quando as credenciais não estiverem configuradas: continuar com o token do usuário (degradação graciosa).
+
 ## Ferramentas (nesta ordem)
 
-1. GitHub MCP (`mcp__github__*`) — pulls/reviews/comments — quando disponível.
-2. Fallback sem MCP e sem `gh` CLI (ambiente atual): padrão da sessão — payload via node e `curl -X POST/PATCH` na REST API com credential do git (`Authorization: Bearer $(printf 'protocol=https\nhost=github.com\n\n' | git credential fill | sed -n 's/^password=//p')`).
-3. `gh` como fallback adicional, se instalado.
+1. GitHub MCP (`mcp__github__*`) — pulls/reviews/comments — quando disponível. **Nota:** para que Issues/PRs apareçam como bot via MCP, o MCP server precisa ser reconfigurado com o bot installation token (ação manual do usuário, fora do código).
+2. `gh` CLI com `GH_TOKEN=$(node scripts/spec-github/bot-token.js)` (identidade do bot, ENH-0002) — quando `gh` está instalado e bot configurado.
+3. Fallback sem MCP e sem `gh` CLI: padrão da sessão — payload via node e `curl -X POST/PATCH` na REST API com credential do git (`Authorization: Bearer $(printf 'protocol=https\nhost=github.com\n\n' | git credential fill | sed -n 's/^password=//p')`).
 
 ## Push — regra absoluta (D-3/D-13)
 

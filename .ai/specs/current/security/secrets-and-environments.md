@@ -76,6 +76,21 @@ A rota de sincronização grava em `referencia_syncs` (com `environment` = `ambi
 | `TOKEN_FILE` | caminho do JWT do CLI (default `.cli-token`) | `scripts/db/cli/db.js` |
 | `ENV_FILE` / `NODE_ENV` | seleção do arquivo `.env` do CLI (default `.env.development`; `production` → `.env.production`) | `scripts/db/cli/env.js` |
 
+### GitHub App — identidade de bot (ENH-0002)
+
+Variáveis configuradas em `.env.github` (não versionado). Permitem que o Claude crie PRs e Issues como o bot `meufenil-claude` em vez de `lucasmm96`.
+
+| Variável | Uso | Evidência |
+|---|---|---|
+| `GITHUB_BOT_APP_ID` | ID do GitHub App `meufenil-claude` | `scripts/spec-github/lib/env.js`, `lib/github-app.js` |
+| `GITHUB_BOT_PRIVATE_KEY_PATH` | Caminho para o arquivo `.pem` da chave privada RSA do App (preferido sobre inline) | `scripts/spec-github/lib/env.js` |
+| `GITHUB_BOT_PRIVATE_KEY` | Conteúdo PEM inline (alternativa ao PATH; `\n` literais são decodificados) | `scripts/spec-github/lib/env.js` |
+| `GITHUB_BOT_INSTALLATION_ID` | ID da instalação do App no repositório `lucasmm96/meufenil` | `scripts/spec-github/lib/env.js`, `lib/github-app.js` |
+
+**Uso:** `GH_TOKEN=$(node scripts/spec-github/bot-token.js) gh pr create ...` — o installation token tem validade de ~1h; gerar no início de cada sessão. Nenhuma dessas variáveis vai para o repositório ou para o GitHub Actions (CI usa o `GITHUB_TOKEN` gerado automaticamente pelo runner).
+
+**Pré-requisito administrativo:** criar o GitHub App `meufenil-claude` em github.com/settings/apps/new (Permissions: Issues:RW, Pull requests:RW, Contents:R), instalar no repo e baixar a private key.
+
 ### Testes
 
 - `vitest.config.ts` carrega `.env.development` e injeta no ambiente de teste apenas variáveis NÃO-`VITE_` (para `SUPABASE_SERVICE_ROLE_KEY`) `[CONFIRMED: configuration — vitest.config.ts]`.
