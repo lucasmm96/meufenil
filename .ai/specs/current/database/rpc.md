@@ -1,8 +1,8 @@
 # Funções SQL (RPC) — Schema public
 
-**Última verificação:** 2026-09-25 (ENH-0009 — migrations 20260923000000 (original) + 20260924000000/20260924010000 (corretivas bugs A–F) — `decidir_pendencia_referencia` e `reverter_sync_referencias` eliminadas; `aplicar_sync_referencias` reescrita (definição final: 20260924010000); `restaurar_referencias_de_backup` reescrita; total: 13 funções. Antes: 2026-09-11 — FEAT-0017 M4/M5 — migrations 20260906000000/20260906010000 aplicadas em dev e prod — release v1.11.0)
+**Última verificação:** 2026-10-02 (REF-0002 — migration 20261002000000 — `dashboard_hoje` e `dashboard_ultimos_dias` eliminadas; total: 11 funções. Antes: 2026-09-25 — ENH-0009 — migrations 20260923000000 + corretivas 20260924000000/20260924010000)
 
-Inventário das **13 funções** do schema `public` no estado pós-ENH-0009 (migrations 20260923000000 + corretivas 20260924000000/20260924010000, dev 2026-09-24/25) `[CONFIRMED: migration 20260923000000, 20260924000000, 20260924010000]`. As funções de trigger `fn_normalizar_nome_referencia()` e `fn_remover_favoritos_referencia_inativa()` foram **eliminadas** pela ENH-0004. O FEAT-0017 acrescentou 7 funções em dev (M1–M5); a ENH-0009 **eliminou 2**: `decidir_pendencia_referencia` (curadoria — ver seção Funções eliminadas) e `reverter_sync_referencias` (rollback seletivo — ver seção Funções eliminadas), **reescreveu** `aplicar_sync_referencias` (deleção física + sweep + sem pendências) e `restaurar_referencias_de_backup` (pendencias_canceladas=0, tabela pendências dropped). Prod: estado pós-release v1.11.0 (15 funções); ENH-0009 ainda não aplicado em prod `[CONFIRMED: database — catálogo prod 2026-09-11; migration 20260923000000]`.
+Inventário das **11 funções** do schema `public` no estado pós-REF-0002 (migration 20261002000000, dev 2026-10-02) `[CONFIRMED: migration 20261002000000]`. As funções de trigger `fn_normalizar_nome_referencia()` e `fn_remover_favoritos_referencia_inativa()` foram **eliminadas** pela ENH-0004. O FEAT-0017 acrescentou 7 funções em dev (M1–M5); a ENH-0009 **eliminou 2**: `decidir_pendencia_referencia` (curadoria — ver seção Funções eliminadas) e `reverter_sync_referencias` (rollback seletivo — ver seção Funções eliminadas), **reescreveu** `aplicar_sync_referencias` (deleção física + sweep + sem pendências) e `restaurar_referencias_de_backup` (pendencias_canceladas=0, tabela pendências dropped). A REF-0002 **eliminou 2**: `dashboard_hoje` e `dashboard_ultimos_dias` (orphaned — sem chamadores, SECURITY DEFINER sem autorização interna — ver seção Funções eliminadas). Prod: estado pós-release v1.18.0 (13 funções); REF-0002 e ENH-0009 ainda não aplicados em prod `[CONFIRMED: database — catálogo prod 2026-09-11; migration 20260923000000]`.
 
 | Função | Tipo | SECURITY DEFINER | search_path | Versionada? |
 |---|---|---|---|---|
@@ -14,8 +14,8 @@ Inventário das **13 funções** do schema `public` no estado pós-ENH-0009 (mig
 | `restaurar_referencias_de_backup(uuid)` | negócio (sync — recuperação) | Sim | `public` | Sim (20260906010000; reescrita 20260923000000) |
 | `pode_operar_recuperacao(uuid)` | autorização | Sim | `public` | Sim (20260906010000) |
 | `is_admin_user(uuid)` | autorização | Sim | `public` | Sim (20260810) |
-| `dashboard_hoje(uuid)` | consulta | Sim | **não configurado** | Sim (baseline) |
-| `dashboard_ultimos_dias(uuid, integer)` | consulta | Sim | **não configurado** | Sim (baseline) |
+| ~~`dashboard_hoje(uuid)`~~ | ~~consulta~~ | — | — | Eliminada (20261002000000) |
+| ~~`dashboard_ultimos_dias(uuid, integer)`~~ | ~~consulta~~ | — | — | Eliminada (20261002000000) |
 | `get_estatisticas_admin()` | consulta admin | Sim | `public` | Sim (baseline) |
 | `handle_new_user()` | trigger | Sim | não configurado | Sim (baseline) |
 | `fn_trim_background_job_executions()` | trigger | Sim | `public` | Sim (20260807) |
@@ -120,33 +120,13 @@ Grants (fato do catálogo): as funções legadas têm EXECUTE para todas as role
 - **Testes:** coberta indiretamente pelos testes de RLS e RPCs de segurança `[CONFIRMED: test]`
 - **Evidências:** E1 — definição no banco = migration `[CONFIRMED: database, migration]`
 
-## public.dashboard_hoje
+## ~~public.dashboard_hoje~~ — ELIMINADA (REF-0002)
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** baseline `20260103015052_remote_schema.sql` (linhas 55–68) `[CONFIRMED: migration, database]`
+**Eliminada pela migration REF-0002:** `20261002000000_ref0002_remover_rpcs_orfas_dashboard.sql` (DROP FUNCTION dashboard_hoje) — aplicada em dev em 2026-10-02. **Definição histórica em:** baseline `20260103015052_remote_schema.sql` (linhas 55–68). Sem chamadores no código; SECURITY DEFINER sem verificação interna de autorização e sem `search_path` configurado. Ver detalhes na seção **Funções eliminadas** abaixo.
 
-- **Assinatura:** `dashboard_hoje(uid uuid) RETURNS TABLE(total numeric, limite numeric, data date)` — sql
-- **SECURITY DEFINER?** Sim — `search_path` NÃO configurado (proconfig vazio) `[CONFIRMED: database]`
-- **Autorização implementada:** nenhuma verificação visível — retorna dados de qualquer `uid` informado
-- **Efeitos:** soma `registros.fenil_mg` do dia (`current_date`) do usuário + `usuarios.limite_diario_mg`
-- **Erros e edge cases:** não aplicável
-- **Chamadores no código:** NENHUM — `grep` em `src/`, `api/` e `supabase/functions/` não encontra referências (2026-08-13); o dashboard atual consulta via `dashboard.service` diretamente `[CONFIRMED: ausência — code]`
-- **Testes:** nenhum teste direto identificado `[CONFIRMED: ausência]`
-- **Evidências:** E1 — definição no banco = baseline `[CONFIRMED: database, migration]`
+## ~~public.dashboard_ultimos_dias~~ — ELIMINADA (REF-0002)
 
-## public.dashboard_ultimos_dias
-
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Definição em:** baseline `20260103015052_remote_schema.sql` (linhas 74–85) `[CONFIRMED: migration, database]`
-
-- **Assinatura:** `dashboard_ultimos_dias(uid uuid, dias integer) RETURNS TABLE(data date, total numeric)` — sql
-- **SECURITY DEFINER?** Sim — `search_path` NÃO configurado (proconfig vazio) `[CONFIRMED: database]`
-- **Autorização implementada:** nenhuma verificação visível — retorna dados de qualquer `uid` informado
-- **Efeitos:** soma `registros.fenil_mg` por dia dos últimos `dias` dias (janela `data >= current_date - dias`), ordenada por data
-- **Erros e edge cases:** não aplicável
-- **Chamadores no código:** NENHUM — `grep` em `src/`, `api/` e `supabase/functions/` não encontra referências (2026-08-13) `[CONFIRMED: ausência — code]`
-- **Testes:** nenhum teste direto identificado `[CONFIRMED: ausência]`
-- **Evidências:** E1 — definição no banco = baseline `[CONFIRMED: database, migration]`
+**Eliminada pela migration REF-0002:** `20261002000000_ref0002_remover_rpcs_orfas_dashboard.sql` (DROP FUNCTION dashboard_ultimos_dias) — aplicada em dev em 2026-10-02. **Definição histórica em:** baseline `20260103015052_remote_schema.sql` (linhas 74–85). Sem chamadores no código; SECURITY DEFINER sem verificação interna de autorização e sem `search_path` configurado. Ver detalhes na seção **Funções eliminadas** abaixo.
 
 ## public.get_estatisticas_admin
 
@@ -233,6 +213,13 @@ Grants (fato do catálogo): as funções legadas têm EXECUTE para todas as role
 - **`reverter_sync_referencias(uuid)`** (RPC SECURITY DEFINER — FEAT-0017 M5, 20260906010000; revisada 20260914000000): rollback seletivo de syncs por admin com `pode_recuperacao`. Eliminada com a remoção de `alteracoes` como base de rollback (ENH-0009 simplifica o sync — sem necessidade de desfazer operações individuais). Chamador: `referencias-sync.service.ts:555` (M6, removido). Histórico: backup desta spec antes de 2026-09-24.
 
 `[CONFIRMED: migration 20260923000000 — DROP FUNCTION decidir_pendencia_referencia; DROP FUNCTION reverter_sync_referencias]`
+
+## Funções eliminadas pela REF-0002 (20261002000000, aplicada em dev 2026-10-02)
+
+- **`dashboard_hoje(uid uuid)`** (RPC consulta, SECURITY DEFINER — baseline 20260103015052, linhas 55–68): retornava `(total, limite, data)` do dia corrente somando `registros.fenil_mg` + `usuarios.limite_diario_mg` para o `uid` informado. Sem verificação interna de autorização (aceitava qualquer `uid`); sem `search_path` configurado (risco search_path injection). Zero chamadores no código desde pelo menos 2026-08-13 (dashboard agora agrega client-side via `dashboard.service`). Eliminada pela REF-0002 (alternativa A — código morto com superfície de segurança desnecessária).
+- **`dashboard_ultimos_dias(uid uuid, dias integer)`** (RPC consulta, SECURITY DEFINER — baseline 20260103015052, linhas 74–85): retornava `(data, total)` por dia para os últimos `dias` dias. Mesmas características de segurança de `dashboard_hoje`. Eliminada pela REF-0002.
+
+`[CONFIRMED: migration 20261002000000 — DROP FUNCTION dashboard_hoje; DROP FUNCTION dashboard_ultimos_dias]`
 
 ---
 

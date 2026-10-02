@@ -42,7 +42,7 @@ Visão do dia corrente: consumo total vs. limite, percentual com progresso, rest
 
 ## Backend
 
-- N/A (agregação client-side; RPCs `dashboard_hoje`/`dashboard_ultimos_dias` existem no banco mas SEM chamadores — ver [rpc](../database/rpc.md))
+- N/A (agregação client-side; RPCs `dashboard_hoje`/`dashboard_ultimos_dias` foram **eliminadas** pela REF-0002, migration 20261002000000 — ver [rpc](../database/rpc.md))
 
 ## Database
 

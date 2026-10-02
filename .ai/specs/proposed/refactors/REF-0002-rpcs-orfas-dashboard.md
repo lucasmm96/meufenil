@@ -57,11 +57,11 @@ Remoção exige migration; reutilização exige reavaliar agregação client-sid
 ## Alternatives
 
 A — remover (migration) · B — reutilizar no dashboard (mover agregação para o banco) · C — manter como está (documentado)
-**Decision:** TBD
+**Decision:** A — remover (migration DROP FUNCTION; 2026-10-02)
 
 ## Open Questions
 
-Há intenção futura de usar RPCs no dashboard? (motivação histórica não determinada — ADR-0008)
+~~Há intenção futura de usar RPCs no dashboard?~~ — resolvida: não há; ADR-0008 mantém agregação client-side; RPCs removidas via migration 20261002000000.
 
 ## Acceptance Criteria
 
