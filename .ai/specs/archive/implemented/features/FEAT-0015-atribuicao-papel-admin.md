@@ -1,9 +1,14 @@
 # FEAT-0015 — Fluxo de atribuição de papel admin
 
 **Type:** FEAT
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #11
 **Title:** Fluxo de atribuição de papel admin
+**Created on:** 2026-08-14
+**Decision:** A — UI administrativa no painel admin existente (FEAT-0012), com RPC SECURITY DEFINER como único caminho de escrita para `role`. Autorizado 2026-10-02.
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-10-02
+**Implemented Through:** PR #113 (merge `6b33f37`, development, 2026-10-02)
 
 ## Problem
 
@@ -65,13 +70,20 @@ SEC-0001 (relacionado — autorização de funções)
 ## Alternatives
 
 A — UI administrativa para atribuir/remover role · B — comando CLI dedicado · C — manter atribuição manual no banco (status quo documentado)
-**Decision:** TBD
+**Decision:** A — UI administrativa no painel admin existente (FEAT-0012), com RPC SECURITY DEFINER como único caminho de escrita para `role`. Autorizado 2026-10-02.
 
 ## Open Questions
 
-Quem pode atribuir admin? Papel deve ser revogável pelo próprio admin?
+~~Quem pode atribuir admin?~~ Resolvido: apenas via RPC SECURITY DEFINER chamada por sessão admin autenticada (service_role executa o UPDATE). Escalada lateral bloqueada — nenhum admin pode promover outro via UI (RPC exige `is_admin_user` + `auth.uid() ≠ alvo_id`; coluna `role` com REVOKE UPDATE de `authenticated`).
+
+~~Papel deve ser revogável pelo próprio admin?~~ Resolvido: não — RPC bloqueia auto-rebaixamento (`auth.uid() = alvo_id` → exceção).
 
 ## Acceptance Criteria
 
-TBD (depende da alternativa escolhida): fluxo documentado; testes; atualização de specs (BR-016, security-model).
-
+- AC1: botão "Tornar admin" / "Remover admin" visível na lista de usuários do painel admin para o admin logado; desabilitado na própria linha.
+- AC2: chamada ao RPC `toggle_role_usuario(alvo_id, novo_role)` com sucesso atualiza `role` e recarrega a lista.
+- AC3: tentativa de alterar o próprio role retorna erro (`Não é permitido alterar o próprio papel`).
+- AC4: não-admin recebe erro de permissão negada ao chamar o RPC.
+- AC5: `novo_role` fora de `{'admin', 'user'}` retorna erro de papel inválido.
+- AC6: UPDATE direto de `role` via sessão `authenticated` é bloqueado pelo banco (REVOKE column-level).
+- AC7: specs (BR-016, security-model, rpc.md, usuarios.md) atualizadas no mesmo commit.

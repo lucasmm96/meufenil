@@ -20,7 +20,7 @@ Visão arquitetural do **MeuFenil**: uma SPA sem servidor de aplicação própri
 - **Supabase como BaaS:** autenticação (Google OAuth), PostgREST (consultas com RLS), RPCs de negócio e 2 Edge Functions (Deno). (Fonte: `architecture/overview.md`, `backend/overview.md`)
 - **Vercel:** hospedagem da SPA + funções `api/keepalive` (cron diário, `0 12 * * *` UTC) e `api/referencias-sync` (cron semanal, `0 12 * * 1` UTC — sincronização de referências com a origem ANVISA/Power BI, FEAT-0017). (Fonte: `backend/api-keepalive.md`, `backend/api-referencias-sync.md`)
 - **Ferramentas locais:** CLI de gestão (`scripts/cli/`), script de migrations (`scripts/apply-supabase-migrations.sh`) e provisionamento do ator Sistema (`scripts/provisionar-ator-sistema.js`). (Fonte: `backend/cli.md`, `backend/api-referencias-sync.md`)
-- **Banco (dev pós-FEAT-0017 M1–M6):** PostgreSQL com **12 tabelas** (7 legadas + 5 de sincronização), RLS em todas, **36 políticas** (31 + 5 `admin_select_*`), **15 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`). Prod tem a mesma estrutura desde a release v1.11.0 (2026-09-10). (Fonte: `database/overview.md`)
+- **Banco (dev pós-FEAT-0017 M1–M6):** PostgreSQL com **12 tabelas** (7 legadas + 5 de sincronização), RLS em todas, **36 políticas** (31 + 5 `admin_select_*`), **14 funções** e **4 triggers** (3 em `public` + 1 em `auth.users`). Prod tem a mesma estrutura desde a release v1.11.0 (2026-09-10). (Fonte: `database/overview.md`)
 
 ## Diagrama de camadas
 
@@ -47,7 +47,7 @@ flowchart TB
     end
     KEEP -->|service role| PG
     SYNC -->|service role| PG
-    PG --> TAB[(12 tabelas + 4 triggers + 15 funções — dev pós-FEAT-0017 M1–M6)]
+    PG --> TAB[(12 tabelas + 4 triggers + 14 funções — dev pós-FEAT-0015/REF-0002)]
 ```
 
 Todas as arestas são confirmadas por código/configuração. (Fonte: `architecture/overview.md`, `backend/overview.md` — diagramas validados nas Fases 4–5 e pós-FEAT-0017)
@@ -65,7 +65,7 @@ Todas as arestas são confirmadas por código/configuração. (Fonte: `architect
 
 - **12 tabelas em dev** (7 legadas + 5 de sincronização do FEAT-0017 M1): `usuarios`, `referencias`, `registros`, `exames_pku`, `referencias_favoritas`, `delegacoes_acesso`, `background_job_executions`, `referencia_syncs`, `referencia_sync_pendencias`, `referencia_eventos`, `referencia_snapshots`, `referencia_backups`. (Fonte: `database/overview.md`)
 - **RLS habilitado em todas**; dev pós-FEAT-0017 = **36 políticas** (31 legadas + 5 `admin_select_*` nas tabelas de sync — leitura somente por admin); grants amplos — o RLS é a fronteira de autorização efetiva (ADR-0004). (Fonte: `security/security-model.md` seções 3 e 8; `database/overview.md`)
-- **15 funções (RPCs) em dev**, todas SECURITY DEFINER (ADR-0010): negócio (`ativar_referencia`, `remover_ou_desativar_referencia`), sync M4 (`aplicar_sync_referencias` — service_role, `decidir_pendencia_referencia` — admin), recuperação M5 (`pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`), admin (`get_estatisticas_admin`), apoio (`is_admin_user`), consulta órfã (`dashboard_hoje`/`dashboard_ultimos_dias`) e funções de trigger (`handle_new_user`, `fn_trim_background_job_executions`, `fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`). (Fonte: `database/rpc.md`)
+- **14 funções (RPCs) em dev**, todas SECURITY DEFINER (ADR-0010): negócio (`ativar_referencia`, `remover_ou_desativar_referencia`), sync M4 (`aplicar_sync_referencias` — service_role, `decidir_pendencia_referencia` — admin), recuperação M5 (`pode_operar_recuperacao`, `reverter_sync_referencias`, `restaurar_referencias_de_backup`), admin (`get_estatisticas_admin`), apoio (`is_admin_user`), papéis (`toggle_role_usuario` — FEAT-0015, único caminho de escrita para `usuarios.role`) e funções de trigger (`handle_new_user`, `fn_trim_background_job_executions`, `fn_auditar_is_ativa_manual`, `fn_trim_referencia_backups`). `dashboard_hoje` e `dashboard_ultimos_dias` removidas (REF-0002). (Fonte: `database/rpc.md`)
 - **4 triggers:** retenção de jobs (365 dias), auditoria de mudança manual de `is_ativa`, retenção de backups de sync (12 meses) e criação de perfil no sign-up (`on_auth_user_created`). Os triggers de normalização de nome e de limpeza de favoritos foram eliminados na ENH-0004. (Fonte: `database/triggers.md`)
 
 ### Auth (Supabase Auth)

@@ -1,7 +1,7 @@
 # Suíte de Componentes login-as (Delegação)
 
-**Última verificação:** 2026-08-13 (commit 6323664)
-**Código:** `src/react-app/components/login-as/` (5 componentes)
+**Última verificação:** 2026-10-02 (REF-0001 — remoção de ConcederAcessoModal.tsx, componente órfão sem consumidor)
+**Código:** `src/react-app/components/login-as/` (4 componentes)
 
 ## Propósito e uso
 
@@ -14,8 +14,7 @@ Interface da delegação de acesso (login-as): banner de perfil assumido, cards 
 | `LoginAsBanner.tsx` | `Layout.tsx:44` (header de TODAS as páginas logadas) | aviso âmbar quando `isDelegado` |
 | `AcessosConcedidosCard.tsx` | `Perfil.tsx` | lista de delegações concedidas + revogar + abrir modal de concessão |
 | `AcessosRecebidosCard.tsx` | `Perfil.tsx` | lista de delegações recebidas + "assumir" |
-| `ConcederAcessoModal.tsx` | `Perfil.tsx` | modal de concessão por e-mail |
-| `ModalConcederAcesso.tsx` | `Perfil.tsx` | modal usado na renderização do Perfil |
+| `ModalConcederAcesso.tsx` | `Perfil.tsx` | modal de concessão por e-mail |
 
 `[CONFIRMED: code — grep de import; Perfil.tsx:9-11]`
 
@@ -38,11 +37,6 @@ Interface da delegação de acesso (login-as): banner de perfil assumido, cards 
 - Props: `{ open, onClose, onConceder: (email) => Promise<void>, loading? }`; `open=false` → `null` `[CONFIRMED: code]`.
 - UI: overlay `bg-black/40` central (SEM bottom-sheet); painel `max-w-md`; título "Conceder acesso à conta" + X; campo "Email do usuário" (`type=email required`, placeholder `email@exemplo.com`); erro inline `text-sm text-red-600` extraído de `err?.error || err?.message || "Erro ao conceder acesso"`; botões "Cancelar" e "Conceder acesso"/"Concedendo..." (`bg-indigo-600`, `disabled={loading}`); sucesso limpa email e fecha `[CONFIRMED: code — ModalConcederAcesso.tsx]`.
 - Submit delega ao `conceder(email)` do AuthContext → edge function `conceder` `[CONFIRMED: code]`.
-
-## ConcederAcessoModal (variante NÃO utilizada)
-
-- Componente duplicado semanticamente: props `{ open, loading?, onClose, onConfirm }`; título "Conceder acesso" com ícone `ShieldCheck`; validação própria ("Informe um e-mail válido.") e erro `err?.message ?? "Erro ao conceder acesso. Tente novamente."`; overlay `bg-black/40` central, painel `rounded-2xl` `[CONFIRMED: code — ConcederAcessoModal.tsx]`.
-- **Fato:** o Perfil importa AMBOS os modais (`Perfil.tsx:11`) mas renderiza apenas `ModalConcederAcesso` (`Perfil.tsx:250-257`) — `ConcederAcessoModal` não tem consumidor identificado no código atual `[CONFIRMED: code × ausência de consumidor — grep 2026-08-13]`.
 
 ## Estados de UI
 

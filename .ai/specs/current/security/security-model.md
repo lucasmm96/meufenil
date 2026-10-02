@@ -37,7 +37,7 @@ Legenda: **Sim** = permitido pelo RLS · **Não** = sem política vigente · ano
 | usuarios | SELECT (próprio) | Sim | — | Sim | Não | `Usuário vê próprio perfil`, `admin_only` |
 | usuarios | SELECT (todos) | Não | Não | Sim | Não | `admin_can_select_all_usuarios` |
 | usuarios | INSERT | Sim (id próprio) | Não | Não | Não | `Usuário cria próprio perfil` |
-| usuarios | UPDATE | Sim (qualquer coluna da própria linha, incl. `role`) | Não | Não | Não | `Usuário atualiza próprio perfil` |
+| usuarios | UPDATE | Sim (colunas da própria linha; exceto `role` — REVOKE UPDATE(role) de `authenticated`, migration 20261002010000) | Não | Não | Não | `Usuário atualiza próprio perfil` |
 | usuarios | DELETE | Não | Não | Não | Não | sem política (remoção via auth.users cascade / edge function) |
 | referencias | SELECT | Sim | Sim | Sim | Sim (apenas `is_global = true`) | `Usuário lista referências` + demais |
 | referencias | INSERT | Sim | Sim | Sim | Não | `Usuário cria própria referencia`, `Adicionar...dono ou delegado`, `Admin adiciona referencias` |
@@ -100,6 +100,7 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | RPC `ativar_referencia` | ativar qualquer referência | ../database/rpc.md |
 | RPC `remover_ou_desativar_referencia` | remover referências pessoais (hard/soft pelo vínculo) e ARQUIVAR globais — nunca exclusão física de global pela aplicação (ENH-0004, OQ4/BR-037) | ../database/rpc.md |
 | RPC `get_estatisticas_admin` | chamado pelo painel admin (`admin.service.ts:75`) — a função em si NÃO verifica papel internamente | ../database/rpc.md |
+| RPC `toggle_role_usuario` | atribuir/remover papel `admin` de outro usuário (FEAT-0015) | ../database/rpc.md |
 | RLS `registros` / `exames_pku` / `referencias_favoritas` / `delegacoes_acesso` | **nenhum acesso direto** (sem políticas de admin) | matriz acima |
 
 ## 7. RPC Authorization Matrix
@@ -111,12 +112,13 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | `aplicar_sync_referencias` | **somente `service_role`** (REVOKE FROM PUBLIC) | Sim — `auth.role()` deve ser `service_role` (guarda de definer) | aplica plano de sync (ENH-0009): cria/arquiva/deleta fisicamente globais, sweep retroativo; `criado_por` = ator Sistema — transação única (qualquer exceção desfaz tudo) | ../database/rpc.md |
 | ~~`decidir_pendencia_referencia`~~ | — | — | **ELIMINADA (ENH-0009)** — curadoria removida | ../database/rpc.md |
 | ~~`reverter_sync_referencias`~~ | — | — | **ELIMINADA (ENH-0009)** — rollback seletivo removido | ../database/rpc.md |
+| `toggle_role_usuario` | `authenticated` + `service_role` (REVOKE FROM PUBLIC) | Sim — `is_admin_user(auth.uid())` + `auth.uid() ≠ alvo_id` + `novo_role IN ('admin','user')` | atribui/remove papel `admin` (FEAT-0015); único caminho de escrita para `usuarios.role` pela aplicação | ../database/rpc.md |
 | `restaurar_referencias_de_backup` | **somente `authenticated`** (REVOKE FROM PUBLIC) | Sim — `pode_operar_recuperacao(auth.uid())` (admin **E** flag `pode_recuperacao`) | restauração excepcional (FEAT-0017 M5): catálogo global volta a refletir um backup (sha256 ANTES de efeito); reativa/recria/arquiva; `pendencias_canceladas = 0` (ENH-0009 — sem pendências); nunca DELETE, não toca pessoais | ../database/rpc.md |
 | `pode_operar_recuperacao` | `authenticated` + `service_role` (REVOKE FROM PUBLIC) | Não (função de verificação) | retorna boolean (admin E `pode_recuperacao`) | ../database/rpc.md |
 | `is_admin_user` | `authenticated` + `service_role` (+ `anon` via default privileges) | Não (função de verificação) | retorna boolean | ../database/rpc.md |
 | `get_estatisticas_admin` | `anon`, `authenticated`, `service_role` (REVOKE FROM PUBLIC) | **Não** — qualquer chamador recebe as estatísticas | agregações globais | ../database/rpc.md |
-| `dashboard_hoje` | todas as roles (EXECUTE) | **Não** — aceita qualquer `uid` | soma do dia + limite | ../database/rpc.md |
-| `dashboard_ultimos_dias` | todas as roles (EXECUTE) | **Não** — aceita qualquer `uid` | soma por dia | ../database/rpc.md |
+| ~~`dashboard_hoje`~~ | — | — | **ELIMINADA (REF-0002)** | ../database/rpc.md |
+| ~~`dashboard_ultimos_dias`~~ | — | — | **ELIMINADA (REF-0002)** | ../database/rpc.md |
 | funções de trigger (`handle_new_user`, `fn_trim_background_job_executions` — `fn_normalizar_nome_referencia` e `fn_remover_favoritos_referencia_inativa` foram ELIMINADAS na ENH-0004; FEAT-0017 M1 acrescentou `fn_auditar_is_ativa_manual` e `fn_trim_referencia_backups`) | EXECUTE concedido a todas as roles | Não aplicável | efeitos de trigger; chamável diretamente como RPC é `UNKNOWN` (não verificado) | ../database/rpc.md, ../database/triggers.md |
 
 ## 8. RLS — modelo consolidado
@@ -157,7 +159,7 @@ Resumo dos aspectos de segurança; especificação completa em [../database/rpc.
 - `restaurar_referencias_de_backup` (FEAT-0017 M5, reescrita ENH-0009 — migration 20260923000000): SECURITY DEFINER com `search_path = public`; proteção efetiva é a **guarda interna** `pode_operar_recuperacao(auth.uid())`; guarda de execução por environment (B10c); sha256 com `extensions.digest` ANTES de qualquer efeito; aborta em conflito de identidade; `pendencias_canceladas = 0` (ENH-0009 — sem pendências) `[CONFIRMED: migration, database]`.
 - `is_admin_user`: função de apoio de autorização; `STABLE`; grants revogados de PUBLIC (mas `anon` mantém EXECUTE via default privileges — fato do catálogo) `[CONFIRMED: database]`.
 - `get_estatisticas_admin`: SECURITY DEFINER, SEM verificação de papel interna; chamada pelo painel admin; qualquer role com EXECUTE recebe os agregados `[CONFIRMED: migration, database, code]`.
-- `dashboard_hoje` / `dashboard_ultimos_dias`: SECURITY DEFINER, SEM verificação interna, SEM `search_path` configurado; sem chamadores no código atual `[CONFIRMED: migration, database, code]`.
+- ~~`dashboard_hoje` / `dashboard_ultimos_dias`~~: **ELIMINADAS (REF-0002, migration 20261002000000)** — eram SECURITY DEFINER sem verificação interna e sem `search_path`; zero chamadores no código `[CONFIRMED: migration 20261002000000]`.
 - Funções de trigger: `handle_new_user` (SECURITY DEFINER, sem search_path) grava perfil no sign-up; `fn_trim_background_job_executions` (SECURITY DEFINER, search_path public) apaga registros antigos `[CONFIRMED: migration, database]`.
 
 ## 11. SECURITY DEFINER
@@ -173,8 +175,8 @@ Resumo dos aspectos de segurança; especificação completa em [../database/rpc.
 | `pode_operar_recuperacao` | Sim | `public` | postgres | postgres | bypassado (leitura) | RPCs de recuperação (guarda interna) | ../database/rpc.md |
 | `is_admin_user` | Sim | `public` | postgres | postgres | bypassado (leitura) | policies + 3 RPCs | ../database/rpc.md |
 | `get_estatisticas_admin` | Sim | `public` | postgres | postgres | bypassado (agregados) | `admin.service.ts:75` | ../database/rpc.md |
-| `dashboard_hoje` | Sim | **não configurado** | postgres | postgres | bypassado | nenhum no código | ../database/rpc.md |
-| `dashboard_ultimos_dias` | Sim | **não configurado** | postgres | postgres | bypassado | nenhum no código | ../database/rpc.md |
+| ~~`dashboard_hoje`~~ | — | — | — | — | — | **ELIMINADA (REF-0002)** | ../database/rpc.md |
+| ~~`dashboard_ultimos_dias`~~ | — | — | — | — | — | **ELIMINADA (REF-0002)** | ../database/rpc.md |
 | `handle_new_user` | Sim | **não configurado** | postgres | postgres | bypassado | trigger `on_auth_user_created` | ../database/rpc.md |
 | `fn_trim_background_job_executions` | Sim | `public` | postgres | postgres | bypassado | trigger de retenção | ../database/rpc.md |
 

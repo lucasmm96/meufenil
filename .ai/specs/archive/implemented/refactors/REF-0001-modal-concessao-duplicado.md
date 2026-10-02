@@ -1,9 +1,11 @@
 # REF-0001 — Consolidar modal de concessão duplicado
 
 **Type:** REF
-**Status:** PROPOSED
+**Status:** IMPLEMENTED
 **Issue:** #12
 **Title:** Consolidar modal de concessão duplicado
+**Created on:** 2026-08-14
+**Implemented Through:** PR #111 (merge `659fece`, development, 2026-10-02)
 
 ## Problem
 
@@ -57,11 +59,13 @@ Baixo (UI); regressão de textos/validações ao unificar.
 ## Alternatives
 
 A — remover `ConcederAcessoModal` (órfão) · B — unificar os dois em um componente · C — manter status quo documentado
-**Decision:** TBD
+**Decision:** A — remover `ConcederAcessoModal` (orphan, sem consumidor)
+**Approved by:** Lucas Martins Menezes
+**Approved on:** 2026-10-02
 
 ## Open Questions
 
-Qual dos dois comportamentos (erro inline vs. validação própria) é o desejado?
+~~Qual dos dois comportamentos (erro inline vs. validação própria) é o desejado?~~ Resolvido: mantém `ModalConcederAcesso` (comportamento em uso); `ConcederAcessoModal` removido.
 
 ## Acceptance Criteria
 

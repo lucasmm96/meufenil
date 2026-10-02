@@ -61,10 +61,26 @@ export function useAdmin(usuarioId?: string) {
     load();
   }, [load]);
 
+  const [toggleRoleId, setToggleRoleId] = useState<string | null>(null);
+  const [toggleRoleError, setToggleRoleError] = useState<string | null>(null);
+
   const toggleRole = async (id: string, roleAtual: "admin" | "user") => {
     const novoRole = roleAtual === "admin" ? "user" : "admin";
-    await toggleRoleUsuario(id, novoRole);
-    await load();
+    setToggleRoleId(id);
+    setToggleRoleError(null);
+    try {
+      await toggleRoleUsuario(id, novoRole);
+      await load();
+    } catch (err) {
+      const appError =
+        err instanceof AppError
+          ? err
+          : new AppError("ADMIN_TOGGLE_ROLE_ERROR", "Erro ao alterar papel do usuário", err);
+      logger.error("Erro em toggleRole", appError);
+      setToggleRoleError(appError.message);
+    } finally {
+      setToggleRoleId(null);
+    }
   };
 
   return {
@@ -75,5 +91,7 @@ export function useAdmin(usuarioId?: string) {
     error,
     reload: load,
     toggleRole,
+    toggleRoleId,
+    toggleRoleError,
   };
 }
