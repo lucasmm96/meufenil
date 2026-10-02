@@ -54,15 +54,15 @@ export async function toggleRoleUsuario(
   usuarioId: string,
   novoRole: "admin" | "user",
 ): Promise<void> {
-  const { error } = await supabase
-    .from("usuarios")
-    .update({ role: novoRole })
-    .eq("id", usuarioId);
+  const { error } = await supabase.rpc("toggle_role_usuario", {
+    alvo_id: usuarioId,
+    novo_role: novoRole,
+  });
 
   if (error) {
     throw new AppError(
       "ADMIN_TOGGLE_ROLE_ERROR",
-      "Erro ao alterar papel do usuário",
+      error.message || "Erro ao alterar papel do usuário",
       error,
     );
   }

@@ -96,7 +96,7 @@ function isFresh(value?: string | null, maxHours = 36) {
 
 export default function Admin() {
   const { authUser } = useAuth();
-  const { perfilUsuario, usuarios, estatisticasDB, loading } = useAdmin(authUser?.id);
+  const { perfilUsuario, usuarios, estatisticasDB, loading, toggleRole, toggleRoleId, toggleRoleError } = useAdmin(authUser?.id);
 
   const isAdmin = perfilUsuario?.role === "admin";
   const jobs = useBackgroundJobsAdmin(authUser?.id, isAdmin);
@@ -340,6 +340,14 @@ export default function Admin() {
             </div>
           </>
         )}
+
+        <SecaoGestaoRoles
+          usuarios={usuarios}
+          perfilId={perfilUsuario.id}
+          toggleRole={toggleRole}
+          toggleRoleId={toggleRoleId}
+          toggleRoleError={toggleRoleError}
+        />
 
         <section className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
           <div className="p-6 border-b border-gray-200">
@@ -654,6 +662,77 @@ export default function Admin() {
         )}
       </div>
     </Layout>
+  );
+}
+
+function SecaoGestaoRoles({
+  usuarios,
+  perfilId,
+  toggleRole,
+  toggleRoleId,
+  toggleRoleError,
+}: {
+  usuarios: import("@/react-app/services/dtos/admin.dto").UsuarioAdminDTO[];
+  perfilId: string;
+  toggleRole: (id: string, roleAtual: "admin" | "user") => Promise<void>;
+  toggleRoleId: string | null;
+  toggleRoleError: string | null;
+}) {
+  return (
+    <section className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
+      <div className="p-6 border-b border-gray-200">
+        <h2 className="text-xl font-bold text-gray-900">Gestão de Papéis</h2>
+        <p className="text-sm text-gray-600 mt-1">Atribuir ou remover o papel admin de usuários.</p>
+      </div>
+
+      {toggleRoleError && (
+        <div className="mx-6 mt-4 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          {toggleRoleError}
+        </div>
+      )}
+
+      <ul className="divide-y divide-gray-100">
+        {usuarios.map((u) => {
+          const isSelf = u.id === perfilId;
+          const isLoading = toggleRoleId === u.id;
+          const isAdmin = u.role === "admin";
+          return (
+            <li key={u.id} className="flex items-center justify-between gap-4 px-6 py-4">
+              <div className="min-w-0">
+                <p className="font-medium text-gray-900 truncate">{u.nome || u.email}</p>
+                <p className="text-sm text-gray-500 truncate">{u.email}</p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    isAdmin ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {isAdmin ? <Shield className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+                  {isAdmin ? "Admin" : "Usuário"}
+                </span>
+                <button
+                  onClick={() => toggleRole(u.id, u.role)}
+                  disabled={isSelf || isLoading || toggleRoleId !== null}
+                  title={isSelf ? "Não é possível alterar o próprio papel" : undefined}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                  ) : isAdmin ? (
+                    <X className="w-3 h-3" />
+                  ) : (
+                    <Shield className="w-3 h-3" />
+                  )}
+                  {isAdmin ? "Remover admin" : "Tornar admin"}
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

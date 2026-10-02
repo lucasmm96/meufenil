@@ -37,7 +37,7 @@ Legenda: **Sim** = permitido pelo RLS · **Não** = sem política vigente · ano
 | usuarios | SELECT (próprio) | Sim | — | Sim | Não | `Usuário vê próprio perfil`, `admin_only` |
 | usuarios | SELECT (todos) | Não | Não | Sim | Não | `admin_can_select_all_usuarios` |
 | usuarios | INSERT | Sim (id próprio) | Não | Não | Não | `Usuário cria próprio perfil` |
-| usuarios | UPDATE | Sim (qualquer coluna da própria linha, incl. `role`) | Não | Não | Não | `Usuário atualiza próprio perfil` |
+| usuarios | UPDATE | Sim (colunas da própria linha; exceto `role` — REVOKE UPDATE(role) de `authenticated`, migration 20261002010000) | Não | Não | Não | `Usuário atualiza próprio perfil` |
 | usuarios | DELETE | Não | Não | Não | Não | sem política (remoção via auth.users cascade / edge function) |
 | referencias | SELECT | Sim | Sim | Sim | Sim (apenas `is_global = true`) | `Usuário lista referências` + demais |
 | referencias | INSERT | Sim | Sim | Sim | Não | `Usuário cria própria referencia`, `Adicionar...dono ou delegado`, `Admin adiciona referencias` |
@@ -100,6 +100,7 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | RPC `ativar_referencia` | ativar qualquer referência | ../database/rpc.md |
 | RPC `remover_ou_desativar_referencia` | remover referências pessoais (hard/soft pelo vínculo) e ARQUIVAR globais — nunca exclusão física de global pela aplicação (ENH-0004, OQ4/BR-037) | ../database/rpc.md |
 | RPC `get_estatisticas_admin` | chamado pelo painel admin (`admin.service.ts:75`) — a função em si NÃO verifica papel internamente | ../database/rpc.md |
+| RPC `toggle_role_usuario` | atribuir/remover papel `admin` de outro usuário (FEAT-0015) | ../database/rpc.md |
 | RLS `registros` / `exames_pku` / `referencias_favoritas` / `delegacoes_acesso` | **nenhum acesso direto** (sem políticas de admin) | matriz acima |
 
 ## 7. RPC Authorization Matrix
@@ -111,6 +112,7 @@ Admin = `usuarios.role = 'admin'` (verificado por `is_admin_user` nas policies/R
 | `aplicar_sync_referencias` | **somente `service_role`** (REVOKE FROM PUBLIC) | Sim — `auth.role()` deve ser `service_role` (guarda de definer) | aplica plano de sync (ENH-0009): cria/arquiva/deleta fisicamente globais, sweep retroativo; `criado_por` = ator Sistema — transação única (qualquer exceção desfaz tudo) | ../database/rpc.md |
 | ~~`decidir_pendencia_referencia`~~ | — | — | **ELIMINADA (ENH-0009)** — curadoria removida | ../database/rpc.md |
 | ~~`reverter_sync_referencias`~~ | — | — | **ELIMINADA (ENH-0009)** — rollback seletivo removido | ../database/rpc.md |
+| `toggle_role_usuario` | `authenticated` + `service_role` (REVOKE FROM PUBLIC) | Sim — `is_admin_user(auth.uid())` + `auth.uid() ≠ alvo_id` + `novo_role IN ('admin','user')` | atribui/remove papel `admin` (FEAT-0015); único caminho de escrita para `usuarios.role` pela aplicação | ../database/rpc.md |
 | `restaurar_referencias_de_backup` | **somente `authenticated`** (REVOKE FROM PUBLIC) | Sim — `pode_operar_recuperacao(auth.uid())` (admin **E** flag `pode_recuperacao`) | restauração excepcional (FEAT-0017 M5): catálogo global volta a refletir um backup (sha256 ANTES de efeito); reativa/recria/arquiva; `pendencias_canceladas = 0` (ENH-0009 — sem pendências); nunca DELETE, não toca pessoais | ../database/rpc.md |
 | `pode_operar_recuperacao` | `authenticated` + `service_role` (REVOKE FROM PUBLIC) | Não (função de verificação) | retorna boolean (admin E `pode_recuperacao`) | ../database/rpc.md |
 | `is_admin_user` | `authenticated` + `service_role` (+ `anon` via default privileges) | Não (função de verificação) | retorna boolean | ../database/rpc.md |

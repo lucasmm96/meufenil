@@ -3,7 +3,7 @@
 **ID:** FEAT-0012
 **Tipo:** Current
 **Status:** Implementada
-**Última verificação:** 2026-09-07 (FEAT-0017 M6 — UI do Admin estendida com seções de sincronização de referências/curadoria/recuperação; página [admin](../frontend/pages/admin.md))
+**Última verificação:** 2026-10-02 (FEAT-0015 — seção Gestão de Papéis adicionada ao painel admin)
 
 ## Purpose
 
@@ -21,8 +21,9 @@ Visão administrativa (somente leitura) do sistema: usuários (totais), uso do b
 
 1. `useAdmin` carrega perfil (gate), lista de usuários e `getEstatisticasAdmin` (RPC `get_estatisticas_admin`) `[CONFIRMED: code]`.
 2. Seção "Uso do Banco de Dados": armazenamento (percentual com min(...,100), barra colorida por faixa >80/>60), registros totais, referências (globais/personalizadas) e box fixo de limites do plano gratuito `[CONFIRMED: code — Admin.tsx:224-317]`.
-3. `useBackgroundJobsAdmin` carrega overview + execuções (filtros job/status/período com reset de página; paginação server-side; tabela desktop × cards mobile; rodapé de paginação em linha única com "Página {page} de {totalPages}" à esquerda, botões Anterior/Próxima centralizados e seletor "Item por página" à direita; botão "Ver mensagem" por linha abre modal de mensagem; linha clicável abre painel de detalhes com Run ID, tempos e `details` em `<pre>`) `[CONFIRMED: code — Admin.tsx:326-634]`.
-4. "Atualizar" recarrega jobs (spinner no botão; lista anterior permanece) `[CONFIRMED: code]`.
+3. Seção "Gestão de Papéis" (FEAT-0015): lista todos os usuários com badge de papel (Admin/Usuário) e botão "Tornar admin" / "Remover admin"; botão desabilitado na própria linha do admin logado; erros do RPC exibidos em box vermelho; loading por linha via `toggleRoleId` `[CONFIRMED: code — Admin.tsx:SecaoGestaoRoles]`.
+4. `useBackgroundJobsAdmin` carrega overview + execuções (filtros job/status/período com reset de página; paginação server-side; tabela desktop × cards mobile; rodapé de paginação em linha única com "Página {page} de {totalPages}" à esquerda, botões Anterior/Próxima centralizados e seletor "Item por página" à direita; botão "Ver mensagem" por linha abre modal de mensagem; linha clicável abre painel de detalhes com Run ID, tempos e `details` em `<pre>`) `[CONFIRMED: code — Admin.tsx:326-634]`.
+5. "Atualizar" recarrega jobs (spinner no botão; lista anterior permanece) `[CONFIRMED: code]`.
 
 ## Alternative Flows
 
