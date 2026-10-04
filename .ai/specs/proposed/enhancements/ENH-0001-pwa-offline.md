@@ -90,14 +90,46 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 ## Impacted Tests
 
 - NONE hoje (FEAT-0014) — testes necessários:
-  - Comportamento offline/online do hook `useOnlineStatus`
-  - Renderização e visibilidade do `OfflineBanner`
-  - Lógica de exibição de avisos por tela
+
+**Unitários — `useOnlineStatus`:**
+- Estado inicial correto (`navigator.onLine`)
+- Transição offline → online e online → offline via evento
+- Detecção de iOS (user agent)
+- Ping executado após evento `online`; falha mantém estado offline; sucesso dispara re-sync
+
+**Componente — `OfflineBanner`:**
+- Não renderiza quando online
+- Estado offline: texto e visibilidade corretos
+- Estado sincronizando: texto de feedback ("Conexão restaurada. Atualizando dados...")
+- Estado iOS offline: mensagem específica de iOS
+
+**Unitários — Serviço IndexedDB (via `fake-indexeddb`):**
+- Escrita de favoritos: substituição completa por user_id
+- Leitura de favoritos quando offline
+- Atualização incremental após add/remove de favorito
+- Escrita de histórico: substituição dos últimos 7 dias
+- Limpeza completa de stores por user_id no logout
+- Limpeza de stores do usuário delegado ao sair da delegação
+- Isolamento: stores de user A não afetam stores de user B
+
+**Componente — Telas com comportamento offline:**
+- Referências: exibe apenas favoritos + aviso quando offline
+- Histórico: exibe últimos 7 dias + aviso; export bloqueado
+- Estatísticas: dados 7d com aviso no toggle "Último Mês"; export bloqueado
+- Exames e Perfil: informativo "indisponível offline" exibido
+- Dashboard: dados cacheados exibidos; "criar medição" bloqueada
+
+**Validação manual (não automatizável via vitest):**
+- AC1: app abre offline a partir do segundo carregamento (requer SW real no browser)
+- AC10: prompt de atualização SW após novo deploy (requer ciclo de deploy)
+- AC14: headers do `/sw.js` no Vercel (requer ambiente deployado)
+- AC15: comportamento iOS em dispositivo real
 
 ## Dependencies
 
 - `vite-plugin-pwa` (nova dependência de dev)
 - Workbox (transitiva via plugin)
+- `fake-indexeddb` (nova dependência de dev — testes unitários do serviço IndexedDB)
 
 ## Risks
 
@@ -171,7 +203,7 @@ Resolvidas pela análise:
 - **AC6:** Ao voltar online: (1) ping de conectividade real executado; (2) após confirmação: `OfflineBanner` transiciona para estado "sincronizando" com mensagem de feedback ao usuário (ex: "Conexão restaurada. Atualizando dados..."); (3) re-sync completo das stores IndexedDB (favoritos + histórico) executado em background; (4) ao concluir: `OfflineBanner` e informativos por tela removidos automaticamente; dados da UI refletidos com dados frescos
 - **AC7:** IndexedDB do usuário é limpo em dois triggers: (1) logout explícito (botão de logout); (2) expiração silenciosa de sessão (token expirado) — via listener do auth state change do Supabase
 - **AC8:** Sem regressão na experiência online (performance, atualização de dados, comportamento existente)
-- **AC9:** Testes unitários para `useOnlineStatus` e `OfflineBanner`
+- **AC9:** Cobertura de testes automatizados: (1) `useOnlineStatus` — estados, transições online/offline, detecção de iOS, lógica de ping, dispatch de re-sync; (2) `OfflineBanner` — três estados (offline, sincronizando, iOS offline); (3) serviço IndexedDB via `fake-indexeddb` — escrita/leitura/limpeza por user_id, isolamento entre usuários, atualização incremental de favoritos; (4) telas com comportamento offline diferenciado (Referências, Histórico, Estatísticas, Exames, Perfil)
 - **AC10:** Quando novo SW é detectado após deploy, prompt "Nova versão disponível. Atualizar agora?" é exibido; ao confirmar, app recarrega com a versão atualizada
 - **AC11:** Offline sem sessão prévia: tela de login padrão exibida com `OfflineBanner` visível no topo, comunicando que login requer conexão
 - **AC12:** Offline: Estatísticas disponível com dados cacheados (últimos 7 dias); toggle "Última Semana" exibe normalmente; toggle "Último Mês" exibe aviso "Dados incompletos offline — exibindo apenas os últimos 7 dias disponíveis"; exportar CSV/JSON bloqueado com informativo
