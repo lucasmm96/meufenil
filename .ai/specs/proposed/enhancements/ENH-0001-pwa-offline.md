@@ -58,6 +58,8 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Responsabilidade SW vs app layer:** SW gerencia apenas o app shell (precaching Workbox); detecção de offline e gerenciamento do IndexedDB são realizados no app layer (hooks/services React) — sem interceptação de requests de API pelo SW, sem JWT handling no SW (Fase 1)
 - **Schema IndexedDB:** duas stores — `favoritos` e `historico`; chaves prefixadas por `user_id`; sem limite explícito de tamanho; expiração por substituição na sync online (ao fazer fetch com rede, substitui conteúdo com os últimos 7 dias); limpeza completa no logout
 - **Atualização do SW pós-deploy:** prompt ao usuário via banner/toast "Nova versão disponível. Atualizar agora?" — Workbox suporta nativamente via `workbox-window`
+- **Verificação de conectividade real:** ao evento `online`, executar lightweight ping antes de declarar estado online — evitar false positives de captive portals (Wi-Fi de hospital/restaurante sem autenticação)
+- **Re-sync proativo:** ao confirmar online via ping, re-fetchar e atualizar todas as stores IndexedDB (favoritos + histórico); `OfflineBanner` transiciona para estado "sincronizando" durante o re-sync
 
 ## Out of Scope
 
@@ -74,8 +76,8 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 
 - `vite.config.ts` — adicionar `@vite-pwa/vite-plugin-pwa`
 - `public/` — manifest, SW gerado
-- Novo hook: `useOnlineStatus`
-- Novo componente: `OfflineBanner`
+- Novo hook: `useOnlineStatus` (navigator.onLine + eventos online/offline + ping de conectividade + dispatch de re-sync proativo)
+- Novo componente: `OfflineBanner` — dois estados: offline ("Você está offline. Exibindo dados armazenados localmente.") e sincronizando ("Conexão restaurada. Atualizando dados...")
 - Modificações por tela: avisos de funcionalidade offline parcial/indisponível
 
 ## Impacted Tests
@@ -98,6 +100,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Vercel rewrite vs. escopo do SW**: validar que o SW é servido em `/` e intercepta corretamente
 - **Atualização do SW pós-deploy**: sem estratégia definida (skip-waiting / prompt / defer), usuários podem ficar com app shell desatualizado após novo deploy — estratégia a decidir
 - **Login offline sem sessão prévia**: comportamento não definido para usuário que abre o app offline sem ter feito login antes — edge case sem AC cobrindo
+- **Re-sync em dados móveis**: re-fetchar todas as stores ao voltar online consome dados; volume PKU (histórico 7d + favoritos) é pequeno — risco aceitável
 
 ## Alternatives
 
@@ -155,7 +158,7 @@ Resolvidas pela análise:
 - **AC3:** Offline: histórico exibe apenas registros dos últimos 7 dias com aviso explícito ("Exibindo registros armazenados localmente dos últimos 7 dias.")
 - **AC4:** Offline: barra fixa visível em todas as páginas indicando versão offline
 - **AC5:** Offline: funcionalidades somente-online (criar medição, exportar, etc.) mostram informativo claro de indisponibilidade
-- **AC6:** Ao voltar online: barra e informativos removidos automaticamente; dados atualizados via re-fetch
+- **AC6:** Ao voltar online: (1) ping de conectividade real executado; (2) após confirmação: `OfflineBanner` transiciona para estado "sincronizando" com mensagem de feedback ao usuário (ex: "Conexão restaurada. Atualizando dados..."); (3) re-sync completo das stores IndexedDB (favoritos + histórico) executado em background; (4) ao concluir: `OfflineBanner` e informativos por tela removidos automaticamente; dados da UI refletidos com dados frescos
 - **AC7:** Logout limpa dados do usuário do IndexedDB (favoritos e histórico cacheados)
 - **AC8:** Sem regressão na experiência online (performance, atualização de dados, comportamento existente)
 - **AC9:** Testes unitários para `useOnlineStatus` e `OfflineBanner`
