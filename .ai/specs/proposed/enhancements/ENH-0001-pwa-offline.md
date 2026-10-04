@@ -60,6 +60,8 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Atualização do SW pós-deploy:** prompt ao usuário via banner/toast "Nova versão disponível. Atualizar agora?" — Workbox suporta nativamente via `workbox-window`
 - **Verificação de conectividade real:** ao evento `online`, executar lightweight ping antes de declarar estado online — evitar false positives de captive portals (Wi-Fi de hospital/restaurante sem autenticação)
 - **Re-sync proativo:** ao confirmar online via ping, re-fetchar e atualizar todas as stores IndexedDB (favoritos + histórico); `OfflineBanner` transiciona para estado "sincronizando" durante o re-sync
+- **Limpeza do IndexedDB — triggers:** logout explícito (botão) + expiração silenciosa de sessão via Supabase auth state change listener
+- **Limpeza do IndexedDB — delegação (FEAT-0011):** ao sair de conta delegada e retornar à conta própria, stores prefixadas com o `user_id` do usuário delegado são limpas
 
 ## Out of Scope
 
@@ -71,6 +73,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 
 - [FEAT-0014 PWA](../../current/features/FEAT-0014-pwa.md)
 - [FEAT-0008 Referências alimentares](../../current/features/FEAT-0008-referencias-alimentares.md) (favoritos)
+- [FEAT-0011 Delegação de acesso](../../current/features/FEAT-0011-delegacao-acesso.md) (limpeza do IndexedDB ao sair da conta delegada — AC13)
 
 ## Impacted Frontend
 
@@ -159,12 +162,13 @@ Resolvidas pela análise:
 - **AC4:** Offline: barra fixa visível em todas as páginas indicando versão offline
 - **AC5:** Offline: funcionalidades somente-online (criar medição, exportar, etc.) mostram informativo claro de indisponibilidade
 - **AC6:** Ao voltar online: (1) ping de conectividade real executado; (2) após confirmação: `OfflineBanner` transiciona para estado "sincronizando" com mensagem de feedback ao usuário (ex: "Conexão restaurada. Atualizando dados..."); (3) re-sync completo das stores IndexedDB (favoritos + histórico) executado em background; (4) ao concluir: `OfflineBanner` e informativos por tela removidos automaticamente; dados da UI refletidos com dados frescos
-- **AC7:** Logout limpa dados do usuário do IndexedDB (favoritos e histórico cacheados)
+- **AC7:** IndexedDB do usuário é limpo em dois triggers: (1) logout explícito (botão de logout); (2) expiração silenciosa de sessão (token expirado) — via listener do auth state change do Supabase
 - **AC8:** Sem regressão na experiência online (performance, atualização de dados, comportamento existente)
 - **AC9:** Testes unitários para `useOnlineStatus` e `OfflineBanner`
 - **AC10:** Quando novo SW é detectado após deploy, prompt "Nova versão disponível. Atualizar agora?" é exibido; ao confirmar, app recarrega com a versão atualizada
 - **AC11:** Offline sem sessão prévia: tela de login padrão exibida com `OfflineBanner` visível no topo, comunicando que login requer conexão
 - **AC12:** Offline: Estatísticas disponível com dados cacheados (últimos 7 dias); toggle "Última Semana" exibe normalmente; toggle "Último Mês" exibe aviso "Dados incompletos offline — exibindo apenas os últimos 7 dias disponíveis"; exportar CSV/JSON bloqueado com informativo
+- **AC13:** Delegação de acesso: ao retornar da conta delegada para a conta própria, stores do IndexedDB prefixadas com o `user_id` do usuário delegado são limpas automaticamente
 
 ## Comportamento Offline por Tela
 
