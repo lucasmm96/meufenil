@@ -137,8 +137,8 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **iOS Safari**: suporte offline excluído do escopo da Fase 1 — ao perder conexão no iOS, `OfflineBanner` exibe informativo específico ("Acesso offline não disponível no iOS. Reconecte-se para continuar."); app funciona normalmente online em qualquer iOS
 - **Invalidação no logout**: dados de usuário no IndexedDB devem ser limpos ao sair da conta
 - **Vercel rewrite vs. escopo do SW (U-5.2)**: rewrite `/(.*) → /index.html` não afeta o SW (Vercel serve arquivos reais antes de reescrever — sem conflito); risco real é o `Cache-Control` do `/sw.js` — mitigado com regra de header `no-cache` em `vercel.json` (ver Scope e AC14)
-- **Atualização do SW pós-deploy**: sem estratégia definida (skip-waiting / prompt / defer), usuários podem ficar com app shell desatualizado após novo deploy — estratégia a decidir
-- **Login offline sem sessão prévia**: comportamento não definido para usuário que abre o app offline sem ter feito login antes — edge case sem AC cobrindo
+- **Atualização do SW pós-deploy**: mitigado — prompt ao usuário via `workbox-window` (AC10); Workbox suporta nativamente
+- **Login offline sem sessão prévia**: mitigado — AC11 cobre o comportamento (tela de login padrão + `OfflineBanner`)
 - **Re-sync em dados móveis**: re-fetchar todas as stores ao voltar online consome dados; volume PKU (histórico 7d + favoritos) é pequeno — risco aceitável
 
 ## Alternatives
