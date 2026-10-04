@@ -62,6 +62,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Re-sync proativo:** ao confirmar online via ping, re-fetchar e atualizar todas as stores IndexedDB (favoritos + histórico); `OfflineBanner` transiciona para estado "sincronizando" durante o re-sync
 - **Limpeza do IndexedDB — triggers:** logout explícito (botão) + expiração silenciosa de sessão via Supabase auth state change listener
 - **Limpeza do IndexedDB — delegação (FEAT-0011):** ao sair de conta delegada e retornar à conta própria, stores prefixadas com o `user_id` do usuário delegado são limpas
+- **Sincronização de favoritos:** store `favoritos` atualizada em dois momentos: (1) fetch bem-sucedido na página de Referências (substituição completa); (2) imediatamente após add/remove de favorito (atualização incremental) — garante que favorito recém-adicionado já esteja offline se o usuário perder rede antes do próximo fetch
 
 ## Out of Scope
 
@@ -153,6 +154,7 @@ Resolvidas pela análise:
 | Comportamento offline sem sessão | Tela de login padrão com `OfflineBanner` no topo — sem tela dedicada; login requer conexão |
 | Limites de armazenamento IndexedDB | Sem limite explícito — volume PKU (20–100 registros + favoritos) não representa risco de quota |
 | Mapeamento de telas × comportamento offline | Ver seção "Comportamento Offline por Tela" — 9 telas mapeadas com informativo contextual por tela |
+| Sincronização de favoritos no IndexedDB | Fetch bem-sucedido na página de Referências (substituição completa) + add/remove imediato (atualização incremental) |
 
 ## Acceptance Criteria (Fase 1)
 
