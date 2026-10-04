@@ -52,6 +52,9 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - `OfflineBanner` — componente fixo no topo visível em todas as páginas quando offline
 - Informativos contextuais por tela (funcionalidade indisponível ou parcial)
 - Restore online: evento `online` → refetch + remoção de informativos
+- **Responsabilidade SW vs app layer:** SW gerencia apenas o app shell (precaching Workbox); detecção de offline e gerenciamento do IndexedDB são realizados no app layer (hooks/services React) — sem interceptação de requests de API pelo SW, sem JWT handling no SW (Fase 1)
+- **Schema IndexedDB:** duas stores — `favoritos` e `historico`; chaves prefixadas por `user_id`; sem limite explícito de tamanho; expiração por substituição na sync online (ao fazer fetch com rede, substitui conteúdo com os últimos 7 dias); limpeza completa no logout
+- **Atualização do SW pós-deploy:** prompt ao usuário via banner/toast "Nova versão disponível. Atualizar agora?" — Workbox suporta nativamente via `workbox-window`
 
 ## Out of Scope
 
@@ -90,6 +93,8 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **iOS Safari**: Service Worker tem suporte parcial no iOS; testar comportamento de cache e atualização
 - **Invalidação no logout**: dados de usuário no IndexedDB devem ser limpos ao sair da conta
 - **Vercel rewrite vs. escopo do SW**: validar que o SW é servido em `/` e intercepta corretamente
+- **Atualização do SW pós-deploy**: sem estratégia definida (skip-waiting / prompt / defer), usuários podem ficar com app shell desatualizado após novo deploy — estratégia a decidir
+- **Login offline sem sessão prévia**: comportamento não definido para usuário que abre o app offline sem ter feito login antes — edge case sem AC cobrindo
 
 ## Alternatives
 
@@ -129,6 +134,16 @@ Resolvidas pela análise:
 | Escrita offline é viável? | Tecnicamente viável, mas custo alto e suporte iOS limitado → Fase 2 separada |
 | Date range dos registros offline? | 7 dias, com aviso claro ao usuário sobre a limitação |
 
+**Resolvidas no refinamento:**
+
+| Questão | Resolução |
+|---|---|
+| Schema do IndexedDB | Duas stores: `favoritos` e `historico`; chaves prefixadas por `user_id`; sem limite de tamanho; limpeza completa no logout |
+| Política de expiração dos 7 dias | Na sync online: ao fazer fetch com rede, IndexedDB é substituído com os últimos 7 dias recém-buscados — sem lógica extra de data |
+| Atualização do SW pós-deploy | Prompt ao usuário: banner/toast "Nova versão disponível. Atualizar agora?" com botão — Workbox suporta nativamente |
+| Comportamento offline sem sessão | Tela de login padrão com `OfflineBanner` no topo — sem tela dedicada; login requer conexão |
+| Limites de armazenamento IndexedDB | Sem limite explícito — volume PKU (20–100 registros + favoritos) não representa risco de quota |
+
 ## Acceptance Criteria (Fase 1)
 
 - **AC1:** App abre offline (sem rede) a partir do segundo carregamento — app shell servido pelo SW
@@ -140,6 +155,8 @@ Resolvidas pela análise:
 - **AC7:** Logout limpa dados do usuário do IndexedDB (favoritos e histórico cacheados)
 - **AC8:** Sem regressão na experiência online (performance, atualização de dados, comportamento existente)
 - **AC9:** Testes unitários para `useOnlineStatus` e `OfflineBanner`
+- **AC10:** Quando novo SW é detectado após deploy, prompt "Nova versão disponível. Atualizar agora?" é exibido; ao confirmar, app recarrega com a versão atualizada
+- **AC11:** Offline sem sessão prévia: tela de login padrão exibida com `OfflineBanner` visível no topo, comunicando que login requer conexão
 
 ## Evidence / References
 
