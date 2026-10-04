@@ -63,6 +63,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Limpeza do IndexedDB — triggers:** logout explícito (botão) + expiração silenciosa de sessão via Supabase auth state change listener
 - **Limpeza do IndexedDB — delegação (FEAT-0011):** ao sair de conta delegada e retornar à conta própria, stores prefixadas com o `user_id` do usuário delegado são limpas
 - **Sincronização de favoritos:** store `favoritos` atualizada em dois momentos: (1) fetch bem-sucedido na página de Referências (substituição completa); (2) imediatamente após add/remove de favorito (atualização incremental) — garante que favorito recém-adicionado já esteja offline se o usuário perder rede antes do próximo fetch
+- **Vercel + SW — configuração de headers:** adicionar regra no `vercel.json` para o `/sw.js` gerado: `Cache-Control: no-cache, no-store, must-revalidate` + `Service-Worker-Allowed: /` — sem isso, Vercel pode cachear o SW com TTL longo e usuários ficariam com app shell desatualizado após novo deploy; o rewrite `/(.*) → /index.html` não afeta o SW (Vercel serve arquivos reais antes de aplicar rewrites)
 
 ## Out of Scope
 
@@ -101,7 +102,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Cache stale de dados clínicos**: network-first mitiga; avisos ao usuário garantem clareza
 - **iOS Safari**: Service Worker tem suporte parcial no iOS; testar comportamento de cache e atualização
 - **Invalidação no logout**: dados de usuário no IndexedDB devem ser limpos ao sair da conta
-- **Vercel rewrite vs. escopo do SW**: validar que o SW é servido em `/` e intercepta corretamente
+- **Vercel rewrite vs. escopo do SW (U-5.2)**: rewrite `/(.*) → /index.html` não afeta o SW (Vercel serve arquivos reais antes de reescrever — sem conflito); risco real é o `Cache-Control` do `/sw.js` — mitigado com regra de header `no-cache` em `vercel.json` (ver Scope e AC14)
 - **Atualização do SW pós-deploy**: sem estratégia definida (skip-waiting / prompt / defer), usuários podem ficar com app shell desatualizado após novo deploy — estratégia a decidir
 - **Login offline sem sessão prévia**: comportamento não definido para usuário que abre o app offline sem ter feito login antes — edge case sem AC cobrindo
 - **Re-sync em dados móveis**: re-fetchar todas as stores ao voltar online consome dados; volume PKU (histórico 7d + favoritos) é pequeno — risco aceitável
@@ -155,6 +156,7 @@ Resolvidas pela análise:
 | Limites de armazenamento IndexedDB | Sem limite explícito — volume PKU (20–100 registros + favoritos) não representa risco de quota |
 | Mapeamento de telas × comportamento offline | Ver seção "Comportamento Offline por Tela" — 9 telas mapeadas com informativo contextual por tela |
 | Sincronização de favoritos no IndexedDB | Fetch bem-sucedido na página de Referências (substituição completa) + add/remove imediato (atualização incremental) |
+| Vercel rewrite vs. escopo do SW (U-5.2) | Rewrite não afeta o SW; risco real é Cache-Control do `/sw.js` — mitigado com regra de header no `vercel.json` (AC14); risco aceito, validar na implementação |
 
 ## Acceptance Criteria (Fase 1)
 
@@ -171,6 +173,7 @@ Resolvidas pela análise:
 - **AC11:** Offline sem sessão prévia: tela de login padrão exibida com `OfflineBanner` visível no topo, comunicando que login requer conexão
 - **AC12:** Offline: Estatísticas disponível com dados cacheados (últimos 7 dias); toggle "Última Semana" exibe normalmente; toggle "Último Mês" exibe aviso "Dados incompletos offline — exibindo apenas os últimos 7 dias disponíveis"; exportar CSV/JSON bloqueado com informativo
 - **AC13:** Delegação de acesso: ao retornar da conta delegada para a conta própria, stores do IndexedDB prefixadas com o `user_id` do usuário delegado são limpas automaticamente
+- **AC14:** `vercel.json` configurado com `Cache-Control: no-cache, no-store, must-revalidate` e `Service-Worker-Allowed: /` para `/sw.js`; SW servido como JS (não reescrito para HTML pelo rewrite) e registrado com scope `/`
 
 ## Comportamento Offline por Tela
 
