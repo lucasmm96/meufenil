@@ -193,6 +193,15 @@ Resolvidas pela análise:
 | Vercel rewrite vs. escopo do SW (U-5.2) | Rewrite não afeta o SW; risco real é Cache-Control do `/sw.js` — mitigado com regra de header no `vercel.json` (AC14); risco aceito, validar na implementação |
 | iOS Safari — postura offline | Excluído do escopo offline; informativo específico ao perder conexão no iOS (AC15); app funciona normalmente online |
 
+**Pendentes de refinamento (identificadas na análise não técnica):**
+
+| Questão | Natureza | O que precisa ser decidido |
+|---|---|---|
+| Falha parcial de re-sync ao voltar online | Comportamento indefinido | O que acontece se a sincronização começar e falhar no meio (ex.: favoritos atualizados, histórico falha)? O `OfflineBanner` volta ao estado offline? Exibe erro? O app tenta novamente automaticamente? |
+| Sessão expirando enquanto o usuário está offline | Comportamento indefinido | O listener de expiração de sessão do Supabase pode não disparar sem conexão. Se a sessão expirar offline: o app trava? Apaga os dados ao voltar online? Espera a reconexão para reagir? Há risco de dados de saúde permanecerem no dispositivo além da validade da sessão. |
+| Dashboard offline sem registros do dia atual | Comportamento indefinido | O cache de histórico cobre os últimos 7 dias, mas pode não ter dados do dia de hoje (ex.: usuário ainda não registrou nada hoje, ou o registro mais recente é de ontem). O que o Dashboard exibe? O dia atual vazio? O dia mais recente disponível? Como isso é comunicado ao usuário? |
+| Prompt de atualização ignorado repetidamente | Risco de incompatibilidade | Não está definido o que acontece quando o usuário ignora o prompt "Nova versão disponível. Atualizar agora?" por muito tempo. Versões muito antigas do SW podem eventualmente ser incompatíveis com o backend. Existe algum mecanismo de forçar atualização após N dias/deploys? |
+
 ## Acceptance Criteria (Fase 1)
 
 - **AC1:** App abre offline (sem rede) a partir do segundo carregamento — app shell servido pelo SW
