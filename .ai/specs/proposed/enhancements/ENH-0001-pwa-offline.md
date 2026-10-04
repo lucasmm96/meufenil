@@ -25,7 +25,10 @@ PWA com cache offline somente-leitura, cobrindo:
    - Informativos por tela para funcionalidades indisponíveis ou parcialmente disponíveis
    - Ao voltar online: barra e informativos removidos automaticamente; dados re-fetched
 
-Funcionalidades somente-online (indisponíveis offline): criação de medições, edição, sincronização de referências, exportação, acesso à tabela de referências completa.
+Comportamento por tela:
+- **Telas bloqueadas offline:** Exames PKU, Perfil, Admin — informativo por tela; demais funcionalidades indisponíveis
+- **Telas parcialmente disponíveis:** Dashboard (dados cacheados; criar medição bloqueado), Histórico (AC3: 7 dias; exportar bloqueado), Referências (AC2: só favoritos; tabela completa bloqueada), Estatísticas (dados 7d cacheados; toggle "Último Mês" com aviso de dados parciais; export bloqueado)
+- **Telas totalmente disponíveis offline:** Login (AC11: login padrão + OfflineBanner), Sobre (conteúdo estático — app shell)
 
 ## Proposed State — Fase 2 (spec futura, não neste escopo)
 
@@ -143,6 +146,7 @@ Resolvidas pela análise:
 | Atualização do SW pós-deploy | Prompt ao usuário: banner/toast "Nova versão disponível. Atualizar agora?" com botão — Workbox suporta nativamente |
 | Comportamento offline sem sessão | Tela de login padrão com `OfflineBanner` no topo — sem tela dedicada; login requer conexão |
 | Limites de armazenamento IndexedDB | Sem limite explícito — volume PKU (20–100 registros + favoritos) não representa risco de quota |
+| Mapeamento de telas × comportamento offline | Ver seção "Comportamento Offline por Tela" — 9 telas mapeadas com informativo contextual por tela |
 
 ## Acceptance Criteria (Fase 1)
 
@@ -157,6 +161,21 @@ Resolvidas pela análise:
 - **AC9:** Testes unitários para `useOnlineStatus` e `OfflineBanner`
 - **AC10:** Quando novo SW é detectado após deploy, prompt "Nova versão disponível. Atualizar agora?" é exibido; ao confirmar, app recarrega com a versão atualizada
 - **AC11:** Offline sem sessão prévia: tela de login padrão exibida com `OfflineBanner` visível no topo, comunicando que login requer conexão
+- **AC12:** Offline: Estatísticas disponível com dados cacheados (últimos 7 dias); toggle "Última Semana" exibe normalmente; toggle "Último Mês" exibe aviso "Dados incompletos offline — exibindo apenas os últimos 7 dias disponíveis"; exportar CSV/JSON bloqueado com informativo
+
+## Comportamento Offline por Tela
+
+| Tela | Comportamento offline | Informativo contextual |
+|---|---|---|
+| Login (`/`) | Disponível — login padrão + `OfflineBanner` (AC11) | — |
+| Dashboard (`/dashboard`) | Disponível — dados do dia via historico cacheado; "criar medição" bloqueada | "Criar medições requer conexão." (junto à ação bloqueada) |
+| Histórico (`/historico`) | Disponível parcial — últimos 7 dias; exportar bloqueado (AC3) | "Exibindo registros armazenados localmente dos últimos 7 dias." |
+| Referências (`/referencias`) | Disponível parcial — só favoritos; tabela completa bloqueada (AC2) | "Você está offline. Exibindo apenas seus favoritos." |
+| Estatísticas (`/estatisticas`) | Disponível parcial — dados 7d cacheados; toggle "Último Mês" com aviso de dados parciais; export bloqueado (AC12) | "Você está offline. Exibindo dados dos últimos 7 dias. O período 'Último Mês' pode estar incompleto." |
+| Exames (`/exames`) | Bloqueada offline | "Exames PKU indisponíveis offline." |
+| Perfil (`/perfil`) | Bloqueada offline | "Perfil indisponível offline." |
+| Admin (`/admin`) | Bloqueada offline | "Painel administrativo indisponível offline." |
+| Sobre (`/sobre`) | Disponível — conteúdo estático (app shell) | — |
 
 ## Evidence / References
 
