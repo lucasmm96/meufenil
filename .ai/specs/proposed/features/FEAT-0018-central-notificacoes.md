@@ -1,9 +1,9 @@
 # FEAT-0018 — Central de Notificações ao Usuário
 
 **Type:** FEAT
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Central de notificações ao usuário
-**Issue:** TBD
+**Issue:** #116
 **Created on:** 2026-10-05
 
 ## Problem
@@ -97,7 +97,7 @@ N/A — nenhuma BR existente cobre notificações.
 - **C — Push notifications (Web Push API):** notifica o usuário fora do app. Requer service worker (ENH-0001). Fora do escopo desta spec — pode ser evolução futura.
 - **D — Somente toast/banner inline sem persistência:** sem feed, sem tabela. Não atende ao requisito de ponto central de consulta.
 
-**Decision:** TBD — aprovação humana obrigatória para `ACCEPTED`; registrar `Approved by:` e `Approved on:`. Alternativa B indicada pelas respostas ao questionário (2026-10-05).
+**Decision:** ACCEPTED — Approved by: Lucas Martins Menezes · Approved on: 2026-10-05. Alternativa B (in-app feed com Supabase Realtime). Decisões de implementação resolvidas: expiração por background job (processo adicional ao keepalive existente em FEAT-0013); health_alert via trigger no banco; admin UI como nova seção no painel admin existente (FEAT-0012).
 
 ## Open Questions
 

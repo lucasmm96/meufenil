@@ -1,9 +1,9 @@
 # ENH-0014 — Versão do app exibida no footer
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Versão do app exibida no footer
-**Issue:** TBD
+**Issue:** #115
 **Created on:** 2026-10-05
 
 ## Problem
@@ -92,7 +92,7 @@ Nenhuma.
 - **C — Fetch de `package.json` em runtime:** overhead de rede desnecessário para dado estático. Não recomendado.
 - **D — Hardcode no componente:** acoplamento manual, diverge a cada esquecimento. Não recomendado.
 
-**Decision:** TBD — aprovação humana obrigatória para `ACCEPTED`; registrar `Approved by:` e `Approved on:`. Alternativa A e formato de exibição confirmados pelo questionário (2026-10-05).
+**Decision:** ACCEPTED — Approved by: Lucas Martins Menezes · Approved on: 2026-10-05. Alternativa A (define no vite.config.ts lendo package.json) e formato de exibição confirmados pelo questionário (2026-10-05).
 
 ## Open Questions
 
