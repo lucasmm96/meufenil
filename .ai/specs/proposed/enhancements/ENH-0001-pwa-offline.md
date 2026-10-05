@@ -18,7 +18,7 @@ Manifest completo (standalone, ícones 192/512/maskable, pt-BR); sem service wor
 Esta spec cobre **duas fases** de implementação sequenciais:
 
 - **Fase 1 — Offline somente-leitura:** app shell + cache de dados do usuário (favoritos, alimentos customizados, 7 dias de histórico); dados disponíveis para consulta offline; escritas bloqueadas (exceto via fila, na Fase 2).
-- **Fase 2 — Offline com escrita:** criação, edição e exclusão de registros de consumo offline; fila de sincronização local; sincronização automática e atômica ao retornar online. **Dependência:** Fase 1 implementada e estável (AC1–AC21 passing).
+- **Fase 2 — Offline com escrita:** criação e exclusão de registros de consumo offline; fila de sincronização local; sincronização ao retornar online. Edição offline está fora de escopo — para corrigir um registro, o usuário exclui e cria novo. **Dependência:** Fase 1 implementada e estável (AC1–AC21 passing).
 
 As seções abaixo são organizadas por fase quando o comportamento difere. Critérios de aceite da Fase 1 são pré-requisito para iniciar a Fase 2.
 
@@ -44,11 +44,11 @@ Comportamento por tela (Fase 1):
 
 ## Proposed State — Fase 2
 
-Escrita offline com fila de sincronização: usuário pode criar, editar e excluir registros de consumo offline; operações ficam em fila local (`pendente_sync`); ao retornar online, sincronização automática e atômica com Supabase. Dependência: Fase 1 implementada.
+Escrita offline com fila de sincronização: usuário pode criar e excluir registros de consumo offline; operações ficam em fila local (`pendente_sync`); ao retornar online, sincronização com Supabase. Edição offline não está em escopo — para corrigir, o usuário exclui e cria novo. Dependência: Fase 1 implementada.
 
 Comportamento por tela (Fase 2 — delta sobre Fase 1):
 - **Dashboard:** criar medição disponível offline — registro entra na fila de sync; indicador visual "pendente de sincronização" por registro
-- **Histórico:** editar e excluir registros dos últimos 7 dias (disponíveis no cache) offline — operações entram na fila de sync
+- **Histórico:** excluir registros dos últimos 7 dias (disponíveis no cache) offline — operação entra na fila de sync
 
 ## Motivation
 
@@ -99,14 +99,13 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 
 ### Fase 2 — Escrita offline (dependência: Fase 1 implementada + AC1–AC21 passing)
 
-- **Schema IndexedDB — Fase 2:** store adicional `pendente_sync`; cada entrada contém: operação (criar/editar/excluir), entidade (registro de consumo), payload completo, UUID local (gerado client-side antes de enviar ao Supabase), timestamp da operação offline, número de tentativas de sync
+- **Schema IndexedDB — Fase 2:** store adicional `pendente_sync`; cada entrada contém: operação (criar/excluir), entidade (registro de consumo), payload completo, `client_uuid` (UUID gerado client-side antes de enviar — usado como idempotency key para prevenir duplicatas em caso de confirmação perdida mid-sync), timestamp da operação offline, número de tentativas de sync. **Formato imutável:** schema `pendente_sync` declarado estável entre versões do app — sem breaking changes; mudanças futuras requerem migração explícita com versionamento da store antes de qualquer forced update (4ª curadoria — GAP-sync-schema-stability e GAP-sync-idempotency resolvidos)
 - **Criação offline de registros:** usuário pode registrar consumo de fenilalanina offline usando favoritos ou customizados do cache; registro entra na store `pendente_sync` com indicador visual "pendente de sincronização" na UI
-- **Edição offline de registros:** edição de registros dos últimos 7 dias (disponíveis no cache `historico`) disponível offline; operação de edição entra na `pendente_sync`
-- **Exclusão offline de registros:** exclusão de registros dos últimos 7 dias disponível offline; operação de exclusão entra na `pendente_sync`
+- **Exclusão offline de registros:** exclusão de registros dos últimos 7 dias disponível offline; operação entra na `pendente_sync`
 - **Auth para sync no app layer:** ao voltar online, sync usa a sessão do usuário no app layer (sem JWT handling no SW); se sessão inválida ao tentar sync, redirecionar para login com aviso de perda
 - **Sincronização atômica da fila de pendentes:** ao voltar online, processar `pendente_sync` — qualquer falha interrompe e mantém estado offline; dados NÃO são removidos da fila antes de confirmar recebimento do servidor; retry automático
-- **Conflito com referência arquivada:** ao sincronizar registro criado offline que usa referência arquivada no servidor → esse registro é rejeitado com motivo claro ao usuário; demais registros da fila continuam sendo processados. Mecanismo: RLS policy "Inserir registro apenas com referencia ativa" (`registros` table) rejeita o INSERT; handler de sync detecta o erro, marca a entrada como `status: 'rejected-archived-ref'` na `pendente_sync`. UX proposta: UI exibe "Registro de [data] não sincronizado — alimento não está mais disponível" + opção "Corrigir" (picker de alimento ativo substitui a referência; registro re-entra na fila) + opção "Descartar" (com confirmação). Design visual pendente — ver GAP-archived-ref.
-- **Indicadores de estado de sync por registro:** "pendente de sync" → "sincronizando" → "sincronizado" / "erro de sync — referência arquivada" (com opção de corrigir)
+- **Conflito com referência arquivada:** ao sincronizar registro criado offline que usa referência arquivada no servidor → esse registro é descartado automaticamente; demais registros da fila continuam sendo processados. Mecanismo: RLS policy "Inserir registro apenas com referencia ativa" (`registros` table) rejeita o INSERT; handler de sync detecta o erro, remove a entrada da `pendente_sync` e insere notificação via FEAT-0018 (`type: system_event`, título: "Registro não sincronizado", corpo: "[Nome do alimento] não pôde ser sincronizado — o alimento não está mais disponível. Você pode registrar novamente usando outro alimento."). Sem fluxo de correção inline. Dependência: FEAT-0018 em produção (GAP-feat0018-prod); se indisponível, op é descartada sem notificação. (4ª curadoria — GAP-archived-ref resolvido)
+- **Indicadores de estado de sync por registro:** "pendente de sync" → "sincronizando" → "sincronizado"; registros rejeitados por referência arquivada são descartados automaticamente sem estado de erro na UI — usuário é notificado via FEAT-0018
 - **Logout com dados pendentes:** fluxo completo definido (ver GAP-logout-pending): (1) verificar `pendente_sync` antes de executar o logout; (2) se há dados pendentes e usuário está online → tentar sync silencioso; se sync OK → logout normal sem aviso; se sync falha ou usuário está offline → exibir aviso; (3) diálogo: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente. Deseja continuar?" + [Cancelar] / [Sair mesmo assim]; (4) confirmação → limpeza imediata de todos os stores + `supabase.auth.signOut()`. Sem prazo/countdown — decisão imediata ao confirmar.
 
 ## Out of Scope
@@ -114,6 +113,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - Cache de toda a tabela de referências (~3 mil itens) — excluído por volume; somente favoritos e customizados do usuário ficam offline
 - Suporte offline no iOS Safari — excluído; usuário iOS que perde conexão recebe informativo específico; app funciona normalmente online em qualquer iOS; comunicação proativa ao usuário iOS quando online (AC16)
 - Conflict resolution entre dispositivos (usuário edita o mesmo registro em dois devices offline e sincroniza) — fora de escopo em ambas as fases; cópia offline é por dispositivo; servidor é a fonte de verdade
+- **Edição offline de registros de consumo** — para corrigir um registro, o usuário exclui e cria novo; escrita offline cobre apenas criação e exclusão (Fase 2)
 - Offline write para entidades além de registros de consumo (ex.: exames PKU, dados de perfil, configurações, favoritos) — escrita offline limitada a registros de consumo (Fase 2)
 - Acesso offline à conta delegada — offline prioriza registro confiável da dieta PKU do próprio usuário
 - Resolução automática de conflitos de dados do tipo "mesmo dia em dois dispositivos" — usuário deve resolver manualmente ao retornar online
@@ -123,6 +123,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - [FEAT-0014 PWA](../../current/features/FEAT-0014-pwa.md)
 - [FEAT-0008 Referências alimentares](../../current/features/FEAT-0008-referencias-alimentares.md) (favoritos e customizados)
 - [FEAT-0011 Delegação de acesso](../../current/features/FEAT-0011-delegacao-acesso.md) (bloqueio offline + limpeza ao sair da conta delegada — AC13)
+- [FEAT-0018 Central de Notificações](../features/FEAT-0018-central-notificacoes.md) — canal de notificação para rejeição de registro arquivado (AC27, `type: system_event`); **deve estar em produção antes de ENH-0001 Fase 2 ir ao ar** (GAP-feat0018-prod)
 
 ## Impacted Frontend
 
@@ -190,6 +191,28 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - `vite-plugin-pwa` (nova dependência de dev)
 - Workbox (transitiva via plugin)
 - `fake-indexeddb` (nova dependência de dev — testes unitários do serviço IndexedDB)
+- **FEAT-0018 (Central de Notificações)** — dependência de produção para Fase 2; tabela `notificacoes` deve estar em prod com RLS de escrita configurado antes de ENH-0001 Fase 2 ir ao ar (GAP-feat0018-prod)
+
+## Comunicações ao Usuário — Canal FEAT-0018
+
+> 4ª curadoria: FEAT-0018 (Central de Notificações) é o canal oficial para comunicações assíncronas ao usuário nesta spec.
+
+| Comunicação | Canal | Fase | Tipo FEAT-0018 | Condição |
+|---|---|---|---|---|
+| Rejeição de registro por referência arquivada (AC27) | FEAT-0018 | Fase 2 | `system_event` | FEAT-0018 em prod; RLS de escrita habilitado (GAP-feat0018-write-access) |
+| `OfflineBanner` — offline / sincronizando / erro / iOS | Inline (componente de estado) | Fase 1 | N/A — estado em tempo real | — |
+| `UpdateBanner` — update aguardando | Inline (componente de estado) | Ambas | N/A — estado em tempo real | — |
+| Primeiro acesso offline | Inline (tela de login) | Fase 1 | N/A — usuário não autenticado | — |
+| Sessão expirada ao retornar online | Inline (redirect + aviso) | Fase 1 | N/A — usuário já desautenticado | — |
+| Logout com dados pendentes | Dialog síncrono (inline) | Fase 2 | N/A — confirmação síncrona | — |
+
+**Análise de viabilidade da notificação de archived-ref via FEAT-0018:**
+- **Timing:** rejeição detectada durante sync, que ocorre exclusivamente quando online + autenticado → FEAT-0018 disponível no momento da notificação ✓
+- **Payload:** `title` (≤ 255 chars) + `body` (≤ 255 chars) — texto curto, sem restrições ✓
+- **Persistência:** notificação persiste até 30 dias na tabela `notificacoes` — usuário vê no badge ao abrir o app mesmo após fechar ✓
+- **Agrupamento:** se múltiplos registros rejeitados na mesma sessão de sync, pode-se criar uma notificação por rejeição ou uma sumarizando — a definir na implementação
+- **Mecanismo de escrita:** handler de sync (app layer) chama `supabase.from('notificacoes').insert(...)` com a sessão autenticada do usuário; requer RLS de INSERT habilitado para `user_id = auth.uid()` ou RPC equivalente (GAP-feat0018-write-access — depende das decisões de implementação do FEAT-0018)
+- **Fallback:** se FEAT-0018 não estiver em prod, op é descartada silenciosamente sem notificação
 
 ## Risks
 
@@ -201,7 +224,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Login offline sem sessão prévia**: mitigado — AC11 + mensagem específica para primeiro acesso (AC11)
 - **Re-sync em dados móveis**: volume PKU confirmado como negligível (máx. ~74 KB em uso pesado — fórmula em GAP-volume); risco descartado
 - **Sync parcial (Fase 2)**: mitigado — sincronização atômica (all or nothing); sem sync parcial; retry automático; dados locais preservados até confirmação do servidor
-- **Conflito com referência arquivada (Fase 2)**: viabilidade confirmada via RLS policy existente; fluxo de UX definido (ver GAP-archived-ref); design visual pendente
+- **Conflito com referência arquivada (Fase 2)**: viabilidade confirmada via RLS policy existente; UX simplificada: auto-discard + notificação via FEAT-0018; sem fluxo de correção inline; dependência de FEAT-0018 em prod para notificação
 - **Sessão expirada offline**: mitigado com duas linhas de defesa: `onAuthStateChange` [CONFIRMED: `AuthContext.tsx` linha 78] + verificação ao abrir app (AC20)
 - **Listener Supabase onAuthStateChange**: [CONFIRMED] — já existe em `AuthContext.tsx` linha 78; gap encerrado
 
@@ -225,7 +248,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 **Complexidade:**
 - IndexedDB para queue de operações pendentes (store `pendente_sync`) — UUID local gerado client-side antes de enviar ao Supabase
 - Auth handling no app layer (sem JWT no SW — decisão Fase 1 mantida)
-- Conflict resolution limitada: registros criados offline podem conflitar com referências arquivadas (ver Open Questions) ou com edições no mesmo dia em outro device (fora de escopo)
+- Conflict resolution limitada: registros criados offline podem conflitar com referências arquivadas (auto-discard + notificação FEAT-0018) ou com criações/exclusões do mesmo dia em outro device (fora de escopo)
 - Total de Phe calculado localmente com favoritos/customizados pode divergir do total real se dados mudaram no servidor — usuário deve ser informado ao sync
 - UI: cada operação pendente de sync exibe indicador de estado
 
@@ -259,7 +282,8 @@ for op in pendente_sync (ordem por timestamp):
     throw NetworkError
 
   if isArchivedRefError(result):
-    markAs(op, 'rejected-archived-ref')  // marca, continua fila
+    removeFromQueue(op)                  // descartado automaticamente
+    insertNotification(op)               // via FEAT-0018 system_event
     continue
 
   if isSuccess(result):
@@ -273,17 +297,17 @@ for op in pendente_sync (ordem por timestamp):
 | Cenário | Comportamento | Garantia |
 |---|---|---|
 | Erro de rede/servidor (5xx, timeout) | Stop all + retry automático | All-or-nothing (perspectiva de rede) |
-| Referência arquivada (RLS reject) | Op marcada como `rejected-archived-ref`; demais continuam | Partial processing (por design de UX) |
+| Referência arquivada (RLS reject) | Op descartada automaticamente; notificação via FEAT-0018; demais continuam | Auto-discard + notificação (por design de UX — 4ª curadoria) |
 | Crash do cliente mid-sync | IndexedDB preservado (durável por natureza); ops já enviadas com sucesso não retornam | Sem perda de dados locais; possível reprocessamento |
 | Sucesso total | Fila limpa; `OfflineBanner` removido | Estado consistente |
 
 **"Atômico" nesta spec = all-or-nothing para falhas de rede, não transação de banco de dados.** Isso é consistente com a decisão de partial processing para archived-ref.
 
-### Novos gaps identificados nesta análise
+### Gaps identificados nesta análise — status atualizado (4ª curadoria)
 
-- **GAP-sync-update-service:** `updateRegistro()` não existe em `registros.service.ts` — necessário para edição offline (Fase 2); a criar na implementação.
-- **GAP-sync-idempotency:** se confirmação de op for perdida mid-sync (rede cai após servidor salvar, antes do cliente receber 200), op pode ser reenviada e criar duplicata de CREATE. Mitigação possível: UUID client-side como idempotency key (campo `client_id` opcional em `registros`). Decisão de implementação pendente.
-- **GAP-sync-schema-stability:** schema `pendente_sync` deve ser estável entre versões do app para evitar que forced update deixe ops pendentes inacessíveis. Decisão pendente — ver Pendências em Aberto.
+- ~~**GAP-sync-update-service:**~~ **REMOVIDO** — edição offline fora de escopo desta spec; `updateRegistro()` não é necessário (4ª curadoria).
+- **GAP-sync-idempotency:** **RESOLVIDO (4ª curadoria)** — UUID client-side (`client_uuid`) adotado como idempotency key; incluído no schema `pendente_sync` e enviado no payload do INSERT ao Supabase para prevenir duplicatas de CREATE em caso de perda de confirmação mid-sync.
+- **GAP-sync-schema-stability:** **RESOLVIDO (4ª curadoria)** — opção (a) adotada: schema `pendente_sync` declarado imutável entre versões do app; sem breaking changes permitidos; mudanças futuras exigem migração explícita com versionamento da store antes de qualquer forced update.
 
 ## Open Questions
 
@@ -333,7 +357,7 @@ Resolvidas pela análise:
 | Questão | Natureza | O que precisa ser decidido |
 |---|---|---|
 | Atualização forçada do SW pós-deploy (GAP-forced-update) | Implicações analisadas — decisão por fase pendente | **Análise concluída:** Fase 1: modo `prompt` recomendado (sem `skipWaiting`; usuário decide quando atualizar). Fase 2: `forced update` (`skipWaiting: true` + `clientsClaim: true`) é viável somente se: (1) schema do IndexedDB for estável entre versões, OU (2) lógica de migração for adicionada ao SW `activate` event para migrar `pendente_sync`. **Implicações offline:** SW não atualiza enquanto offline — aguarda reconexão para fetch do novo `sw.js` (comportamento correto). **Implicações Fase 2:** reload forçado preserva IndexedDB (dados sobrevivem ao reload), mas schema incompatível pode deixar dados inacessíveis. **Pendente:** (1) decidir se schema `pendente_sync` será considerado estável (sim = forçar; não = implementar migração); (2) atualizar AC10 após decisão |
-| Conflito com referência arquivada (GAP-archived-ref) | Viabilidade confirmada — design visual pendente | **Mecanismo confirmado:** RLS policy "Inserir registro apenas com referencia ativa" na tabela `registros` rejeita INSERT com `referencia_id` de referência inativa → handler de sync detecta erro e marca entrada como `rejected-archived-ref` em `pendente_sync`. **Fila continua:** sim, demais registros processados normalmente. **UX proposta:** registro aparece como "Registro de [data] não sincronizado — alimento não está mais disponível" + [Corrigir] (picker de alimento ativo → re-entra na fila) + [Descartar] (com confirmação). **Pendente:** design visual das telas de rejeição e correção |
+| Conflito com referência arquivada (GAP-archived-ref) | **RESOLVIDO — 4ª curadoria** | **Decisão:** UX simplificada — auto-discard + notificação FEAT-0018; sem fluxo de correção inline. Handler de sync detecta erro de RLS, remove op da fila e insere `system_event` via FEAT-0018: "[Nome] não pôde ser sincronizado — o alimento não está mais disponível. Você pode registrar novamente usando outro alimento." Fila continua normalmente. Sem design visual adicional necessário. |
 | Volume real de favoritos e customizados (GAP-volume) | **RESOLVIDO** | **Fórmula:** `(N_fav + N_custom) × 230 B + (N_dias × N_reg_por_dia) × 185 B + 280 B (perfil)`. **Cenários:** leve (~7 KB), médio (~21 KB), pesado (~74 KB). **Sem imagens/blobs** nos registros. **Conclusão:** volume negligível; quota do browser (mín. 50 MB) nunca será atingida — risco descartado |
 | Duração da sessão Supabase (GAP-session-duration) | **CLARIFICADO** | **Fato verificado no código:** `createClient` sem opções custom de auth → Supabase defaults: access token 1h + refresh token 7 dias + auto-refresh (renovação automática ~60s antes do vencimento). **Implicação offline:** sessão sobrevive offline < 7 dias (refresh token ainda válido ao voltar online). Sessão expira offline apenas após 7+ dias sem usar o app. **Não verificável sem acesso ao dashboard:** se o JWT expiry foi alterado das defaults. **Decisão:** manter comportamento definido (AC20 + AC21); doc assume defaults do Supabase |
 | Logout com dados pendentes — fluxo completo (GAP-logout-pending) | **RESOLVIDO** — fluxo definido na seção Scope | Fluxo completo definido: (1) sem pendências → logout imediato; (2) com pendências + online → tentar sync silencioso → se OK: logout normal; se falha: dialog; (3) com pendências + offline → dialog imediato. Dialog: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente." + [Cancelar] / [Sair mesmo assim]. Sem prazo/countdown — decisão imediata. AC26 atualizado. |
@@ -344,12 +368,10 @@ Resolvidas pela análise:
 
 | Gap/Pendência | Natureza | O que precisa ser decidido/feito |
 |---|---|---|
-| GAP-archived-ref — design visual | Design | Telas de rejeição ("Registro de [data] não sincronizado — alimento não está mais disponível") e correção (picker de alimento substituto) ainda precisam de design visual |
-| GAP-sync-schema-stability | Decisão técnica | Definir se schema `pendente_sync` será declarado estável (sem breaking changes entre versões de app). Impacta forced update: schema incompatível deixa ops pendentes inacessíveis na nova versão |
-| GAP-sync-update-service | Implementação | `updateRegistro()` não existe em `registros.service.ts` — necessário para edição offline (Fase 2); a criar na implementação |
-| GAP-sync-idempotency | Decisão técnica | Op reenviada por perda de confirmação mid-sync pode criar duplicata de CREATE. Mitigação: UUID client-side como idempotency key. Decisão de implementação pendente |
-| AC14 — Vercel headers | Verificação pós-deploy | `vercel.json` atual sem `Cache-Control` para `/sw.js`; precisa ser adicionada na implementação e validada em produção |
-| AC15, AC16 — iOS | Verificação manual | Só pode ser validado em dispositivo iOS físico |
+| GAP-feat0018-prod | Dependência de deploy | FEAT-0018 (Central de Notificações) deve estar em produção antes de ENH-0001 Fase 2 ir ao ar — notificação de archived-ref depende da tabela `notificacoes` em prod |
+| GAP-feat0018-write-access | Decisão técnica (FEAT-0018) | RLS da tabela `notificacoes` deve permitir INSERT pelo client autenticado (`user_id = auth.uid()`) ou via RPC — depende das decisões de implementação do FEAT-0018 |
+| AC14 — Vercel headers | Implementar na Fase 1 + verificar pós-deploy | `vercel.json` atual sem `Cache-Control` para `/sw.js`; adicionar na implementação da Fase 1; validar em produção após o primeiro deploy |
+| AC15, AC16 — iOS | GAP ACEITO — verificação manual futura | Só pode ser validado em dispositivo iOS físico; aceito como gap; não impeditivo para implementação nem para merge |
 
 ## Acceptance Criteria
 
@@ -380,11 +402,11 @@ Resolvidas pela análise:
 ### Fase 2 — AC22–AC28 (dependência: Fase 1 + AC1–AC21 passing)
 
 - **AC22:** Usuário pode criar registro de consumo offline — registro entra na fila de sync com indicador visual "pendente de sincronização"
-- **AC23:** Usuário pode editar registros dos últimos 7 dias (disponíveis no cache) offline — operação entra na fila de sync
+- *(AC23 removido — edição offline fora de escopo desta spec; para corrigir um registro, o usuário exclui e cria novo — 4ª curadoria)*
 - **AC24:** Usuário pode excluir registros dos últimos 7 dias offline — operação entra na fila de sync
-- **AC25:** Ao voltar online: fila `pendente_sync` processada sequencialmente; erros de rede interrompem toda a fila (stop all + retry automático); erros de aplicação (archived-ref) marcam a op individualmente e continuam as demais; dados não removidos da fila antes de confirmação do servidor; ao concluir sem erros de rede: `OfflineBanner` e informativos removidos
+- **AC25:** Ao voltar online: fila `pendente_sync` (ops de criar e excluir — edição offline não está em escopo) processada sequencialmente; `client_uuid` enviado como idempotency key em cada CREATE; erros de rede interrompem toda a fila (stop all + retry automático); archived-ref → op descartada automaticamente + notificação FEAT-0018 + fila continua; dados não removidos da fila antes de confirmação do servidor; ao concluir sem erros de rede: `OfflineBanner` e informativos removidos
 - **AC26:** Ao fazer logout com dados pendentes: (1) se online → sync silencioso tentado; se OK → logout direto sem aviso; se falha → diálogo; (2) se offline → diálogo imediato. Diálogo: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente. Deseja continuar?" + [Cancelar] / [Sair mesmo assim]; sem countdown; ao confirmar: limpeza imediata de todos os stores + `supabase.auth.signOut()`
-- **AC27:** Conflito com referência arquivada ao sincronizar: INSERT rejeitado pelo RLS ("Inserir registro apenas com referencia ativa"); handler detecta e marca op como `rejected-archived-ref` na `pendente_sync`; demais registros da fila continuam; UI exibe "Registro de [data] não sincronizado — alimento não está mais disponível" + [Corrigir] (picker de alimento ativo → re-entra na fila) / [Descartar] (com confirmação)
+- **AC27:** Conflito com referência arquivada ao sincronizar: INSERT rejeitado pelo RLS ("Inserir registro apenas com referencia ativa"); handler detecta, remove op da `pendente_sync` automaticamente e insere notificação via FEAT-0018 (`type: system_event`, título: "Registro não sincronizado", corpo: "[Nome do alimento] não pôde ser sincronizado — o alimento não está mais disponível. Você pode registrar novamente usando outro alimento."); demais registros da fila continuam; sem fluxo de correção inline; sem estado de erro na UI para o registro descartado. Dependência: FEAT-0018 em prod (GAP-feat0018-prod)
 - **AC28:** Tela de Perfil offline exibe painel "Dados armazenados neste dispositivo": favoritos (N itens), customizados (N itens), histórico (N registros, período: DD/MM–DD/MM), sincronizado em: [data/hora]. Fase 2: painel inclui N operações pendentes de sync + botão [Tentar sincronizar agora] (habilitado apenas quando online)
 
 ## Comportamento Offline por Tela
@@ -393,7 +415,7 @@ Resolvidas pela análise:
 |---|---|---|---|
 | Login (`/`) | Disponível — login padrão + `OfflineBanner`; primeiro acesso: mensagem específica (AC11) | Sem mudança | — |
 | Dashboard (`/dashboard`) | Disponível — dados do dia via cache; criar medição bloqueada; dia atual sem registros: vazio com aviso (AC19) | Criar medição disponível offline — entra na fila de sync | "Criar medições requer conexão." (Fase 1) / indicador "pendente de sync" (Fase 2) |
-| Histórico (`/historico`) | Disponível parcial — últimos 7 dias; exportar bloqueado (AC3) | Editar/excluir registros dos 7 dias — fila de sync | "Exibindo registros armazenados localmente dos últimos 7 dias." |
+| Histórico (`/historico`) | Disponível parcial — últimos 7 dias; exportar bloqueado (AC3) | Excluir registros dos 7 dias — fila de sync | "Exibindo registros armazenados localmente dos últimos 7 dias." |
 | Referências (`/referencias`) | Disponível parcial — só favoritos e customizados; add/remove/busca bloqueados; lista vazia: mensagem específica (AC2, AC18) | Sem mudança | "Você está offline. Exibindo apenas seus favoritos e alimentos customizados." |
 | Estatísticas (`/estatisticas`) | Disponível parcial — dados 7d; toggle "Último Mês" com aviso de dados parciais; export bloqueado (AC12) | Sem mudança | "Você está offline. Exibindo dados dos últimos 7 dias. O período 'Último Mês' pode estar incompleto." |
 | Exames (`/exames`) | Bloqueada offline | Sem mudança | "Exames PKU indisponíveis offline." |
