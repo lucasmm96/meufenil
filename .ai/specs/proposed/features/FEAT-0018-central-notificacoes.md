@@ -109,6 +109,15 @@ Todas as questões primárias foram respondidas via questionário em 2026-10-05.
 
 _Respondidas (2026-10-05):_ tipos de notificação ✓ · real-time ✓ · ponto de acesso ✓ · push notifications ✓ · persistência ✓ · admin como emissor ✓ · login-as ✓
 
+## Post-Deploy Steps
+
+1. Aplicar migration em **produção**: `bash scripts/db/apply-supabase-migrations.sh --env production`
+   — migration: `supabase/migrations/20261005000000_feat0018_central_notificacoes.sql`
+   — cria tabela `notificacoes`, RLS, RPCs, trigger `fn_health_alert_notificacao` e habilita Realtime via `ALTER PUBLICATION supabase_realtime ADD TABLE notificacoes`
+2. Verificar no dashboard Supabase (prod) que `notificacoes` aparece na lista de Realtime.
+
+Issue de rastreamento: #119 — milestone v1.20.0.
+
 ## Acceptance Criteria
 
 - [ ] Badge no header exibe contagem de notificações não lidas; atualiza em tempo real via Supabase Realtime

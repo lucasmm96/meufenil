@@ -85,6 +85,10 @@
 
 [Preencher — perguntas que exigem decisão humana; não responder automaticamente]
 
+## Post-Deploy Steps
+
+[Preencher — ações que DEVEM ocorrer em produção **após** o deploy desta spec (ex.: migration, `ALTER PUBLICATION`, configuração de serviço externo, variável de ambiente em prod). Use N/A se não houver nenhuma. Seção preenchida → issue `Post-Deploy` obrigatório no milestone da próxima release durante o housekeeping (CONVENTIONS §18.12).]
+
 ## Acceptance Criteria
 
 [Preencher — como validar que a proposta foi implementada corretamente; cobrir as alternativas com chance real de decisão, ou permanecer TBD até a decisão]
