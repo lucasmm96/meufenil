@@ -191,3 +191,11 @@ CREATE OR REPLACE TRIGGER "trg_health_alert_notificacao"
     AFTER INSERT OR UPDATE ON "public"."registros"
     FOR EACH ROW
     EXECUTE FUNCTION "public"."fn_health_alert_notificacao"();
+
+-- ============================================================
+-- 6. Realtime
+--    Habilita Supabase Realtime para a tabela notificacoes,
+--    permitindo que o hook useNotificacoes receba atualizações
+--    instantâneas do badge via postgres_changes.
+-- ============================================================
+ALTER PUBLICATION "supabase_realtime" ADD TABLE "public"."notificacoes";
