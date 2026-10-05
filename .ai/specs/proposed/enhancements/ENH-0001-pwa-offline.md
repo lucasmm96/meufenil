@@ -82,7 +82,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Limpeza do IndexedDB — triggers:** (1) logout explícito (botão); (2) expiração silenciosa de sessão via Supabase `onAuthStateChange` listener [CONFIRMED: já existe em `AuthContext.tsx` linha 78 — evento `SIGNED_OUT` → `setAuthUser(null)` → app redireciona para login; AC20 atua como segunda linha de defesa para quando o app está fechado/backgrounded]
 - **Limpeza do IndexedDB — delegação:** ao sair de conta delegada e retornar à conta própria, stores prefixadas com `user_id` do usuário delegado são limpas
 - **Conta delegada bloqueada offline:** modo offline não disponibiliza acesso a conta delegada — ao tentar acessar, exibir: "Acesso delegado indisponível offline. Conecte-se para acessar a conta de outra pessoa."; offline prioriza registro confiável da dieta PKU do próprio usuário
-- **Perfil offline — somente leitura:** tela de Perfil exibe dados do cache local (nome, e-mail, limite diário) em modo leitura; botões de editar, exportar, excluir conta e ações de delegação desabilitados com informativo
+- **Perfil offline — somente leitura + painel de dados:** tela de Perfil exibe dados do cache local (nome, e-mail, limite diário) em modo leitura; botões de editar, exportar, excluir conta e ações de delegação desabilitados com informativo; **painel "Dados armazenados neste dispositivo"** exibe contagem por store (favoritos: N itens, customizados: N itens, histórico: N registros, período: DD/MM–DD/MM, sincronizado em: [data/hora]); Fase 2: painel inclui N operações pendentes de sync + botão [Tentar sincronizar agora] (habilitado apenas quando online)
 - **Favoritos bloqueados offline (add/remove):** no modo offline, botões de adicionar/remover favorito desabilitados com informativo — offline só expõe referências favoritas, adicionar/remover não faz sentido sem acesso à lista completa
 - **Referências — sem favoritos offline:** ao abrir Referências offline com listas de favoritos e customizados vazias → exibir: "Você está offline e não possui alimentos favoritos salvos. Adicione favoritos online para acessá-los sem conexão."
 - **Dashboard offline — dia atual sem registros:** se não houver registros do dia atual no cache, exibir o dia com valores vazios/zerados e aviso "Nenhum registro encontrado para hoje no modo offline." — não exibir o dia anterior como se fosse hoje
@@ -94,7 +94,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Detecção de iOS offline:** `useOnlineStatus` detecta iOS (via user agent) — ao perder conexão em iOS, `OfflineBanner` exibe informativo específico em vez da experiência offline normal; dados cacheados não são exibidos no iOS
 - **Primeiro acesso offline — mensagem específica:** ao abrir app pela primeira vez sem internet (sem dados locais), exibir mensagem específica na tela de login: "Você está offline. Faça o primeiro acesso online para habilitar as funcionalidades offline." (em substituição ao OfflineBanner padrão)
 - **Sincronização de favoritos e customizados:** stores `favoritos` e `customizadas` atualizadas em dois momentos: (1) fetch bem-sucedido na página de Referências (substituição completa); (2) imediatamente após add/remove/criar referência customizada (atualização incremental)
-- **Atualização do SW pós-deploy:** análise de implicações concluída (ver Open Questions — GAP-forced-update). Decisão por fase: Fase 1 usa modo `prompt` (AC10 atual); Fase 2 requer definição de migração IndexedDB antes de usar forced update com `skipWaiting: true` — risco de perda de `pendente_sync` se schema mudar entre versões. AC10 condicionado à decisão de Fase 2.
+- **Atualização do SW pós-deploy (forced update — ambas as fases):** decisão tomada (3ª curadoria, GAP-forced-update resolvido). Ambas as fases usam update forçado controlado pelo app layer (não `autoUpdate` automático). Fluxo: (1) SW em espera detectado → app verifica `pendente_sync`; (2) sem pendentes → `messageSkipWaiting()` imediato → página recarrega; (3) com pendentes + online → sync silencioso primeiro; se sync OK → `messageSkipWaiting()`; se sync falha → `UpdateBanner` exibe erro ("Não foi possível sincronizar os dados antes de atualizar. Dados offline mantidos."); update aguarda próxima oportunidade; (4) offline → update aguarda (SW não consegue buscar novo `sw.js` sem rede — comportamento padrão do browser); (5) próxima sessão online com update aguardando → sync → se OK: atualização aplicada. **Pendência:** schema `pendente_sync` deve ser declarado estável entre versões (sem breaking changes) para evitar perda de ops pendentes em caso de incompatibilidade — ver GAP-sync-schema-stability
 - **Vercel + SW — configuração de headers:** adicionar regra no `vercel.json` para `/sw.js`: `Cache-Control: no-cache, no-store, must-revalidate` + `Service-Worker-Allowed: /` — sem isso, Vercel pode cachear o SW com TTL longo; o rewrite `/(.*) → /index.html` não afeta o SW (Vercel serve arquivos reais antes de aplicar rewrites)
 
 ### Fase 2 — Escrita offline (dependência: Fase 1 implementada + AC1–AC21 passing)
@@ -131,7 +131,8 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - Novo hook: `useOnlineStatus` (navigator.onLine + eventos online/offline + ping múltiplo de conectividade + detecção iOS + dispatch de re-sync proativo + verificação de sessão)
 - Novo serviço: `offlineStorage.service.ts` — gerencia IndexedDB (stores: `favoritos`, `customizadas`, `historico`, `perfil`; Fase 2: `pendente_sync`)
 - Novo componente: `OfflineBanner` — quatro estados: offline ("Você está offline. Exibindo dados armazenados localmente."), sincronizando ("Conexão restaurada. Atualizando dados..."), erro de sync ("Erro ao sincronizar. Tentaremos novamente em breve."), iOS offline ("Acesso offline não disponível no iOS. Reconecte-se para continuar.")
-- Modificações por tela: avisos contextuais; Perfil — modo somente leitura offline; Referências — add/remove bloqueados offline; Dashboard — Fase 2: criar medição offline com indicador
+- Novo componente: `UpdateBanner` — exibido quando online com novo SW em espera + sync pendente; dois estados: sincronizando ("Há uma atualização disponível. Sincronizando dados antes de atualizar...") e erro ("Não foi possível sincronizar os dados antes de atualizar. Dados offline mantidos. Tente novamente ou reinicie o app quando possível.")
+- Modificações por tela: avisos contextuais; Perfil — modo somente leitura offline + painel de dados (AC28); Referências — add/remove bloqueados offline; Dashboard — Fase 2: criar medição offline com indicador
 - `vercel.json` — regra de header para `/sw.js`
 
 ## Impacted Tests
@@ -230,6 +231,60 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 
 **Custo:** estimativa de ~2× o escopo da Fase 1 — incluído nesta spec com implementação sequencial.
 
+## Análise de Viabilidade — Sync Atômico (Fase 2)
+
+> Análise realizada na 3ª curadoria (2026-10-05). Documenta a abordagem técnica viável para o sync "tudo ou nada" definido em AC6 e AC25.
+
+### Restrição técnica fundamental
+
+O cliente `@supabase/supabase-js@^2.87.1` (confirmado em `package.json`) não suporta transações multi-statement nativas. Cada chamada (`.insert()`, `.update()`, `.delete()`) é uma operação independente ao banco de dados.
+
+### Opções avaliadas
+
+| Opção | Descrição | Prós | Contras |
+|---|---|---|---|
+| **A — Sequential client sync (selecionada)** | Processar ops sequencialmente no app layer; erros de rede interrompem tudo; erros de aplicação (archived-ref) marcam a op e continuam as demais | Sem novos objetos DB; usa padrões existentes (`.rpc()` e chamadas diretas); compatível com partial processing de archived-ref | Não é transação DB; crash mid-sync pode deixar fila inconsistente (mitigado — ver abaixo) |
+| **B — RPC PostgreSQL** | `fn_sync_registros_offline(ops jsonb[])` em transação única | Atomicidade DB real | Incompatível com "archived-ref não bloqueia outros" sem SAVEPOINTs por op; HIGH RISK (novo schema object — CLAUDE.md §7); maior complexidade |
+
+### Abordagem selecionada: Sequential client sync (Opção A)
+
+O handler de sync no app layer processa cada operação da fila individualmente:
+
+```
+for op in pendente_sync (ordem por timestamp):
+  result = await supabaseOp(op)   // .insert(), .update(), .delete()
+
+  if isNetworkError(result):
+    stopAll()                      // fila preservada, retry automático
+    throw NetworkError
+
+  if isArchivedRefError(result):
+    markAs(op, 'rejected-archived-ref')  // marca, continua fila
+    continue
+
+  if isSuccess(result):
+    removeFromQueue(op)            // removida APENAS após confirmação do servidor
+```
+
+**Nota de implementação:** `updateRegistro()` não existe em `registros.service.ts` — precisa ser criado na Fase 2 (GAP-sync-update-service).
+
+### Semântica de "sync atômico" nesta spec
+
+| Cenário | Comportamento | Garantia |
+|---|---|---|
+| Erro de rede/servidor (5xx, timeout) | Stop all + retry automático | All-or-nothing (perspectiva de rede) |
+| Referência arquivada (RLS reject) | Op marcada como `rejected-archived-ref`; demais continuam | Partial processing (por design de UX) |
+| Crash do cliente mid-sync | IndexedDB preservado (durável por natureza); ops já enviadas com sucesso não retornam | Sem perda de dados locais; possível reprocessamento |
+| Sucesso total | Fila limpa; `OfflineBanner` removido | Estado consistente |
+
+**"Atômico" nesta spec = all-or-nothing para falhas de rede, não transação de banco de dados.** Isso é consistente com a decisão de partial processing para archived-ref.
+
+### Novos gaps identificados nesta análise
+
+- **GAP-sync-update-service:** `updateRegistro()` não existe em `registros.service.ts` — necessário para edição offline (Fase 2); a criar na implementação.
+- **GAP-sync-idempotency:** se confirmação de op for perdida mid-sync (rede cai após servidor salvar, antes do cliente receber 200), op pode ser reenviada e criar duplicata de CREATE. Mitigação possível: UUID client-side como idempotency key (campo `client_id` opcional em `registros`). Decisão de implementação pendente.
+- **GAP-sync-schema-stability:** schema `pendente_sync` deve ser estável entre versões do app para evitar que forced update deixe ops pendentes inacessíveis. Decisão pendente — ver Pendências em Aberto.
+
 ## Open Questions
 
 Resolvidas pela análise:
@@ -282,7 +337,19 @@ Resolvidas pela análise:
 | Volume real de favoritos e customizados (GAP-volume) | **RESOLVIDO** | **Fórmula:** `(N_fav + N_custom) × 230 B + (N_dias × N_reg_por_dia) × 185 B + 280 B (perfil)`. **Cenários:** leve (~7 KB), médio (~21 KB), pesado (~74 KB). **Sem imagens/blobs** nos registros. **Conclusão:** volume negligível; quota do browser (mín. 50 MB) nunca será atingida — risco descartado |
 | Duração da sessão Supabase (GAP-session-duration) | **CLARIFICADO** | **Fato verificado no código:** `createClient` sem opções custom de auth → Supabase defaults: access token 1h + refresh token 7 dias + auto-refresh (renovação automática ~60s antes do vencimento). **Implicação offline:** sessão sobrevive offline < 7 dias (refresh token ainda válido ao voltar online). Sessão expira offline apenas após 7+ dias sem usar o app. **Não verificável sem acesso ao dashboard:** se o JWT expiry foi alterado das defaults. **Decisão:** manter comportamento definido (AC20 + AC21); doc assume defaults do Supabase |
 | Logout com dados pendentes — fluxo completo (GAP-logout-pending) | **RESOLVIDO** — fluxo definido na seção Scope | Fluxo completo definido: (1) sem pendências → logout imediato; (2) com pendências + online → tentar sync silencioso → se OK: logout normal; se falha: dialog; (3) com pendências + offline → dialog imediato. Dialog: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente." + [Cancelar] / [Sair mesmo assim]. Sem prazo/countdown — decisão imediata. AC26 atualizado. |
-| Perfil offline — informativo de dados locais (GAP-profile-offline-panel) | Ideia para refinamento futuro | Incluir na tela de Perfil offline um painel informativo: "dados armazenados neste dispositivo" + "dados pendentes de sincronização". Ideia inicial; complexidade e valor a avaliar em refinamento separado |
+| Atualização forçada do SW pós-deploy (GAP-forced-update) | **RESOLVIDO — 3ª curadoria** | **Decisão:** forced update em ambas as fases, controlado pelo app layer; sync silencioso antes de atualizar quando há pendentes; offline = update aguarda; ver AC10 e seção Scope — Fase 1. **Pendência remanescente:** schema `pendente_sync` estável entre versões — ver GAP-sync-schema-stability |
+| Painel de dados offline no Perfil (GAP-profile-offline-panel) | **EM ESCOPO — 3ª curadoria** | **Decisão:** incluído no escopo da implementação desde o início (não ideia futura). Painel mostra contagem por store + última sincronização + (Fase 2) pendentes de sync + botão de sync manual. Ver AC28 e seção Scope — Fase 1. |
+
+**Pendências em Aberto:**
+
+| Gap/Pendência | Natureza | O que precisa ser decidido/feito |
+|---|---|---|
+| GAP-archived-ref — design visual | Design | Telas de rejeição ("Registro de [data] não sincronizado — alimento não está mais disponível") e correção (picker de alimento substituto) ainda precisam de design visual |
+| GAP-sync-schema-stability | Decisão técnica | Definir se schema `pendente_sync` será declarado estável (sem breaking changes entre versões de app). Impacta forced update: schema incompatível deixa ops pendentes inacessíveis na nova versão |
+| GAP-sync-update-service | Implementação | `updateRegistro()` não existe em `registros.service.ts` — necessário para edição offline (Fase 2); a criar na implementação |
+| GAP-sync-idempotency | Decisão técnica | Op reenviada por perda de confirmação mid-sync pode criar duplicata de CREATE. Mitigação: UUID client-side como idempotency key. Decisão de implementação pendente |
+| AC14 — Vercel headers | Verificação pós-deploy | `vercel.json` atual sem `Cache-Control` para `/sw.js`; precisa ser adicionada na implementação e validada em produção |
+| AC15, AC16 — iOS | Verificação manual | Só pode ser validado em dispositivo iOS físico |
 
 ## Acceptance Criteria
 
@@ -297,27 +364,28 @@ Resolvidas pela análise:
 - **AC7:** IndexedDB do usuário é limpo em dois triggers: (1) logout explícito; (2) expiração silenciosa de sessão via Supabase `onAuthStateChange`
 - **AC8:** Sem regressão na experiência online (performance, atualização de dados, comportamento existente)
 - **AC9:** Cobertura de testes automatizados: (1) `useOnlineStatus` — estados, transições, iOS, ping múltiplo, sessão, primeiro acesso; (2) `OfflineBanner` — quatro estados (offline, sincronizando, erro de sync, iOS offline); (3) serviço IndexedDB — escrita/leitura/limpeza por user_id para todas as stores, isolamento entre usuários, atualização incremental; (4) telas com comportamento offline diferenciado
-- **AC10:** Comportamento de atualização do SW pós-deploy — a definir após análise de forced update (ver Open Questions); até a decisão: prompt ao usuário "Nova versão disponível. Atualizar agora?"
+- **AC10:** Ao detectar nova versão do SW disponível: (1) sem pendentes de sync → `messageSkipWaiting()` automático → página recarrega com nova versão; (2) com pendentes + online → sync silencioso antes do update; se OK: update aplicado; se falha: `UpdateBanner` exibe erro e dados offline são mantidos; (3) offline → update aguarda (SW não pode buscar nova versão sem rede); (4) próxima sessão online com update aguardando: sync → se OK: atualização aplicada
 - **AC11:** Offline sem sessão prévia (primeiro acesso — sem dados locais): mensagem específica na tela de login: "Você está offline. Faça o primeiro acesso online para habilitar as funcionalidades offline."
 - **AC12:** Offline: Estatísticas disponível com dados cacheados (últimos 7 dias); toggle "Última Semana" exibe normalmente; toggle "Último Mês" exibe aviso "Dados incompletos offline — exibindo apenas os últimos 7 dias disponíveis"; exportar CSV/JSON bloqueado com informativo
 - **AC13:** Conta delegada: indisponível em modo offline — informativo exibido ao tentar acessar; ao retornar da conta delegada (após sessão online), stores do IndexedDB do usuário delegado são limpas automaticamente
 - **AC14:** `vercel.json` configurado com `Cache-Control: no-cache, no-store, must-revalidate` e `Service-Worker-Allowed: /` para `/sw.js`; SW servido como JS e registrado com scope `/`
 - **AC15:** iOS offline: ao perder conexão em dispositivo iOS, `OfflineBanner` exibe mensagem específica ("Acesso offline não disponível no iOS. Reconecte-se para continuar."); dados cacheados não são apresentados
 - **AC16:** iOS online: ao detectar iOS durante sessão online, informativo discreto exibido (uma vez por sessão) informando que o acesso offline não está disponível em iPhones/iPads
-- **AC17:** Perfil offline: dados exibidos em modo somente leitura (nome, e-mail, limite diário a partir do cache); botões de editar, exportar, excluir conta e ações de delegação desabilitados com informativo
+- **AC17:** Perfil offline: dados exibidos em modo somente leitura (nome, e-mail, limite diário a partir do cache); botões de editar, exportar, excluir conta e ações de delegação desabilitados com informativo; painel "Dados armazenados neste dispositivo" visível (AC28)
 - **AC18:** Favoritos offline: botões de add/remove favorito desabilitados com informativo no modo offline
 - **AC19:** Dashboard offline — dia atual sem registros: dia exibido com valores vazios/zerados e aviso "Nenhum registro encontrado para hoje no modo offline."
 - **AC20:** Ao inicializar o app: validade da sessão verificada antes de exibir dados offline; sessão inválida → redirecionar para login com aviso
 - **AC21:** Ao retornar online com sessão expirada: dados locais apagados → redirecionar para login com aviso de possível perda de dados não sincronizados
 
-### Fase 2 — AC22–AC27 (dependência: Fase 1 + AC1–AC21 passing)
+### Fase 2 — AC22–AC28 (dependência: Fase 1 + AC1–AC21 passing)
 
 - **AC22:** Usuário pode criar registro de consumo offline — registro entra na fila de sync com indicador visual "pendente de sincronização"
 - **AC23:** Usuário pode editar registros dos últimos 7 dias (disponíveis no cache) offline — operação entra na fila de sync
 - **AC24:** Usuário pode excluir registros dos últimos 7 dias offline — operação entra na fila de sync
-- **AC25:** Ao voltar online: fila de sync processada atomicamente — qualquer falha mantém estado offline + retry automático; dados locais preservados até confirmação do servidor
-- **AC26:** Ao fazer logout com dados pendentes de sync: aviso exibido com opção de cancelar logout; ao confirmar, dados perdidos com informativo claro — fluxo detalhado a definir (ver Open Questions)
-- **AC27:** Conflito com referência arquivada: registro rejeitado com motivo claro ao usuário; demais registros da fila continuam — fluxo exato a definir após análise de viabilidade (ver Open Questions)
+- **AC25:** Ao voltar online: fila `pendente_sync` processada sequencialmente; erros de rede interrompem toda a fila (stop all + retry automático); erros de aplicação (archived-ref) marcam a op individualmente e continuam as demais; dados não removidos da fila antes de confirmação do servidor; ao concluir sem erros de rede: `OfflineBanner` e informativos removidos
+- **AC26:** Ao fazer logout com dados pendentes: (1) se online → sync silencioso tentado; se OK → logout direto sem aviso; se falha → diálogo; (2) se offline → diálogo imediato. Diálogo: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente. Deseja continuar?" + [Cancelar] / [Sair mesmo assim]; sem countdown; ao confirmar: limpeza imediata de todos os stores + `supabase.auth.signOut()`
+- **AC27:** Conflito com referência arquivada ao sincronizar: INSERT rejeitado pelo RLS ("Inserir registro apenas com referencia ativa"); handler detecta e marca op como `rejected-archived-ref` na `pendente_sync`; demais registros da fila continuam; UI exibe "Registro de [data] não sincronizado — alimento não está mais disponível" + [Corrigir] (picker de alimento ativo → re-entra na fila) / [Descartar] (com confirmação)
+- **AC28:** Tela de Perfil offline exibe painel "Dados armazenados neste dispositivo": favoritos (N itens), customizados (N itens), histórico (N registros, período: DD/MM–DD/MM), sincronizado em: [data/hora]. Fase 2: painel inclui N operações pendentes de sync + botão [Tentar sincronizar agora] (habilitado apenas quando online)
 
 ## Comportamento Offline por Tela
 
@@ -329,7 +397,7 @@ Resolvidas pela análise:
 | Referências (`/referencias`) | Disponível parcial — só favoritos e customizados; add/remove/busca bloqueados; lista vazia: mensagem específica (AC2, AC18) | Sem mudança | "Você está offline. Exibindo apenas seus favoritos e alimentos customizados." |
 | Estatísticas (`/estatisticas`) | Disponível parcial — dados 7d; toggle "Último Mês" com aviso de dados parciais; export bloqueado (AC12) | Sem mudança | "Você está offline. Exibindo dados dos últimos 7 dias. O período 'Último Mês' pode estar incompleto." |
 | Exames (`/exames`) | Bloqueada offline | Sem mudança | "Exames PKU indisponíveis offline." |
-| Perfil (`/perfil`) | Somente leitura (nome, e-mail, limite diário); ações bloqueadas (AC17) | Sem mudança | "Perfil disponível somente para visualização offline." |
+| Perfil (`/perfil`) | Somente leitura (nome, e-mail, limite diário); painel de dados offline (AC17, AC28); ações bloqueadas | Fase 2: painel inclui N pendentes + [Tentar sincronizar agora] (se online) | "Perfil disponível somente para visualização offline." |
 | Admin (`/admin`) | Bloqueada offline | Sem mudança | "Painel administrativo indisponível offline." |
 | Sobre (`/sobre`) | Disponível — conteúdo estático (app shell) | Sem mudança | — |
 | Conta delegada | Bloqueada offline (AC13) | Sem mudança | "Acesso delegado indisponível offline. Conecte-se para acessar a conta de outra pessoa." |
