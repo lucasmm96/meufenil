@@ -13,79 +13,126 @@ A capacidade PWA limita-se à instalação (manifest/ícones); não há service 
 
 Manifest completo (standalone, ícones 192/512/maskable, pt-BR); sem service worker; sem `vite-plugin-pwa` ou workbox nas dependências; comportamento de cache da plataforma Vercel não verificado (U-5.2) `[CONFIRMED: configuration, filesystem — FEAT-0014]`.
 
+## Modelo de Fases
+
+Esta spec cobre **duas fases** de implementação sequenciais:
+
+- **Fase 1 — Offline somente-leitura:** app shell + cache de dados do usuário (favoritos, alimentos customizados, 7 dias de histórico); dados disponíveis para consulta offline; escritas bloqueadas (exceto via fila, na Fase 2).
+- **Fase 2 — Offline com escrita:** criação, edição e exclusão de registros de consumo offline; fila de sincronização local; sincronização automática e atômica ao retornar online. **Dependência:** Fase 1 implementada e estável (AC1–AC21 passing).
+
+As seções abaixo são organizadas por fase quando o comportamento difere. Critérios de aceite da Fase 1 são pré-requisito para iniciar a Fase 2.
+
 ## Proposed State — Fase 1
 
 PWA com cache offline somente-leitura, cobrindo:
 
 1. **App Shell** — HTML/CSS/JS/ícones/manifest com precaching via Workbox (network-first ou cache-first para assets estáticos)
-2. **Referências favoritas do usuário** — a tabela `referencias_favoritas` do usuário é cacheada localmente (IndexedDB); offline exibe apenas os favoritos com aviso explícito
-3. **Registros dos últimos 7 dias** — medições recentes cacheadas localmente (IndexedDB); offline exibe somente esse intervalo com aviso explícito
-4. **UI de estado offline completa:**
+2. **Referências favoritas do usuário** — cacheadas localmente (IndexedDB); offline exibe apenas favoritos com aviso explícito; adição/remoção de favoritos bloqueada offline
+3. **Alimentos customizados do usuário** — referências criadas pelo próprio usuário; cacheadas localmente (IndexedDB); disponíveis offline junto com favoritos; base para seleção em registros offline na Fase 2
+4. **Registros dos últimos 7 dias** — medições recentes cacheadas localmente (IndexedDB); offline exibe somente esse intervalo com aviso explícito
+5. **Dados de perfil** — nome, e-mail e limite diário cacheados localmente (IndexedDB); offline exibe em modo somente leitura
+6. **UI de estado offline completa:**
    - Barra fixa no topo (todas as páginas) indicando acesso à versão offline
    - Informativos por tela para funcionalidades indisponíveis ou parcialmente disponíveis
    - Ao voltar online: barra e informativos removidos automaticamente; dados re-fetched
 
-Comportamento por tela:
-- **Telas bloqueadas offline:** Exames PKU, Perfil, Admin — informativo por tela; demais funcionalidades indisponíveis
-- **Telas parcialmente disponíveis:** Dashboard (dados cacheados; criar medição bloqueado), Histórico (AC3: 7 dias; exportar bloqueado), Referências (AC2: só favoritos; tabela completa bloqueada), Estatísticas (dados 7d cacheados; toggle "Último Mês" com aviso de dados parciais; export bloqueado)
-- **Telas totalmente disponíveis offline:** Login (AC11: login padrão + OfflineBanner), Sobre (conteúdo estático — app shell)
+Comportamento por tela (Fase 1):
+- **Telas bloqueadas offline:** Exames PKU, Admin — informativo por tela
+- **Telas somente leitura offline:** Perfil (nome, e-mail, limite diário exibidos; ações bloqueadas), Conta delegada bloqueada (offline prioriza registro da dieta PKU do próprio usuário)
+- **Telas parcialmente disponíveis:** Dashboard (dados cacheados; criar medição bloqueado; dia atual vazio com aviso se sem registros), Histórico (AC3: 7 dias; exportar bloqueado), Referências (AC2: só favoritos e customizados; add/remove/busca bloqueados; lista vazia: mensagem específica), Estatísticas (dados 7d cacheados; toggle "Último Mês" com aviso de dados parciais; export bloqueado)
+- **Telas totalmente disponíveis offline:** Login (AC11: login padrão + OfflineBanner; primeiro acesso: mensagem específica), Sobre (conteúdo estático — app shell)
 
-## Proposed State — Fase 2 (spec futura, não neste escopo)
+## Proposed State — Fase 2
 
-Escrita offline com fila de sincronização: usuário pode criar medições offline (usando favoritos); registro fica "pendente de sync" localmente; ao retornar online, sincroniza automaticamente com Supabase. Dependência: Fase 1 implementada. Ver análise de feasibility abaixo.
+Escrita offline com fila de sincronização: usuário pode criar, editar e excluir registros de consumo offline; operações ficam em fila local (`pendente_sync`); ao retornar online, sincronização automática e atômica com Supabase. Dependência: Fase 1 implementada.
+
+Comportamento por tela (Fase 2 — delta sobre Fase 1):
+- **Dashboard:** criar medição disponível offline — registro entra na fila de sync; indicador visual "pendente de sincronização" por registro
+- **Histórico:** editar e excluir registros dos últimos 7 dias (disponíveis no cache) offline — operações entram na fila de sync
 
 ## Motivation
 
-- **FACTUAL:** gap documentado (FEAT-0014 "sem offline"); ~3 mil referências no banco mas somente favoritos do usuário precisam estar offline.
+- **FACTUAL:** gap documentado (FEAT-0014 "sem offline"); ~3 mil referências no banco mas somente favoritos e customizados do usuário precisam estar offline.
 - **VALIDATED:** necessidade real — uso em contextos sem rede (refeições fora, consultas) confirmado como cenário esperado pelo stakeholder.
 
 ## Evidence
 
 FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); Fase 5 (PWA).
 
-## Scope (Fase 1)
+## Scope
+
+### Fase 1 — Somente leitura
 
 - Adicionar `vite-plugin-pwa` + Workbox ao projeto
 - Configurar precaching do app shell
 - Verificar compatibilidade com rewrite Vercel `/(.*) → /index.html` e escopo do SW
-- `useOnlineStatus` hook (navigator.onLine + eventos online/offline)
-- Cache offline de favoritos do usuário (IndexedDB, invalidado no logout)
-- Cache offline de registros dos últimos 7 dias (IndexedDB)
+- `useOnlineStatus` hook (navigator.onLine + eventos online/offline + ping múltiplo + detecção iOS + despacho de re-sync)
+- **Cache offline de favoritos** (IndexedDB, store `favoritos`, prefixado por `user_id`)
+- **Cache offline de alimentos customizados** (IndexedDB, store `customizadas`, prefixado por `user_id`) — referências criadas pelo usuário; disponíveis offline para consulta e, na Fase 2, para associação em novos registros
+- **Cache offline de histórico** (IndexedDB, store `historico`, prefixado por `user_id`) — últimos 7 dias
+- **Cache offline de perfil** (IndexedDB, store `perfil`, prefixado por `user_id`) — nome, e-mail, limite diário; usado para exibição somente leitura offline
 - Estratégia network-first com fallback para IndexedDB para endpoints de dados
 - `OfflineBanner` — componente fixo no topo visível em todas as páginas quando offline
 - Informativos contextuais por tela (funcionalidade indisponível ou parcial)
-- Restore online: evento `online` → refetch + remoção de informativos
-- **Responsabilidade SW vs app layer:** SW gerencia apenas o app shell (precaching Workbox); detecção de offline e gerenciamento do IndexedDB são realizados no app layer (hooks/services React) — sem interceptação de requests de API pelo SW, sem JWT handling no SW (Fase 1)
-- **Schema IndexedDB:** duas stores — `favoritos` e `historico`; chaves prefixadas por `user_id`; sem limite explícito de tamanho; expiração por substituição na sync online (ao fazer fetch com rede, substitui conteúdo com os últimos 7 dias); limpeza completa no logout
-- **Atualização do SW pós-deploy:** prompt ao usuário via banner/toast "Nova versão disponível. Atualizar agora?" — Workbox suporta nativamente via `workbox-window`
-- **Verificação de conectividade real:** ao evento `online`, executar lightweight ping antes de declarar estado online — evitar false positives de captive portals (Wi-Fi de hospital/restaurante sem autenticação)
-- **Re-sync proativo:** ao confirmar online via ping, re-fetchar e atualizar todas as stores IndexedDB (favoritos + histórico); `OfflineBanner` transiciona para estado "sincronizando" durante o re-sync
-- **Limpeza do IndexedDB — triggers:** logout explícito (botão) + expiração silenciosa de sessão via Supabase auth state change listener
-- **Limpeza do IndexedDB — delegação (FEAT-0011):** ao sair de conta delegada e retornar à conta própria, stores prefixadas com o `user_id` do usuário delegado são limpas
-- **Sincronização de favoritos:** store `favoritos` atualizada em dois momentos: (1) fetch bem-sucedido na página de Referências (substituição completa); (2) imediatamente após add/remove de favorito (atualização incremental) — garante que favorito recém-adicionado já esteja offline se o usuário perder rede antes do próximo fetch
-- **Vercel + SW — configuração de headers:** adicionar regra no `vercel.json` para o `/sw.js` gerado: `Cache-Control: no-cache, no-store, must-revalidate` + `Service-Worker-Allowed: /` — sem isso, Vercel pode cachear o SW com TTL longo e usuários ficariam com app shell desatualizado após novo deploy; o rewrite `/(.*) → /index.html` não afeta o SW (Vercel serve arquivos reais antes de aplicar rewrites)
+- **Responsabilidade SW vs app layer:** SW gerencia apenas o app shell (precaching Workbox); detecção de offline, gerenciamento do IndexedDB e sync são realizados no app layer (hooks/services React) — sem interceptação de requests de API pelo SW
+- **Schema IndexedDB — Fase 1:** quatro stores — `favoritos`, `customizadas`, `historico`, `perfil`; chaves prefixadas por `user_id`; sem limite explícito de tamanho; expiração por substituição na sync online; limpeza completa no logout
+- **Verificação de conectividade múltipla (pings):** ao detectar evento `online`, executar 2–3 pings em intervalo curto (≤3s) antes de declarar estado online — evitar false positive por captive portal (Wi-Fi de hospital/restaurante sem autenticação) ou instabilidade momentânea; somente após confirmação, iniciar re-sync
+- **Re-sync proativo:** ao confirmar online via pings, re-fetchar e atualizar todas as stores IndexedDB (favoritos + customizados + histórico + perfil); `OfflineBanner` transiciona para estado "sincronizando" durante o re-sync ("Conexão restaurada. Atualizando dados...")
+- **Sincronização atômica (all or nothing):** qualquer falha no re-sync interrompe o processo e mantém estado offline; `OfflineBanner` exibe erro de sync ("Erro ao sincronizar. Tentaremos novamente em breve."); retry automático ao restabelecer conexão; dados locais NÃO são removidos antes de confirmar que o upload concluiu (relevante na Fase 2 — na Fase 1, dados são somente recebidos do servidor)
+- **Limpeza do IndexedDB — triggers:** (1) logout explícito (botão); (2) expiração silenciosa de sessão via Supabase `onAuthStateChange` listener (verificar existência na implementação atual — ver Open Questions)
+- **Limpeza do IndexedDB — delegação:** ao sair de conta delegada e retornar à conta própria, stores prefixadas com `user_id` do usuário delegado são limpas
+- **Conta delegada bloqueada offline:** modo offline não disponibiliza acesso a conta delegada — ao tentar acessar, exibir: "Acesso delegado indisponível offline. Conecte-se para acessar a conta de outra pessoa."; offline prioriza registro confiável da dieta PKU do próprio usuário
+- **Perfil offline — somente leitura:** tela de Perfil exibe dados do cache local (nome, e-mail, limite diário) em modo leitura; botões de editar, exportar, excluir conta e ações de delegação desabilitados com informativo
+- **Favoritos bloqueados offline (add/remove):** no modo offline, botões de adicionar/remover favorito desabilitados com informativo — offline só expõe referências favoritas, adicionar/remover não faz sentido sem acesso à lista completa
+- **Referências — sem favoritos offline:** ao abrir Referências offline com listas de favoritos e customizados vazias → exibir: "Você está offline e não possui alimentos favoritos salvos. Adicione favoritos online para acessá-los sem conexão."
+- **Dashboard offline — dia atual sem registros:** se não houver registros do dia atual no cache, exibir o dia com valores vazios/zerados e aviso "Nenhum registro encontrado para hoje no modo offline." — não exibir o dia anterior como se fosse hoje
+- **Verificação de sessão ao abrir o app:** ao inicializar, checar validade da sessão antes de exibir dados offline; sessão inválida → redirecionar para login com aviso
+- **Sessão expirada ao retornar online:** ao retornar online com sessão expirada → apagar dados locais → redirecionar para login com aviso: "Sua sessão expirou enquanto você estava offline. Faça login novamente. Atenção: dados não sincronizados foram perdidos." (relevante na Fase 2)
+- **Cópia local sempre atualizada:** toda atividade do usuário enquanto online (add/remove favoritos, criação de referências customizadas, acesso a registros) atualiza o cache local imediatamente — o IndexedDB reflete o estado mais recente para aquele usuário/dispositivo
+- **Consistência multi-dispositivo — comunicação explícita:** o cache offline é local ao dispositivo; trocar de dispositivo não garante acesso aos mesmos dados offline; aviso exibido no modo offline reforça que dados são do último estado sincronizado NESTE dispositivo
+- **Comunicação proativa para usuários iOS (online):** ao detectar iOS e usuário estar online, exibir informativo discreto (por sessão, em local a definir na implementação — ex.: banner inicial único ou seção no Perfil): "Em iPhones e iPads, o acesso offline não está disponível no momento."
 - **Detecção de iOS offline:** `useOnlineStatus` detecta iOS (via user agent) — ao perder conexão em iOS, `OfflineBanner` exibe informativo específico em vez da experiência offline normal; dados cacheados não são exibidos no iOS
+- **Primeiro acesso offline — mensagem específica:** ao abrir app pela primeira vez sem internet (sem dados locais), exibir mensagem específica na tela de login: "Você está offline. Faça o primeiro acesso online para habilitar as funcionalidades offline." (em substituição ao OfflineBanner padrão)
+- **Sincronização de favoritos e customizados:** stores `favoritos` e `customizadas` atualizadas em dois momentos: (1) fetch bem-sucedido na página de Referências (substituição completa); (2) imediatamente após add/remove/criar referência customizada (atualização incremental)
+- **Atualização do SW pós-deploy:** decisão preliminar de forçar atualização obrigatória — análise de implicações e complexidade pendente (ver Open Questions); AC10 condicionado a essa decisão
+- **Vercel + SW — configuração de headers:** adicionar regra no `vercel.json` para `/sw.js`: `Cache-Control: no-cache, no-store, must-revalidate` + `Service-Worker-Allowed: /` — sem isso, Vercel pode cachear o SW com TTL longo; o rewrite `/(.*) → /index.html` não afeta o SW (Vercel serve arquivos reais antes de aplicar rewrites)
+
+### Fase 2 — Escrita offline (dependência: Fase 1 implementada + AC1–AC21 passing)
+
+- **Schema IndexedDB — Fase 2:** store adicional `pendente_sync`; cada entrada contém: operação (criar/editar/excluir), entidade (registro de consumo), payload completo, UUID local (gerado client-side antes de enviar ao Supabase), timestamp da operação offline, número de tentativas de sync
+- **Criação offline de registros:** usuário pode registrar consumo de fenilalanina offline usando favoritos ou customizados do cache; registro entra na store `pendente_sync` com indicador visual "pendente de sincronização" na UI
+- **Edição offline de registros:** edição de registros dos últimos 7 dias (disponíveis no cache `historico`) disponível offline; operação de edição entra na `pendente_sync`
+- **Exclusão offline de registros:** exclusão de registros dos últimos 7 dias disponível offline; operação de exclusão entra na `pendente_sync`
+- **Auth para sync no app layer:** ao voltar online, sync usa a sessão do usuário no app layer (sem JWT handling no SW); se sessão inválida ao tentar sync, redirecionar para login com aviso de perda
+- **Sincronização atômica da fila de pendentes:** ao voltar online, processar `pendente_sync` — qualquer falha interrompe e mantém estado offline; dados NÃO são removidos da fila antes de confirmar recebimento do servidor; retry automático
+- **Conflito com referência arquivada:** ao sincronizar registro criado offline que usa referência arquivada no servidor → esse registro é rejeitado com motivo claro ao usuário; demais registros da fila continuam sendo processados; análise completa de viabilidade e fluxo de rejeição/correção pendente (ver Open Questions)
+- **Indicadores de estado de sync por registro:** "pendente de sync" → "sincronizando" → "sincronizado" / "erro de sync — referência arquivada" (com opção de corrigir)
+- **Logout com dados pendentes:** ao fazer logout com operações pendentes na fila, exibir aviso: "Você possui dados não sincronizados. Ao sair, esses dados serão perdidos. Deseja continuar?" — prazo/janela de segurança e opção de cancelar a definir (ver Open Questions)
 
 ## Out of Scope
 
-- Escrita offline (criação de medições sem rede) — Fase 2, spec futura
-- Sincronização de dados de escrita / conflict resolution — Fase 2
-- Cache de toda a tabela de referências (~3 mil itens) — excluído por volume
-- Suporte offline no iOS Safari — excluído; usuário iOS que perde conexão recebe informativo específico ("Acesso offline não disponível no iOS. Reconecte-se para continuar."); app funciona normalmente online em qualquer iOS
+- Cache de toda a tabela de referências (~3 mil itens) — excluído por volume; somente favoritos e customizados do usuário ficam offline
+- Suporte offline no iOS Safari — excluído; usuário iOS que perde conexão recebe informativo específico; app funciona normalmente online em qualquer iOS; comunicação proativa ao usuário iOS quando online (AC16)
+- Conflict resolution entre dispositivos (usuário edita o mesmo registro em dois devices offline e sincroniza) — fora de escopo em ambas as fases; cópia offline é por dispositivo; servidor é a fonte de verdade
+- Offline write para entidades além de registros de consumo (ex.: exames PKU, dados de perfil, configurações, favoritos) — escrita offline limitada a registros de consumo (Fase 2)
+- Acesso offline à conta delegada — offline prioriza registro confiável da dieta PKU do próprio usuário
+- Resolução automática de conflitos de dados do tipo "mesmo dia em dois dispositivos" — usuário deve resolver manualmente ao retornar online
 
 ## Impacted Features
 
 - [FEAT-0014 PWA](../../current/features/FEAT-0014-pwa.md)
-- [FEAT-0008 Referências alimentares](../../current/features/FEAT-0008-referencias-alimentares.md) (favoritos)
-- [FEAT-0011 Delegação de acesso](../../current/features/FEAT-0011-delegacao-acesso.md) (limpeza do IndexedDB ao sair da conta delegada — AC13)
+- [FEAT-0008 Referências alimentares](../../current/features/FEAT-0008-referencias-alimentares.md) (favoritos e customizados)
+- [FEAT-0011 Delegação de acesso](../../current/features/FEAT-0011-delegacao-acesso.md) (bloqueio offline + limpeza ao sair da conta delegada — AC13)
 
 ## Impacted Frontend
 
 - `vite.config.ts` — adicionar `@vite-pwa/vite-plugin-pwa`
 - `public/` — manifest, SW gerado
-- Novo hook: `useOnlineStatus` (navigator.onLine + eventos online/offline + ping de conectividade + dispatch de re-sync proativo)
-- Novo componente: `OfflineBanner` — dois estados: offline ("Você está offline. Exibindo dados armazenados localmente.") e sincronizando ("Conexão restaurada. Atualizando dados...")
-- Modificações por tela: avisos de funcionalidade offline parcial/indisponível
+- Novo hook: `useOnlineStatus` (navigator.onLine + eventos online/offline + ping múltiplo de conectividade + detecção iOS + dispatch de re-sync proativo + verificação de sessão)
+- Novo serviço: `offlineStorage.service.ts` — gerencia IndexedDB (stores: `favoritos`, `customizadas`, `historico`, `perfil`; Fase 2: `pendente_sync`)
+- Novo componente: `OfflineBanner` — quatro estados: offline ("Você está offline. Exibindo dados armazenados localmente."), sincronizando ("Conexão restaurada. Atualizando dados..."), erro de sync ("Erro ao sincronizar. Tentaremos novamente em breve."), iOS offline ("Acesso offline não disponível no iOS. Reconecte-se para continuar.")
+- Modificações por tela: avisos contextuais; Perfil — modo somente leitura offline; Referências — add/remove bloqueados offline; Dashboard — Fase 2: criar medição offline com indicador
+- `vercel.json` — regra de header para `/sw.js`
 
 ## Impacted Tests
 
@@ -95,35 +142,47 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - Estado inicial correto (`navigator.onLine`)
 - Transição offline → online e online → offline via evento
 - Detecção de iOS (user agent)
-- Ping executado após evento `online`; falha mantém estado offline; sucesso dispara re-sync
+- Ping múltiplo executado após evento `online`; falha mantém estado offline; sucesso dispara re-sync
+- Verificação de sessão ao inicializar
+- Detecção de primeiro acesso (sem dados locais)
 
 **Componente — `OfflineBanner`:**
 - Não renderiza quando online
 - Estado offline: texto e visibilidade corretos
-- Estado sincronizando: texto de feedback ("Conexão restaurada. Atualizando dados...")
+- Estado sincronizando: texto de feedback
+- Estado erro de sync: texto de erro
 - Estado iOS offline: mensagem específica de iOS
 
 **Unitários — Serviço IndexedDB (via `fake-indexeddb`):**
 - Escrita de favoritos: substituição completa por user_id
+- Escrita de customizados: substituição completa por user_id
+- Escrita de perfil: substituição por user_id
 - Leitura de favoritos quando offline
-- Atualização incremental após add/remove de favorito
+- Leitura de customizados quando offline
+- Leitura de perfil quando offline
+- Atualização incremental após add/remove de favorito ou criação de customizado
 - Escrita de histórico: substituição dos últimos 7 dias
 - Limpeza completa de stores por user_id no logout
 - Limpeza de stores do usuário delegado ao sair da delegação
 - Isolamento: stores de user A não afetam stores de user B
+- Fase 2: escrita na store `pendente_sync`; leitura da fila; processamento atômico; rollback em falha
 
 **Componente — Telas com comportamento offline:**
-- Referências: exibe apenas favoritos + aviso quando offline
+- Referências: exibe apenas favoritos e customizados + aviso; add/remove bloqueados; lista vazia: mensagem específica
 - Histórico: exibe últimos 7 dias + aviso; export bloqueado
 - Estatísticas: dados 7d com aviso no toggle "Último Mês"; export bloqueado
-- Exames e Perfil: informativo "indisponível offline" exibido
-- Dashboard: dados cacheados exibidos; "criar medição" bloqueada
+- Exames: informativo "indisponível offline" exibido
+- Perfil: dados exibidos em modo leitura; ações bloqueadas
+- Dashboard: dados cacheados exibidos; dia atual vazio com aviso se sem registros; criar medição bloqueada (Fase 1) / disponível com indicador de pendência (Fase 2)
+- Dashboard: dia sem registros exibe valores zerados + aviso específico (não exibe dia anterior)
+- Login: primeiro acesso offline exibe mensagem específica (não OfflineBanner padrão)
 
 **Validação manual (não automatizável via vitest):**
 - AC1: app abre offline a partir do segundo carregamento (requer SW real no browser)
-- AC10: prompt de atualização SW após novo deploy (requer ciclo de deploy)
+- AC10: comportamento de atualização do SW após novo deploy (requer ciclo de deploy; decisão sobre forced update em aberto)
 - AC14: headers do `/sw.js` no Vercel (requer ambiente deployado)
-- AC15: comportamento iOS em dispositivo real
+- AC15: comportamento iOS offline em dispositivo real
+- AC16: comunicação proativa iOS online em dispositivo real
 
 ## Dependencies
 
@@ -134,39 +193,42 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 ## Risks
 
 - **Cache stale de dados clínicos**: network-first mitiga; avisos ao usuário garantem clareza
-- **iOS Safari**: suporte offline excluído do escopo da Fase 1 — ao perder conexão no iOS, `OfflineBanner` exibe informativo específico ("Acesso offline não disponível no iOS. Reconecte-se para continuar."); app funciona normalmente online em qualquer iOS
-- **Invalidação no logout**: dados de usuário no IndexedDB devem ser limpos ao sair da conta
-- **Vercel rewrite vs. escopo do SW (U-5.2)**: rewrite `/(.*) → /index.html` não afeta o SW (Vercel serve arquivos reais antes de reescrever — sem conflito); risco real é o `Cache-Control` do `/sw.js` — mitigado com regra de header `no-cache` em `vercel.json` (ver Scope e AC14)
-- **Atualização do SW pós-deploy**: mitigado — prompt ao usuário via `workbox-window` (AC10); Workbox suporta nativamente
-- **Login offline sem sessão prévia**: mitigado — AC11 cobre o comportamento (tela de login padrão + `OfflineBanner`)
-- **Re-sync em dados móveis**: re-fetchar todas as stores ao voltar online consome dados; volume PKU (histórico 7d + favoritos) é pequeno — risco aceitável
+- **iOS Safari**: suporte offline excluído — ao perder conexão no iOS, `OfflineBanner` exibe informativo específico; comunicação proativa ao usuário iOS online adicionada (AC16)
+- **Invalidação no logout**: dados de usuário no IndexedDB limpos ao sair da conta; Fase 2: logout com dados pendentes exibe aviso ao usuário (AC26)
+- **Vercel rewrite vs. escopo do SW (U-5.2)**: rewrite não afeta o SW; risco real é Cache-Control do `/sw.js` — mitigado com regra de header `no-cache` em `vercel.json` (AC14)
+- **Atualização do SW pós-deploy**: decisão preliminar de atualização forçada — análise de implicações pendente (ver Open Questions); até a decisão, comportamento provisório = prompt ao usuário
+- **Login offline sem sessão prévia**: mitigado — AC11 + mensagem específica para primeiro acesso (AC11)
+- **Re-sync em dados móveis**: volume PKU (histórico 7d + favoritos + customizados + perfil) é pequeno — risco aceitável
+- **Sync parcial (Fase 2)**: mitigado — sincronização atômica (all or nothing); sem sync parcial; retry automático; dados locais preservados até confirmação do servidor
+- **Conflito com referência arquivada (Fase 2)**: análise de viabilidade pendente (ver Open Questions)
+- **Sessão expirada offline**: mitigado — verificação de sessão ao abrir app (AC20) + comportamento definido ao retornar online com sessão inválida (AC21)
+- **Listener Supabase onAuthStateChange**: verificar se já existe na implementação atual (ver Open Questions)
 
 ## Alternatives
 
 - A — service worker com cache estático apenas (app shell)
-- B — cache estático + dados de leitura limitados (favoritos + 7d histórico) **← DECISÃO**
+- B — cache estático + dados de leitura limitados (favoritos + 7d histórico) ← base da Fase 1
 - C — manter status quo
+- D — cache leitura + escrita offline com sync queue ← Fase 2
 
-**Decision:** Alternativa B com UI offline completa (barra + informativos por tela + restore online)
+**Decision:** Alternativa B como Fase 1 + Alternativa D como Fase 2, implementadas sequencialmente nesta spec.
 
 ## Análise de Feasibility — Escrita Offline (Fase 2)
 
-> Esta seção documenta a análise de viabilidade para embasar a spec da Fase 2.
+> Esta seção documenta a análise de viabilidade original. Fase 2 está agora **em escopo** — ver seção Scope para decisões implementadas.
 
 **Background Sync API:**
 - Chrome/Edge: suportado ✅ | Firefox: não suportado ✗ | iOS Safari: limitado (sem background real) ✗
-- Alternativa para iOS: sync manual ao detectar evento `online` (usuário precisa abrir o app)
+- Alternativa adotada: sync no app layer ao detectar evento `online` (usuário precisa abrir o app); sem dependência da Background Sync API
 
 **Complexidade:**
-- IndexedDB para queue de registros pendentes (UUID local gerado client-side antes de enviar ao Supabase)
-- JWT handling no SW (interceptar requests autenticados)
-- Conflict resolution: registros criados offline podem conflitar com o mesmo dia em outro device
-- Total de Phe calculado localmente com favoritos parciais diverge do total real — usuário precisa ser informado
-- UI: cada registro pendente de sync precisa de indicador visual de estado
+- IndexedDB para queue de operações pendentes (store `pendente_sync`) — UUID local gerado client-side antes de enviar ao Supabase
+- Auth handling no app layer (sem JWT no SW — decisão Fase 1 mantida)
+- Conflict resolution limitada: registros criados offline podem conflitar com referências arquivadas (ver Open Questions) ou com edições no mesmo dia em outro device (fora de escopo)
+- Total de Phe calculado localmente com favoritos/customizados pode divergir do total real se dados mudaram no servidor — usuário deve ser informado ao sync
+- UI: cada operação pendente de sync exibe indicador de estado
 
-**Custo:** estimativa de ~2× o escopo da Fase 1. Requer spec separada com análise aprofundada.
-
-**Dependências da Fase 2:** Fase 1 implementada; decisão sobre conflict resolution strategy; revisão de segurança (JWT + SW).
+**Custo:** estimativa de ~2× o escopo da Fase 1 — incluído nesta spec com implementação sequencial.
 
 ## Open Questions
 
@@ -174,67 +236,102 @@ Resolvidas pela análise:
 
 | Questão | Resolução |
 |---|---|
-| Quais dados podem ser cacheados sem risco? | App shell + favoritos do usuário + 7 dias de histórico (leitura) — sem risco clínico; avisos de dados parciais no UI |
+| Quais dados podem ser cacheados sem risco? | App shell + favoritos + customizados + 7 dias de histórico + perfil (leitura) — sem risco clínico; avisos de dados parciais no UI |
 | Necessidade real de offline para o público? | Confirmada — uso em campo sem rede é cenário esperado |
-| Escrita offline é viável? | Tecnicamente viável, mas custo alto e suporte iOS limitado → Fase 2 separada |
+| Escrita offline é viável? | Sim — incluída nesta spec como Fase 2; ~2× o custo da Fase 1 |
 | Date range dos registros offline? | 7 dias, com aviso claro ao usuário sobre a limitação |
 
 **Resolvidas no refinamento:**
 
 | Questão | Resolução |
 |---|---|
-| Schema do IndexedDB | Duas stores: `favoritos` e `historico`; chaves prefixadas por `user_id`; sem limite de tamanho; limpeza completa no logout |
-| Política de expiração dos 7 dias | Na sync online: ao fazer fetch com rede, IndexedDB é substituído com os últimos 7 dias recém-buscados — sem lógica extra de data |
-| Atualização do SW pós-deploy | Prompt ao usuário: banner/toast "Nova versão disponível. Atualizar agora?" com botão — Workbox suporta nativamente |
-| Comportamento offline sem sessão | Tela de login padrão com `OfflineBanner` no topo — sem tela dedicada; login requer conexão |
-| Limites de armazenamento IndexedDB | Sem limite explícito — volume PKU (20–100 registros + favoritos) não representa risco de quota |
-| Mapeamento de telas × comportamento offline | Ver seção "Comportamento Offline por Tela" — 9 telas mapeadas com informativo contextual por tela |
-| Sincronização de favoritos no IndexedDB | Fetch bem-sucedido na página de Referências (substituição completa) + add/remove imediato (atualização incremental) |
-| Vercel rewrite vs. escopo do SW (U-5.2) | Rewrite não afeta o SW; risco real é Cache-Control do `/sw.js` — mitigado com regra de header no `vercel.json` (AC14); risco aceito, validar na implementação |
-| iOS Safari — postura offline | Excluído do escopo offline; informativo específico ao perder conexão no iOS (AC15); app funciona normalmente online |
+| Schema do IndexedDB | Fase 1: quatro stores — `favoritos`, `customizadas`, `historico`, `perfil`; chaves prefixadas por `user_id`; sem limite de tamanho; limpeza completa no logout. Fase 2: store adicional `pendente_sync` |
+| Política de expiração dos 7 dias | Na sync online: IndexedDB substituído com os últimos 7 dias recém-buscados — sem lógica extra de data |
+| Comportamento offline sem sessão | Tela de login padrão com `OfflineBanner`; primeiro acesso: mensagem específica "Você está offline. Faça o primeiro acesso online para habilitar as funcionalidades offline." |
+| Limites de armazenamento IndexedDB | Sem limite explícito — volume PKU não representa risco de quota; estimativa de volume pendente (ver GAP-volume) |
+| Mapeamento de telas × comportamento offline | Ver seção "Comportamento Offline por Tela" — 9 telas + conta delegada mapeadas |
+| Sincronização de favoritos no IndexedDB | Fetch bem-sucedido na página de Referências (substituição completa) + add/remove/criar imediato (atualização incremental) |
+| Vercel rewrite vs. escopo do SW (U-5.2) | Rewrite não afeta o SW; risco real é Cache-Control do `/sw.js` — mitigado com regra de header no `vercel.json` (AC14) |
+| iOS Safari — postura offline | Excluído do escopo offline; informativo específico ao perder conexão no iOS (AC15); comunicação proativa ao usuário iOS online (AC16) |
+| Falha parcial de re-sync | Sincronização atômica (all or nothing): qualquer falha reverte ao offline; OfflineBanner exibe erro de sync; retry automático |
+| Dashboard offline sem registros do dia atual | Exibir dia atual com valores vazios/zerados + aviso "Nenhum registro encontrado para hoje no modo offline." — não exibir o dia anterior |
+| Comunicação proativa iOS | Sim — ao detectar iOS online, exibir informativo discreto (por sessão) sobre ausência de suporte offline (AC16) |
+| Sessão expirada ao retornar online | Apagar dados locais → redirecionar para login com aviso: "Sua sessão expirou enquanto você estava offline. Faça login novamente. Atenção: dados não sincronizados foram perdidos." (AC21) |
+| Conta delegada offline | Bloqueada — informativo específico; offline prioriza registro da dieta PKU do próprio usuário (AC13) |
+| Perfil offline | Somente leitura (nome, e-mail, limite diário a partir de cache); ações bloqueadas (AC17) |
+| Favoritos add/remove offline | Bloqueados — offline só expõe referências favoritas; add/remove sem lista completa não faz sentido (AC18) |
+| Primeiro acesso offline | Mensagem específica: "Você está offline. Faça o primeiro acesso online para habilitar as funcionalidades offline." (AC11) |
+| Sem favoritos offline | Mensagem específica: "Você está offline e não possui alimentos favoritos salvos. Adicione favoritos online para acessá-los sem conexão." (AC2) |
+| Ping único vs. múltiplo | Múltiplos pings — 2–3 tentativas em ≤3s antes de declarar online (AC6) |
+| Verificação de sessão ao abrir | Sim — verificar validade da sessão ao inicializar o app (AC20) |
+| Alimentos customizados offline | Incluídos — store `customizadas` no IndexedDB; disponíveis offline junto com favoritos (AC2) |
+| Consistência multi-dispositivo | Cache é local ao dispositivo; trocar de dispositivo não garante mesmos dados offline; comunicação explícita ao usuário no modo offline |
+| Cópia local | Sempre atualizada com toda atividade online do usuário |
+| Escrita offline (Fase 2) | Incluída nesta spec — criar, editar, excluir registros de consumo offline via fila `pendente_sync` (AC22–AC27) |
 
-**Pendentes de refinamento (identificadas na análise não técnica):**
+**Pendentes de refinamento:**
 
 | Questão | Natureza | O que precisa ser decidido |
 |---|---|---|
-| Falha parcial de re-sync ao voltar online | Comportamento indefinido | O que acontece se a sincronização começar e falhar no meio (ex.: favoritos atualizados, histórico falha)? O `OfflineBanner` volta ao estado offline? Exibe erro? O app tenta novamente automaticamente? |
-| Sessão expirando enquanto o usuário está offline | Comportamento indefinido | O listener de expiração de sessão do Supabase pode não disparar sem conexão. Se a sessão expirar offline: o app trava? Apaga os dados ao voltar online? Espera a reconexão para reagir? Há risco de dados de saúde permanecerem no dispositivo além da validade da sessão. |
-| Dashboard offline sem registros do dia atual | Comportamento indefinido | O cache de histórico cobre os últimos 7 dias, mas pode não ter dados do dia de hoje (ex.: usuário ainda não registrou nada hoje, ou o registro mais recente é de ontem). O que o Dashboard exibe? O dia atual vazio? O dia mais recente disponível? Como isso é comunicado ao usuário? |
-| Prompt de atualização ignorado repetidamente | Risco de incompatibilidade | Não está definido o que acontece quando o usuário ignora o prompt "Nova versão disponível. Atualizar agora?" por muito tempo. Versões muito antigas do SW podem eventualmente ser incompatíveis com o backend. Existe algum mecanismo de forçar atualização após N dias/deploys? |
+| Atualização forçada do SW pós-deploy | Decisão preliminar — análise pendente | Decisão preliminar: forçar atualização obrigatória. Implicações a analisar: (1) o que acontece se o usuário estiver offline quando a atualização for forçada? (2) o que acontece com dados pendentes de sync na fila? (3) qual o timeout/número de deploys antes de forçar? (4) é necessária compatibilidade retroativa da API? Refletir na spec e atualizar AC10 após aprovação |
+| Conflito com referência arquivada (Fase 2) | Análise de viabilidade pendente | Ao sincronizar registro offline com referência arquivada → rejeitar com motivo. Questões: (1) como detectar referências arquivadas no momento do sync? (2) a fila continua processando os demais registros? (3) qual UX de rejeição — o usuário pode corrigir o registro rejeitado? (4) o registro rejeitado some ou fica como "pendente de correção"? Viabilidade técnica: moderada — requer validação de referências no sync handler. Prós: consistência clínica. Contras: usuário pode perder registro de boa-fé. Análise aprovada; implementação pendente de definição do fluxo de UX |
+| Listener Supabase onAuthStateChange | Verificação de código pendente | Verificar se `onAuthStateChange` já está configurado na implementação atual (AuthContext / auth service). Se não existir, criar como parte desta implementação; se existir, confirmar que dispara corretamente nos cenários de expiração silenciosa |
+| Volume real de favoritos e customizados | Estimativa pendente | Estimar armazenamento médio por usuário (favoritos + customizados + 7d histórico + perfil) em KB/MB para confirmar que não representa problema de quota do browser. Sugestão: analisar dados reais de uso antes da implementação |
+| Duração da sessão Supabase (JWT expiry) | Investigação pendente | Verificar configuração de JWT expiry no Supabase do projeto. Usuário nunca observou expiração espontânea; duração real desconhecida. Resultado afeta especificidade dos avisos de sessão expirada e estratégia de verificação ao abrir o app |
+| Logout com dados pendentes — fluxo completo | Comportamento a definir | Ao fazer logout com dados offline pendentes na fila: (1) prazo antes do apagamento? (2) o usuário pode cancelar o logout? (3) é possível tentar sincronizar ANTES de fazer logout? Definir fluxo completo do AC26 |
+| Perfil offline — informativo de dados locais | Ideia para refinamento futuro | Incluir na tela de Perfil offline um painel informativo: "dados armazenados neste dispositivo" + "dados pendentes de sincronização". Ideia inicial; complexidade e valor a avaliar em refinamento separado |
 
-## Acceptance Criteria (Fase 1)
+## Acceptance Criteria
+
+### Fase 1 (AC1–AC21)
 
 - **AC1:** App abre offline (sem rede) a partir do segundo carregamento — app shell servido pelo SW
-- **AC2:** Offline: página de referências exibe apenas favoritos do usuário com aviso explícito ("Você está offline. Exibindo apenas seus favoritos.")
+- **AC2:** Offline: página de referências exibe apenas favoritos e alimentos customizados do usuário, com aviso explícito ("Você está offline. Exibindo apenas seus favoritos e alimentos customizados."); lista vazia → mensagem específica ("Você está offline e não possui alimentos favoritos salvos. Adicione favoritos online para acessá-los sem conexão.")
 - **AC3:** Offline: histórico exibe apenas registros dos últimos 7 dias com aviso explícito ("Exibindo registros armazenados localmente dos últimos 7 dias.")
 - **AC4:** Offline: barra fixa visível em todas as páginas indicando versão offline
-- **AC5:** Offline: funcionalidades somente-online (criar medição, exportar, etc.) mostram informativo claro de indisponibilidade
-- **AC6:** Ao voltar online: (1) ping de conectividade real executado; (2) após confirmação: `OfflineBanner` transiciona para estado "sincronizando" com mensagem de feedback ao usuário (ex: "Conexão restaurada. Atualizando dados..."); (3) re-sync completo das stores IndexedDB (favoritos + histórico) executado em background; (4) ao concluir: `OfflineBanner` e informativos por tela removidos automaticamente; dados da UI refletidos com dados frescos
-- **AC7:** IndexedDB do usuário é limpo em dois triggers: (1) logout explícito (botão de logout); (2) expiração silenciosa de sessão (token expirado) — via listener do auth state change do Supabase
+- **AC5:** Offline: funcionalidades somente-online (exportar, add/remove favoritos, ações de perfil, etc.) mostram informativo claro de indisponibilidade
+- **AC6:** Ao voltar online: (1) 2–3 pings executados em ≤3s para verificar conectividade real; (2) após confirmação: `OfflineBanner` transiciona para "sincronizando"; (3) re-sync atômico das stores IndexedDB; (4) falha → `OfflineBanner` exibe erro de sync + retry automático; (5) sucesso → `OfflineBanner` e informativos removidos; dados frescos exibidos
+- **AC7:** IndexedDB do usuário é limpo em dois triggers: (1) logout explícito; (2) expiração silenciosa de sessão via Supabase `onAuthStateChange`
 - **AC8:** Sem regressão na experiência online (performance, atualização de dados, comportamento existente)
-- **AC9:** Cobertura de testes automatizados: (1) `useOnlineStatus` — estados, transições online/offline, detecção de iOS, lógica de ping, dispatch de re-sync; (2) `OfflineBanner` — três estados (offline, sincronizando, iOS offline); (3) serviço IndexedDB via `fake-indexeddb` — escrita/leitura/limpeza por user_id, isolamento entre usuários, atualização incremental de favoritos; (4) telas com comportamento offline diferenciado (Referências, Histórico, Estatísticas, Exames, Perfil)
-- **AC10:** Quando novo SW é detectado após deploy, prompt "Nova versão disponível. Atualizar agora?" é exibido; ao confirmar, app recarrega com a versão atualizada
-- **AC11:** Offline sem sessão prévia: tela de login padrão exibida com `OfflineBanner` visível no topo, comunicando que login requer conexão
+- **AC9:** Cobertura de testes automatizados: (1) `useOnlineStatus` — estados, transições, iOS, ping múltiplo, sessão, primeiro acesso; (2) `OfflineBanner` — quatro estados (offline, sincronizando, erro de sync, iOS offline); (3) serviço IndexedDB — escrita/leitura/limpeza por user_id para todas as stores, isolamento entre usuários, atualização incremental; (4) telas com comportamento offline diferenciado
+- **AC10:** Comportamento de atualização do SW pós-deploy — a definir após análise de forced update (ver Open Questions); até a decisão: prompt ao usuário "Nova versão disponível. Atualizar agora?"
+- **AC11:** Offline sem sessão prévia (primeiro acesso — sem dados locais): mensagem específica na tela de login: "Você está offline. Faça o primeiro acesso online para habilitar as funcionalidades offline."
 - **AC12:** Offline: Estatísticas disponível com dados cacheados (últimos 7 dias); toggle "Última Semana" exibe normalmente; toggle "Último Mês" exibe aviso "Dados incompletos offline — exibindo apenas os últimos 7 dias disponíveis"; exportar CSV/JSON bloqueado com informativo
-- **AC13:** Delegação de acesso: ao retornar da conta delegada para a conta própria, stores do IndexedDB prefixadas com o `user_id` do usuário delegado são limpas automaticamente
-- **AC14:** `vercel.json` configurado com `Cache-Control: no-cache, no-store, must-revalidate` e `Service-Worker-Allowed: /` para `/sw.js`; SW servido como JS (não reescrito para HTML pelo rewrite) e registrado com scope `/`
-- **AC15:** iOS offline: ao perder conexão em dispositivo iOS, `OfflineBanner` exibe mensagem específica ("Acesso offline não disponível no iOS. Reconecte-se para continuar.") em vez da experiência offline normal; dados cacheados não são apresentados
+- **AC13:** Conta delegada: indisponível em modo offline — informativo exibido ao tentar acessar; ao retornar da conta delegada (após sessão online), stores do IndexedDB do usuário delegado são limpas automaticamente
+- **AC14:** `vercel.json` configurado com `Cache-Control: no-cache, no-store, must-revalidate` e `Service-Worker-Allowed: /` para `/sw.js`; SW servido como JS e registrado com scope `/`
+- **AC15:** iOS offline: ao perder conexão em dispositivo iOS, `OfflineBanner` exibe mensagem específica ("Acesso offline não disponível no iOS. Reconecte-se para continuar."); dados cacheados não são apresentados
+- **AC16:** iOS online: ao detectar iOS durante sessão online, informativo discreto exibido (uma vez por sessão) informando que o acesso offline não está disponível em iPhones/iPads
+- **AC17:** Perfil offline: dados exibidos em modo somente leitura (nome, e-mail, limite diário a partir do cache); botões de editar, exportar, excluir conta e ações de delegação desabilitados com informativo
+- **AC18:** Favoritos offline: botões de add/remove favorito desabilitados com informativo no modo offline
+- **AC19:** Dashboard offline — dia atual sem registros: dia exibido com valores vazios/zerados e aviso "Nenhum registro encontrado para hoje no modo offline."
+- **AC20:** Ao inicializar o app: validade da sessão verificada antes de exibir dados offline; sessão inválida → redirecionar para login com aviso
+- **AC21:** Ao retornar online com sessão expirada: dados locais apagados → redirecionar para login com aviso de possível perda de dados não sincronizados
+
+### Fase 2 — AC22–AC27 (dependência: Fase 1 + AC1–AC21 passing)
+
+- **AC22:** Usuário pode criar registro de consumo offline — registro entra na fila de sync com indicador visual "pendente de sincronização"
+- **AC23:** Usuário pode editar registros dos últimos 7 dias (disponíveis no cache) offline — operação entra na fila de sync
+- **AC24:** Usuário pode excluir registros dos últimos 7 dias offline — operação entra na fila de sync
+- **AC25:** Ao voltar online: fila de sync processada atomicamente — qualquer falha mantém estado offline + retry automático; dados locais preservados até confirmação do servidor
+- **AC26:** Ao fazer logout com dados pendentes de sync: aviso exibido com opção de cancelar logout; ao confirmar, dados perdidos com informativo claro — fluxo detalhado a definir (ver Open Questions)
+- **AC27:** Conflito com referência arquivada: registro rejeitado com motivo claro ao usuário; demais registros da fila continuam — fluxo exato a definir após análise de viabilidade (ver Open Questions)
 
 ## Comportamento Offline por Tela
 
-| Tela | Comportamento offline | Informativo contextual |
-|---|---|---|
-| Login (`/`) | Disponível — login padrão + `OfflineBanner` (AC11) | — |
-| Dashboard (`/dashboard`) | Disponível — dados do dia via historico cacheado; "criar medição" bloqueada | "Criar medições requer conexão." (junto à ação bloqueada) |
-| Histórico (`/historico`) | Disponível parcial — últimos 7 dias; exportar bloqueado (AC3) | "Exibindo registros armazenados localmente dos últimos 7 dias." |
-| Referências (`/referencias`) | Disponível parcial — só favoritos; tabela completa bloqueada (AC2) | "Você está offline. Exibindo apenas seus favoritos." |
-| Estatísticas (`/estatisticas`) | Disponível parcial — dados 7d cacheados; toggle "Último Mês" com aviso de dados parciais; export bloqueado (AC12) | "Você está offline. Exibindo dados dos últimos 7 dias. O período 'Último Mês' pode estar incompleto." |
-| Exames (`/exames`) | Bloqueada offline | "Exames PKU indisponíveis offline." |
-| Perfil (`/perfil`) | Bloqueada offline | "Perfil indisponível offline." |
-| Admin (`/admin`) | Bloqueada offline | "Painel administrativo indisponível offline." |
-| Sobre (`/sobre`) | Disponível — conteúdo estático (app shell) | — |
+| Tela | Comportamento offline (Fase 1) | Delta Fase 2 | Informativo contextual |
+|---|---|---|---|
+| Login (`/`) | Disponível — login padrão + `OfflineBanner`; primeiro acesso: mensagem específica (AC11) | Sem mudança | — |
+| Dashboard (`/dashboard`) | Disponível — dados do dia via cache; criar medição bloqueada; dia atual sem registros: vazio com aviso (AC19) | Criar medição disponível offline — entra na fila de sync | "Criar medições requer conexão." (Fase 1) / indicador "pendente de sync" (Fase 2) |
+| Histórico (`/historico`) | Disponível parcial — últimos 7 dias; exportar bloqueado (AC3) | Editar/excluir registros dos 7 dias — fila de sync | "Exibindo registros armazenados localmente dos últimos 7 dias." |
+| Referências (`/referencias`) | Disponível parcial — só favoritos e customizados; add/remove/busca bloqueados; lista vazia: mensagem específica (AC2, AC18) | Sem mudança | "Você está offline. Exibindo apenas seus favoritos e alimentos customizados." |
+| Estatísticas (`/estatisticas`) | Disponível parcial — dados 7d; toggle "Último Mês" com aviso de dados parciais; export bloqueado (AC12) | Sem mudança | "Você está offline. Exibindo dados dos últimos 7 dias. O período 'Último Mês' pode estar incompleto." |
+| Exames (`/exames`) | Bloqueada offline | Sem mudança | "Exames PKU indisponíveis offline." |
+| Perfil (`/perfil`) | Somente leitura (nome, e-mail, limite diário); ações bloqueadas (AC17) | Sem mudança | "Perfil disponível somente para visualização offline." |
+| Admin (`/admin`) | Bloqueada offline | Sem mudança | "Painel administrativo indisponível offline." |
+| Sobre (`/sobre`) | Disponível — conteúdo estático (app shell) | Sem mudança | — |
+| Conta delegada | Bloqueada offline (AC13) | Sem mudança | "Acesso delegado indisponível offline. Conecte-se para acessar a conta de outra pessoa." |
 
-> **iOS Safari:** ao perder conexão em qualquer tela, o `OfflineBanner` exibe informativo específico de iOS em vez do comportamento offline normal descrito acima. Suporte offline excluído do escopo da Fase 1 em iOS.
+> **iOS Safari:** ao perder conexão em qualquer tela, o `OfflineBanner` exibe informativo específico de iOS (AC15). Quando online em iOS, informativo proativo discreto exibido uma vez por sessão (AC16). Suporte offline excluído do escopo em iOS em ambas as fases.
 
 ## Evidence / References
 
