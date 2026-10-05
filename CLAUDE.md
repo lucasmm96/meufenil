@@ -79,6 +79,8 @@ Qualquer alteração que possa afetar **segurança, dados, autorização, regra 
 
 Ao parar, NÃO implemente parcialmente "para resolver depois". Explique: (1) o que foi encontrado; (2) por que é ambíguo; (3) alternativas; (4) qual decisão precisa ser tomada.
 
+**Formato de perguntas ao usuário:** open questions, gaps e decisões devem ser apresentados como questionário interativo no chat — não apenas listados em texto para "resolver depois". Agrupe por tema; encadeie múltiplas rodadas se necessário. No Claude Code, use a ferramenta `AskUserQuestion`. Em outros agentes, estruture a interação de forma análoga. Aplica-se a qualquer contexto: refinamento de specs, análise, implementação.
+
 | Risco | Critério | Regra |
 |---|---|---|
 | LOW | mudança localizada, sem impacto em comportamento/dados/segurança/contrato | pode implementar seguindo specs |
