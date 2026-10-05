@@ -1,8 +1,8 @@
 # Proposed — Catálogo de Evoluções Possíveis
 
-**Última verificação:** 2026-10-02 (REF-0001 — PR #111, REF-0002 — PR #112, FEAT-0015 — PR #113 implementados; housekeeping concluído)
+**Última verificação:** 2026-10-05 (FEAT-0018 e ENH-0014 adicionados — refinamento de drafts 008 e 009)
 
-> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (3) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 27 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008, ENH-0012, ENH-0008, REF-0005, ENH-0013, ENH-0002, DEBT-0009, FEAT-0002, FEAT-0015, REF-0001, REF-0002) permanecem no Catálogo, fora das contagens.
+> Semântica das contagens: ativas = linhas do Catálogo com Status **PROPOSED** (5) · ACCEPTED (0) · arquivadas = linhas da seção "Arquivadas" (7) · as 27 linhas **IMPLEMENTED** históricas (REF-0003, DEBT-0005, DEBT-0006, REF-0004, ENH-0004, FEAT-0017, ENH-0005, ENH-0006, ENH-0007, TEST-0002, TEST-0003, TEST-0004, TEST-0005, ENH-0009, ENH-0010, ENH-0011, DEBT-0008, ENH-0012, ENH-0008, REF-0005, ENH-0013, ENH-0002, DEBT-0009, FEAT-0002, FEAT-0015, REF-0001, REF-0002) permanecem no Catálogo, fora das contagens.
 
 > ⚠️ Este diretório contém POSSIBILIDADES FUTURAS. NADA aqui é comportamento atual, decisão tomada ou plano comprometido. Status inicial de toda proposta: **PROPOSED** (exceto propostas já aprovadas com `Decision: ACCEPTED`). O estado atual do sistema está documentado exclusivamente em `../current/`.
 >
@@ -20,6 +20,8 @@
 | [ENH-0013](../archive/implemented/enhancements/ENH-0013-biblioteca-scripts-deterministicos-ai.md) | ENH | Biblioteca de scripts determinísticos para workflows de IA | IMPLEMENTED | #103 | Draft 007-local-scripts-possibility (arquivado) — 2026-10-01 |
 | [FEAT-0015](../archive/implemented/features/FEAT-0015-atribuicao-papel-admin.md) | FEAT | Fluxo de atribuição de papel admin | IMPLEMENTED | #11 | PR #113 (merge `6b33f37`, development, 2026-10-02) |
 | [FEAT-0002](../archive/implemented/features/FEAT-0002-exportar-historico.md) | FEAT | Exportar o histórico de medições (CSV / JSON / PDF) | IMPLEMENTED | #31 | PR #107 (merge `235571d`, development, 2026-10-02) + commits `e9845cb`/`f9cd5c7` — identificação de paciente e período |
+| [FEAT-0018](features/FEAT-0018-central-notificacoes.md) | FEAT | Central de notificações ao usuário | PROPOSED | TBD | Draft 008 (2026-10-05) |
+| [ENH-0014](enhancements/ENH-0014-versao-app-footer.md) | ENH | Versão do app exibida no footer | PROPOSED | TBD | Draft 009 (2026-10-05) |
 | [ENH-0001](enhancements/ENH-0001-pwa-offline.md) | ENH | PWA offline / service worker | PROPOSED | #10 | FEAT-0014; U-5.2 |
 | [ENH-0002](../archive/implemented/enhancements/ENH-0002-identidade-bot-claude-prs.md) | ENH | Identidade de bot para PRs criados pelo Claude | IMPLEMENTED | #21 | PR #105 (squash merge `4021112`, development) — 2026-10-01 |
 | [REF-0001](../archive/implemented/refactors/REF-0001-modal-concessao-duplicado.md) | REF | Consolidar modal de concessão duplicado | IMPLEMENTED | #12 | PR #111 (merge `659fece`, development, 2026-10-02) |
