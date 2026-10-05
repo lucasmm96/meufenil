@@ -141,7 +141,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             <p className="text-xs text-gray-500">
-              © {new Date().getFullYear()} MeuFenil. Todos os direitos reservados.
+              © {new Date().getFullYear()} MeuFenil · v{__APP_VERSION__} · Todos os direitos reservados.
             </p>
           </div>
         </div>

@@ -27,6 +27,9 @@ export default function SobrePage() {
           <p className="text-base sm:text-lg text-gray-600">
             Uma ferramenta criada com carinho para a comunidade PKU
           </p>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+            v{__APP_VERSION__}
+          </span>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 sm:p-8 shadow-lg space-y-4">

@@ -10,7 +10,7 @@ export function FooterSkeleton() {
             <div className="h-5 w-16 bg-indigo-100 rounded animate-pulse" />
           </div>
 
-          <div className="h-3 w-40 bg-indigo-100 rounded animate-pulse" />
+          <div className="h-3 w-52 bg-indigo-100 rounded animate-pulse" />
         </div>
       </div>
     </footer>
