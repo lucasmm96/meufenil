@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type JSX } from "react";
 import Layout from "@/react-app/components/Layout";
+import { inserirNotificacao } from "@/react-app/services/notificacoes.service";
 import {
   Users,
   Shield,
@@ -1789,10 +1790,6 @@ function SecaoNotificacoes({
     setLoadingEnvio(true);
 
     try {
-      const { inserirNotificacao } = await import(
-        "@/react-app/services/notificacoes.service"
-      );
-
       // Para broadcasts, o user_id é o admin que enviou (RLS: INSERT exige admin).
       // Se o admin for excluído, os broadcasts em cascata também serão removidos.
       await inserirNotificacao({
