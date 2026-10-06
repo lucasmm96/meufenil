@@ -346,7 +346,7 @@ Resolvidas pela análise:
 | Alimentos customizados offline | Incluídos — store `customizadas` no IndexedDB; disponíveis offline junto com favoritos (AC2) |
 | Consistência multi-dispositivo | Cache é local ao dispositivo; trocar de dispositivo não garante mesmos dados offline; comunicação explícita ao usuário no modo offline |
 | Cópia local | Sempre atualizada com toda atividade online do usuário |
-| Escrita offline (Fase 2) | Incluída nesta spec — criar, editar, excluir registros de consumo offline via fila `pendente_sync` (AC22–AC27) |
+| Escrita offline (Fase 2) | Incluída nesta spec — criar e excluir registros de consumo offline via fila `pendente_sync` (AC22–AC27); edição offline fora de escopo — AC23 removido na 4ª curadoria |
 | Listener Supabase onAuthStateChange (GAP-listener) | [CONFIRMED] Existe em `AuthContext.tsx` linha 78; evento `SIGNED_OUT` → `setAuthUser(null)` → app redireciona para login; AC20 (verificação ao abrir) atua como segunda linha de defesa para quando o app está fechado/backgrounded |
 | Volume de armazenamento offline (GAP-volume) | [CONFIRMED] Fórmula: `(N_fav + N_custom) × 230 B + (N_dias × N_reg/dia) × 185 B + 280 B`; máx. ~74 KB (uso pesado); sem risco de quota |
 | Duração da sessão Supabase (GAP-session-duration) | [CLARIFICADO] Supabase default sem override no código: access 1h + refresh 7 dias + auto-refresh; sessão sobrevive offline < 7 dias; sessão dos ACs (AC20, AC21) relevante apenas para ausência > 7 dias |
