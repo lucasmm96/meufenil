@@ -290,7 +290,7 @@ for op in pendente_sync (ordem por timestamp):
     removeFromQueue(op)            // removida APENAS após confirmação do servidor
 ```
 
-**Nota de implementação:** `updateRegistro()` não existe em `registros.service.ts` — precisa ser criado na Fase 2 (GAP-sync-update-service).
+*(4ª curadoria: `updateRegistro()` não é necessário — edição offline fora de escopo; GAP-sync-update-service removido.)*
 
 ### Semântica de "sync atômico" nesta spec
 
