@@ -1,6 +1,6 @@
 # Funcionalidades do MeuFenil
 
-Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada item implementado corresponde a uma Feature Spec em `.ai/specs/current/features/` (IDs FEAT-0001 a FEAT-0014, FEAT-0015 e FEAT-0017).
+Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada item implementado corresponde a uma Feature Spec em `.ai/specs/current/features/` (IDs FEAT-0001 a FEAT-0014, FEAT-0015, FEAT-0017 e FEAT-0018).
 
 ## Sumário
 
@@ -27,8 +27,11 @@ Catálogo de funcionalidades implementadas e planos futuros do MeuFenil. Cada it
 | FEAT-0014 | PWA / multi-dispositivo | implementada (parcial) | Instalação como aplicativo em dispositivos móveis/desktop (manifest, ícones, tema). Sem suporte offline (sem service worker). |
 | FEAT-0015 | Gestão de papéis de usuário (admin) | implementada | Seção "Gestão de Papéis" no painel administrativo: badge de papel (Admin/Usuário) e botões "Tornar admin" / "Remover admin" para cada usuário; botão desabilitado na própria linha do admin logado. Alterações de papel executadas exclusivamente via RPC SECURITY DEFINER `toggle_role_usuario` — único caminho de escrita para `usuarios.role`. Column-level REVOKE em `authenticated` bloqueia UPDATE direto via API. |
 | FEAT-0017 | Sincronização de referências (ANVISA/Power BI) | implementada | Mecanismo recorrente, controlado e auditável de sincronização do conjunto global de referências com a origem (relatório Power BI associado à ANVISA): extração, validação (com rejeição de duplicidades conflitantes por par inteiro — BR-044), snapshot/backup por execução, aplicação automática de mudanças seguras (cron semanal Vercel) e curadoria humana de divergências no painel admin (individual e em lote, com "Aprovar tudo"), com rollback seletivo e restauração excepcional auditados. Valores de fenilalanina exibidos com precisão de 2 casas decimais em toda a UI. |
+| FEAT-0018 | Central de Notificações ao Usuário | implementada | Canal estruturado de comunicação assíncrona app → usuário. Badge no header com contagem de não lidas, atualizada em tempo real via Supabase Realtime (subscription em `notificacoes` por `user_id`). Painel overlay que abre ao clicar no sino sem mudar de rota. Tipos suportados: `system_event`, `admin_message`, `health_alert`, `app_update`; campo `type` é string livre — extensível sem alteração de schema. Admin pode enviar notificações broadcast ou para usuário específico via painel administrativo. Durante login-as, badge e feed exibem notificações do usuário assumido. Alerta de saúde (`health_alert`) gerado automaticamente por trigger ao atingir o limite diário. Notificações persistem por até 30 dias; limpeza via Vercel Cron diário (`api/notificacoes-cleanup.ts`, `0 4 * * *`). Requer a aplicação da migration em produção (Issue #119) para estar operacional. |
 
-> Status "implementada" conforme as Feature Specs de `current/features/` (todas com status Implementada na última verificação). Para detalhes técnicos, veja as specs: `.ai/specs/current/features/`. (Fonte: `current/features/FEAT-0001` a `FEAT-0014`, `FEAT-0015` e `FEAT-0017`)
+> Status "implementada" conforme as Feature Specs de `current/features/` (todas com status Implementada na última verificação). Para detalhes técnicos, veja as specs: `.ai/specs/current/features/`. (Fonte: `current/features/FEAT-0001` a `FEAT-0014`, `FEAT-0015`, `FEAT-0017` e `FEAT-0018`)
+>
+> Nota (v1.20.0 / ENH-0014): o footer passou a exibir a versão do app em linha única — `© {ano} MeuFenil · v{versão} · Todos os direitos reservados.` — e a página Sobre exibe um badge de versão. A versão é injetada em build-time via `define` em `vite.config.ts` (lendo `package.json`), sem overhead de runtime. (Issue #115, PR #117)
 >
 > Observação histórica: a FEAT-0016 (geração automática desta documentação via agente wiki-documenter) foi implementada e arquivada como IMPLEMENTED — esta wiki é o seu resultado (Fonte: `proposed/index.md` — linha FEAT-0016).
 
