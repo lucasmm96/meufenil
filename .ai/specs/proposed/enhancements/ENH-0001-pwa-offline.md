@@ -434,3 +434,127 @@ Resolvidas pela análise:
 - `vite.config.ts` (sem plugin PWA atual)
 - `public/manifest.json` (manifest completo)
 - `database: referencias_favoritas` (tabela de favoritos existente, FEAT-0008)
+
+## Plano de Implementação (Paralelizado)
+
+> Adicionado na análise de coerência pré-implementação (2026-10-09). Orquestrador: agente principal. Sub-agentes: despachados em paralelo por stream, com arquivos exclusivos para evitar colisão de edição.
+
+### Dependências externas (instalar antes dos streams)
+
+```bash
+npm install --save-dev vite-plugin-pwa workbox-window
+npm install --save-dev fake-indexeddb
+```
+
+> `vite-plugin-pwa` inclui Workbox como transitiva. `fake-indexeddb` é exclusivo para testes unitários do IndexedDB service — não vai para produção.
+
+### Streams da Fase 1 (paralelos entre si)
+
+| Stream | Responsabilidade | Arquivos exclusivos | Pré-requisito |
+|---|---|---|---|
+| A — infra | PWA config + vercel.json | `vite.config.ts`, `vercel.json` | `vite-plugin-pwa` instalado |
+| B — indexeddb | `offlineStorage.service.ts` + testes | `src/react-app/services/offlineStorage.service.ts`, `offlineStorage.service.test.ts` | `fake-indexeddb` instalado |
+| C — hook | `useOnlineStatus` + testes | `src/react-app/hooks/useOnlineStatus.ts`, `useOnlineStatus.test.ts` | nenhum |
+| D — components | `OfflineBanner` + `UpdateBanner` | `src/react-app/components/OfflineBanner.tsx`, `OfflineBanner.test.tsx`, `UpdateBanner.tsx` | nenhum |
+
+**Stream A — infra:**
+Entregável: `vite.config.ts` com `vite-plugin-pwa` configurado (precaching Workbox, scope `/`, SW gerado em `public/sw.js`); `vercel.json` com nova entrada `headers` para `/sw.js`: `Cache-Control: no-cache, no-store, must-revalidate` e `Service-Worker-Allowed: /`.
+Validação: `npm run build` verde; arquivo SW gerado no output.
+
+**Stream B — indexeddb:**
+Entregável: `offlineStorage.service.ts` com API para 4 stores (`favoritos`, `customizadas`, `historico`, `perfil`) — funções `write(store, userId, data)`, `read(store, userId)`, `clearUser(userId)`, `clearDelegado(userId)`, `clearAll()`; atualização incremental para favoritos/customizadas; `offlineStorage.service.test.ts` cobrindo escrita, leitura, limpeza por `userId`, isolamento entre usuários, atualização incremental.
+Validação: `npm run test:run -- offlineStorage` verde.
+
+**Stream C — hook:**
+Entregável: `useOnlineStatus.ts` exportando `{ isOnline, isSyncing, syncError, isIos, triggerSync }`; lógica: evento `online/offline` + 2–3 pings HTTP (≤3s) antes de declarar online; detecção iOS via `navigator.userAgent`; verificação de sessão ao inicializar (chamar `supabase.auth.getSession()`); ao confirmar online: chamar `triggerSync` para re-fetch de todas as stores; `useOnlineStatus.test.ts` cobrindo estados, transições, iOS, ping múltiplo, falha de ping mantém offline.
+Validação: `npm run test:run -- useOnlineStatus` verde.
+
+**Stream D — components:**
+Entregável: `OfflineBanner.tsx` com 4 estados via props `{ isOnline, isSyncing, syncError, isIos }` — sem renderização quando online; `OfflineBanner.test.tsx` cobrindo os 4 estados; `UpdateBanner.tsx` com 2 estados `{ isSyncing, syncError }`.
+Validação: `npm run test:run -- OfflineBanner` verde.
+
+### Ponto de sincronização 1 — barreira (A + B + C + D)
+
+Orquestrador aguarda os 4 streams. Depois: `npm run test:run` completo — todos os testes existentes + novos devem passar.
+
+### Stream E — Adaptações de tela (sequencial, após barreira 1)
+
+Agente único. Arquivos exclusivos (não editados por A–D):
+
+- `src/react-app/components/Layout.tsx` — adicionar `<OfflineBanner />` acima de `<LoginAsBanner />` no header sticky; integrar `useOnlineStatus`
+- `src/react-app/context/AuthContext.tsx` — integrar `offlineStorage.clearUser(userId)` no `signOut()` e no listener `onAuthStateChange` quando `session` for `null` (AC7)
+- `src/react-app/pages/Dashboard.tsx` — informativo + criar medição bloqueado offline (AC19)
+- `src/react-app/pages/Historico.tsx` — AC3: 7 dias + aviso; exportar bloqueado
+- `src/react-app/pages/Perfil.tsx` — AC17: somente leitura; painel "Dados armazenados" (AC28 Fase 1)
+- `src/react-app/pages/Referencias.tsx` — AC2: só favoritos + customizados; add/remove bloqueados (AC18)
+- `src/react-app/pages/Estatisticas.tsx` — AC12: dados 7d; aviso no toggle "Último Mês"
+- `src/react-app/pages/Exames.tsx` — informativo offline
+- `src/react-app/pages/Admin.tsx` — informativo offline
+- `src/react-app/pages/Home.tsx` — AC11: primeiro acesso offline (sem dados locais)
+- `src/react-app/pages/Sobre.tsx` — sem mudança (conteúdo estático; app shell)
+
+Validação: `npm run test:run` suíte completa verde.
+
+### Validação Fase 1 — critério de pronto
+
+- [ ] `npm run test:run` verde (inclui novos testes de B, C, D e telas de E)
+- [ ] `npm run build` verde
+- [ ] ACs automatizáveis (AC2–AC13, AC17–AC21) verificados via testes
+- [ ] AC14 (`vercel.json`): arquivo revisado; validação completa apenas pós-deploy
+- [ ] AC15, AC16 (iOS): gap aceito — validação manual em dispositivo físico
+
+### Fase 2 (inicia após Fase 1 + AC1–AC21 passing)
+
+> ⚠ **HIGH RISK — Migration:** orquestrador para e confirma antes de executar qualquer mudança de schema.
+
+**Migration** — `supabase/migrations/20261009000001_enh0001_fase2_offline_write.sql`:
+- `ALTER TABLE notificacoes ADD COLUMN IF NOT EXISTS content JSONB`
+- `ALTER TABLE registros ADD COLUMN IF NOT EXISTS client_uuid UUID`
+- `CREATE UNIQUE INDEX IF NOT EXISTS registros_client_uuid_idx ON registros(client_uuid) WHERE client_uuid IS NOT NULL`
+- `CREATE OR REPLACE FUNCTION fn_upsert_consumo_offline(p_client_uuid UUID, p_alimento_id UUID, p_quantidade NUMERIC, p_data_registro DATE, p_hora_registro TIME) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER` — conforme propriedades 1–6 definidas em Scope — Fase 2
+
+**Stream H — Sync engine** (após migration aplicada; arquivos exclusivos):
+- `src/react-app/services/offlineStorage.service.ts` (extend: store `pendente_sync`)
+- `src/react-app/services/sync.service.ts` (novo: `processarFilaSync()` — sequential client sync, Opção A)
+- `src/react-app/services/sync.service.test.ts`
+
+**Stream I — Screens Fase 2** (pode rodar em paralelo com H; arquivos exclusivos):
+- `src/react-app/pages/Dashboard.tsx` — criar medição offline + indicador de pendência (AC22)
+- `src/react-app/pages/Historico.tsx` — excluir offline (AC24)
+- `src/react-app/pages/Perfil.tsx` — painel AC28 Fase 2: N pendentes + botão [Tentar sincronizar agora]
+- `src/react-app/hooks/useLogout.ts` + `src/react-app/context/AuthContext.tsx` — AC26: verificar pendente_sync antes de logout
+
+### Ponto de sincronização 2 — barreira (H + I)
+
+`npm run test:run` suíte completa verde.
+
+### Validação Fase 2 — critério de pronto
+
+- [ ] `npm run test:run` verde (inclui sync engine e telas Fase 2)
+- [ ] AC22–AC28 verificados via testes e/ou smoke test manual
+- [ ] Migration aplicada em ambiente de dev via `npm run supabase:migrations:apply`
+
+### Caminho crítico
+
+```
+Instalar deps
+→ [A + B + C + D em paralelo]
+→ Barreira 1 + npm run test:run
+→ Stream E (telas)
+→ Validação Fase 1
+→ ⚠ Confirmar migration (HIGH RISK)
+→ Migration aplicada
+→ [H + I em paralelo]
+→ Barreira 2 + npm run test:run
+→ Validação Fase 2
+```
+
+### Riscos e mitigações
+
+| Risco | Mitigação |
+|---|---|
+| `vite-plugin-pwa` conflita com build | Testar `npm run build` imediatamente após stream A; reverter e investigar se falhar |
+| iOS sem suporte a SW | Gap aceito; informativo específico (AC15); nenhuma ação além do texto |
+| Migration em tabela em produção | `IF NOT EXISTS` em todas as cláusulas; colunas nullable; sem lock de tabela esperado |
+| Crash mid-sync com dados pendentes | IndexedDB durável por natureza; op não removida antes de confirmação do servidor; retry automático |
+| Schema `pendente_sync` incompatível após update forçado | Schema declarado estável (GAP-sync-schema-stability resolvido); breaking changes exigem migração explícita |
