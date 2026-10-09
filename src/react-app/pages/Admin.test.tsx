@@ -28,6 +28,15 @@ vi.mock("@/react-app/hooks/useReferenciasSyncAdmin", () => ({
   useReferenciasSyncAdmin: vi.fn(),
 }));
 
+vi.mock("@/react-app/services/notificacoes.service", () => ({
+  listarNotificacoes: vi.fn(),
+  contarNaoLidas: vi.fn(),
+  marcarComoLida: vi.fn(),
+  marcarTodasComoLidas: vi.fn(),
+  inserirNotificacao: vi.fn(),
+  subscribirNotificacoes: vi.fn(() => vi.fn()),
+}));
+
 vi.mock("@/react-app/lib/app-environment", () => ({
   CURRENT_APP_ENVIRONMENT: "dev",
 }));

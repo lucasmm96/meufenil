@@ -312,6 +312,26 @@ Agentes especializados (`.claude/agents/`): spec-manager (Specs) · github-manag
 
 A matriz completa "uma informação, um lar" (Spec/Issue/Project/Código/PR/Release) está na ADR-0012.
 
+### 18.12 Post-Deploy Issues
+
+Issues de ação pós-deploy: rastreiam atividades que precisam ocorrer em produção **após** o deploy de uma release (migrations, publicações Realtime, configurações de serviço externo, variáveis de ambiente em prod, etc.).
+
+**Quando criar:** durante o housekeeping (passo 8 do playbook `workflow-spec-implementation.md`), se a spec tem a seção `## Post-Deploy Steps` preenchida (não N/A). Criar **antes** de fechar o housekeeping.
+
+**Como criar:**
+- Título: `Aplicar <ação resumida> em produção pós-deploy` (ex.: `Aplicar migration FEAT-0018 em produção pós-deploy`)
+- Label: `Post-Deploy`
+- Milestone: o milestone da release que inclui a spec
+- Corpo: passos exatos de execução + como verificar + quando fechar
+
+**Lifecycle:**
+1. Criado no housekeeping da spec implementada
+2. Fica aberto no milestone até o deploy ocorrer
+3. Após executar a ação em prod e verificar: fechar o issue
+4. O milestone só é encerrado após todos os issues `Post-Deploy` estarem fechados
+
+**Gate:** o `/check-release` verifica issues `Post-Deploy` abertos no milestone ativo antes de liberar a release.
+
 ---
 
 ## Relação entre templates e specs
@@ -328,4 +348,5 @@ A matriz completa "uma informação, um lar" (Spec/Issue/Project/Código/PR/Rele
 |---|---|---|
 | 2026-08-13 | Aprovada (Fase 0 v2; consolidada na Fase 12) | Fases 0–12 |
 | 2026-08-16 | Ecossistema Spec-Driven GitHub Operations: camada GitHub (§1) · lifecycle refinado com campos de decisão e protocolo de descoberta (§8) · arquivamento de estados terminais (§10) · stop conditions operacionais (§13) · fronteiras operacionais (§14) · regras de Git — commits automáticos, push autorizado, branch model (§16) · lifecycle de `.ai/.temp` com retenção de 7 dias (§17) · nova seção GitHub Operations (§18) | ADR-0012 — Blueprint v1.1 (`36`/`37-spec-driven-github-operations-blueprint-v1(.1).md`), decisões do autor 2026-08-16 |
+| 2026-10-05 | §18.12 Post-Deploy Issues: padrão para rastrear ações pós-deploy em produção (label `Post-Deploy`, milestone, gate no `/check-release`, instrução no playbook de implementação, seção `## Post-Deploy Steps` no `proposal-template.md`) | decisão do autor 2026-10-05 |
 | 2026-08-24 | Fluxos automáticos determinísticos sem IA: §18.7 resposta estática de Issues externas (W3 `issue-responder`, triagem manual — nenhum fluxo automático decide elegibilidade) · §18.9 gate de produção (W7 `release-gate` — Spec + docs `wiki/` obrigatórios) · IA apenas no modo interativo | ADR-0013 — REF-0003 (aprovada 2026-08-24) |

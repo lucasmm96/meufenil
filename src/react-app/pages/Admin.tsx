@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type JSX } from "react";
 import Layout from "@/react-app/components/Layout";
+import { inserirNotificacao } from "@/react-app/services/notificacoes.service";
 import {
   Users,
   Shield,
@@ -24,6 +25,8 @@ import {
   Check,
   Maximize2,
   Minimize2,
+  Bell,
+  Send,
 } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { useAuth } from "@/react-app/context/AuthContext";
@@ -653,6 +656,8 @@ export default function Admin() {
         </section>
 
         <SecaoSincronizacaoReferencias data={referenciasSync} />
+
+        <SecaoNotificacoes usuarios={usuarios} adminId={perfilUsuario.id} />
 
         {mensagemExecucao && (
           <ModalMensagemExecucao
@@ -1746,6 +1751,223 @@ function AbaRecuperacaoSync({ data }: { data: SyncAdminData }) {
           )}
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// FEAT-0018: Seção de Notificações no Painel Admin
+// ============================================================
+function SecaoNotificacoes({
+  usuarios,
+  adminId,
+}: {
+  usuarios: import("@/react-app/services/dtos/admin.dto").UsuarioAdminDTO[];
+  adminId: string;
+}) {
+  const [tipo, setTipo] = useState<string>("admin_message");
+  const [titulo, setTitulo] = useState("");
+  const [corpo, setCorpo] = useState("");
+  const [target, setTarget] = useState<"broadcast" | "user">("broadcast");
+  const [usuarioAlvoId, setUsuarioAlvoId] = useState("");
+  const [loadingEnvio, setLoadingEnvio] = useState(false);
+  const [sucesso, setSucesso] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSucesso(null);
+    setErro(null);
+
+    if (!titulo.trim() || !corpo.trim()) {
+      setErro("Título e corpo são obrigatórios.");
+      return;
+    }
+    if (target === "user" && !usuarioAlvoId) {
+      setErro("Selecione um usuário para enviar a notificação.");
+      return;
+    }
+
+    setLoadingEnvio(true);
+
+    try {
+      // Para broadcasts, o user_id é o admin que enviou (RLS: INSERT exige admin).
+      // Se o admin for excluído, os broadcasts em cascata também serão removidos.
+      await inserirNotificacao({
+        user_id: target === "broadcast" ? adminId : usuarioAlvoId,
+        type: tipo,
+        title: titulo.trim(),
+        body: corpo.trim(),
+        target,
+      });
+
+      setSucesso(
+        target === "broadcast"
+          ? "Notificação broadcast enviada a todos os usuários."
+          : "Notificação enviada ao usuário selecionado."
+      );
+      setTitulo("");
+      setCorpo("");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro inesperado ao enviar notificação";
+      setErro(message);
+    } finally {
+      setLoadingEnvio(false);
+    }
+  };
+
+  return (
+    <section className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+            <Bell className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Notificações</h2>
+            <p className="text-sm text-gray-600 mt-0.5">
+              Enviar mensagens para usuários específicos ou para todos (broadcast).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
+          {/* Tipo */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tipo
+            </label>
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+            >
+              <option value="admin_message">Mensagem do Admin</option>
+              <option value="app_update">Novidade do App</option>
+              <option value="system_event">Evento do Sistema</option>
+            </select>
+          </div>
+
+          {/* Destinatário */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Destinatário
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="target"
+                  value="broadcast"
+                  checked={target === "broadcast"}
+                  onChange={() => setTarget("broadcast")}
+                  className="accent-indigo-600"
+                />
+                <span className="text-sm text-gray-700">Todos (broadcast)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="target"
+                  value="user"
+                  checked={target === "user"}
+                  onChange={() => setTarget("user")}
+                  className="accent-indigo-600"
+                />
+                <span className="text-sm text-gray-700">Usuário específico</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Seleção de usuário (apenas se target = 'user') */}
+          {target === "user" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Usuário
+              </label>
+              <select
+                value={usuarioAlvoId}
+                onChange={(e) => setUsuarioAlvoId(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              >
+                <option value="">Selecione um usuário...</option>
+                {usuarios
+                  .filter((u) => u.id !== adminId)
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome || u.email} ({u.email})
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
+
+          {/* Título */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título
+            </label>
+            <input
+              type="text"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Título da notificação"
+              required
+              maxLength={200}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+            />
+          </div>
+
+          {/* Corpo */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Mensagem
+            </label>
+            <textarea
+              value={corpo}
+              onChange={(e) => setCorpo(e.target.value)}
+              placeholder="Conteúdo da notificação..."
+              required
+              maxLength={1000}
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
+            />
+          </div>
+
+          {/* Feedback */}
+          {erro && (
+            <div className="flex items-start gap-2 bg-red-50 border-l-4 border-red-500 rounded-xl p-4">
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-700">{erro}</p>
+            </div>
+          )}
+
+          {sucesso && (
+            <div className="flex items-start gap-2 bg-emerald-50 border-l-4 border-emerald-500 rounded-xl p-4">
+              <Check className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-emerald-700">{sucesso}</p>
+            </div>
+          )}
+
+          {/* Botão de envio */}
+          <button
+            type="submit"
+            disabled={loadingEnvio}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {loadingEnvio ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+            {loadingEnvio ? "Enviando..." : "Enviar Notificação"}
+          </button>
+        </form>
+      </div>
+    </section>
   );
 }
 

@@ -1,10 +1,12 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { useLogout } from "@/react-app/hooks/useLogout";
-import { LayoutDashboard, History, BarChart3, User, LogOut, Shield, Heart, Linkedin, Mail, Stethoscope, Info, List } from "lucide-react";
+import { useNotificacoes } from "@/react-app/hooks/useNotificacoes";
+import { LayoutDashboard, History, BarChart3, User, LogOut, Shield, Heart, Linkedin, Mail, Stethoscope, Info, List, Bell } from "lucide-react";
 import { LoginAsBanner } from "@/react-app/components/login-as/LoginAsBanner";
+import NotificacoesPanel from "@/react-app/components/NotificacoesPanel";
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,6 +18,16 @@ export default function Layout({ children }: LayoutProps) {
   const { authUser, loadingAuth } = useAuth();
   const { perfil } = useLayoutPerfil(authUser?.id);
   const { handleLogout } = useLogout();
+  const {
+    notificacoes,
+    naoLidas,
+    loading: loadingNotificacoes,
+    error: errorNotificacoes,
+    marcarComoLida,
+    marcarTodasComoLidas,
+  } = useNotificacoes();
+
+  const [painelAberto, setPainelAberto] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
   const isAdmin = perfil?.role === "admin";
@@ -57,6 +69,26 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
 
             <div className="flex items-center gap-2 sm:gap-4">
+              {/* Ícone de notificações com badge */}
+              {authUser && (
+                <button
+                  onClick={() => setPainelAberto((prev) => !prev)}
+                  className="relative flex items-center justify-center w-9 h-9 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  title="Notificações"
+                  aria-label="Notificações"
+                >
+                  <Bell className="w-4 h-4" />
+                  {naoLidas > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold bg-indigo-600 text-white leading-none"
+                      aria-label={`${naoLidas} notificações não lidas`}
+                    >
+                      {naoLidas > 99 ? "99+" : naoLidas}
+                    </span>
+                  )}
+                </button>
+              )}
+
               <Link
                 to="/perfil"
                 className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-indigo-600 rounded-lg transition-colors"
@@ -76,6 +108,19 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </header>
+
+      {/* Painel de notificações (overlay) */}
+      {painelAberto && (
+        <NotificacoesPanel
+          notificacoes={notificacoes}
+          naoLidas={naoLidas}
+          loading={loadingNotificacoes}
+          error={errorNotificacoes}
+          onMarcarComoLida={marcarComoLida}
+          onMarcarTodasComoLidas={marcarTodasComoLidas}
+          onFechar={() => setPainelAberto(false)}
+        />
+      )}
 
       <nav className="bg-white/60 backdrop-blur-md border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2">
@@ -141,7 +186,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             <p className="text-xs text-gray-500">
-              © {new Date().getFullYear()} MeuFenil. Todos os direitos reservados.
+              © {new Date().getFullYear()} MeuFenil · v{__APP_VERSION__} · Todos os direitos reservados.
             </p>
           </div>
         </div>
