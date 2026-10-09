@@ -104,7 +104,8 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Exclusão offline de registros:** exclusão de registros dos últimos 7 dias disponível offline; operação entra na `pendente_sync`
 - **Auth para sync no app layer:** ao voltar online, sync usa a sessão do usuário no app layer (sem JWT handling no SW); se sessão inválida ao tentar sync, redirecionar para login com aviso de perda
 - **Sincronização atômica da fila de pendentes:** ao voltar online, processar `pendente_sync` — qualquer falha interrompe e mantém estado offline; dados NÃO são removidos da fila antes de confirmar recebimento do servidor; retry automático
-- **Conflito com referência arquivada:** ao sincronizar registro criado offline que usa referência arquivada no servidor → esse registro é descartado automaticamente; demais registros da fila continuam sendo processados. Mecanismo: RLS policy "Inserir registro apenas com referencia ativa" (`registros` table) rejeita o INSERT; handler de sync detecta o erro, remove a entrada da `pendente_sync` e insere notificação via FEAT-0018 (`type: system_event`, título: "Registro não sincronizado", corpo: "[Nome do alimento] não pôde ser sincronizado — o alimento não está mais disponível. Você pode registrar novamente usando outro alimento."). Sem fluxo de correção inline. Dependência: FEAT-0018 em produção (GAP-feat0018-prod); se indisponível, op é descartada sem notificação. (4ª curadoria — GAP-archived-ref resolvido)
+- **Conflito com referência arquivada:** ao sincronizar registro criado offline que usa referência arquivada no servidor → esse registro é descartado automaticamente; demais registros da fila continuam sendo processados. Mecanismo: `fn_upsert_consumo_offline` (SECURITY DEFINER) verifica internamente se o alimento está ativo; se arquivado, rejeita o INSERT, insere notificação em `notificacoes` como sistema (sem INSERT direto pelo client) e retorna `{status: 'archived_ref'}` ao handler de sync, que remove a entrada da `pendente_sync`. Notificação: `type: system_event`, corpo: "[Nome do alimento] não pôde ser sincronizado — o alimento não está mais disponível. Você pode registrar novamente usando outro alimento." Sem fluxo de correção inline. (4ª curadoria — GAP-archived-ref resolvido; 5ª curadoria — GAP-feat0018-write-access resolvido)
+- **RPC `fn_upsert_consumo_offline` — design de segurança (GAP-feat0018-write-access resolvido — 5ª curadoria):** a notificação de archived-ref é emitida pelo sistema, não pelo client — modelo: notificação originada pelo sistema, usuário é destinatário. Assinatura: `fn_upsert_consumo_offline(p_client_uuid UUID, p_alimento_id UUID, p_quantidade NUMERIC, p_data_registro DATE, p_hora_registro TIME) RETURNS JSONB`. Propriedades: (1) `user_id` derivado exclusivamente de `auth.uid()` dentro do SECURITY DEFINER — não é parâmetro; (2) conteúdo da notificação fixo — nenhum campo livre aceito pelo client; (3) alimento verificado contra o banco na mesma operação — client não pode declarar rejeição sem que ela exista; (4) idempotência dupla: `client_uuid` único em `registros` (para o registro) + EXISTS check em `notificacoes` por `(user_id, type, content->>'client_uuid')` (para a notificação); (5) policy `notificacoes_insert_admin_only` **inalterada** — INSERT ocorre via SECURITY DEFINER, não por usuário diretamente; (6) retorno estruturado: `{status: 'ok', registro_id}` | `{status: 'archived_ref', client_uuid}` | `{status: 'error', code}`.
 - **Indicadores de estado de sync por registro:** "pendente de sync" → "sincronizando" → "sincronizado"; registros rejeitados por referência arquivada são descartados automaticamente sem estado de erro na UI — usuário é notificado via FEAT-0018
 - **Logout com dados pendentes:** fluxo completo definido (ver GAP-logout-pending): (1) verificar `pendente_sync` antes de executar o logout; (2) se há dados pendentes e usuário está online → tentar sync silencioso; se sync OK → logout normal sem aviso; se sync falha ou usuário está offline → exibir aviso; (3) diálogo: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente. Deseja continuar?" + [Cancelar] / [Sair mesmo assim]; (4) confirmação → limpeza imediata de todos os stores + `supabase.auth.signOut()`. Sem prazo/countdown — decisão imediata ao confirmar.
 
@@ -123,7 +124,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - [FEAT-0014 PWA](../../current/features/FEAT-0014-pwa.md)
 - [FEAT-0008 Referências alimentares](../../current/features/FEAT-0008-referencias-alimentares.md) (favoritos e customizados)
 - [FEAT-0011 Delegação de acesso](../../current/features/FEAT-0011-delegacao-acesso.md) (bloqueio offline + limpeza ao sair da conta delegada — AC13)
-- [FEAT-0018 Central de Notificações](../features/FEAT-0018-central-notificacoes.md) — canal de notificação para rejeição de registro arquivado (AC27, `type: system_event`); **deve estar em produção antes de ENH-0001 Fase 2 ir ao ar** (GAP-feat0018-prod)
+- [FEAT-0018 Central de Notificações](../features/FEAT-0018-central-notificacoes.md) — canal de notificação para rejeição de registro arquivado (AC27, `type: system_event`); ✅ em produção (v1.20.0, 2026-10-09) — GAP-feat0018-prod resolvido
 
 ## Impacted Frontend
 
@@ -191,7 +192,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - `vite-plugin-pwa` (nova dependência de dev)
 - Workbox (transitiva via plugin)
 - `fake-indexeddb` (nova dependência de dev — testes unitários do serviço IndexedDB)
-- **FEAT-0018 (Central de Notificações)** — dependência de produção para Fase 2; tabela `notificacoes` deve estar em prod com RLS de escrita configurado antes de ENH-0001 Fase 2 ir ao ar (GAP-feat0018-prod)
+- **FEAT-0018 (Central de Notificações)** — ✅ em produção (v1.20.0, 2026-10-09); tabela `notificacoes` disponível; escrita de notificações de archived-ref via `fn_upsert_consumo_offline` SECURITY DEFINER (GAP-feat0018-prod e GAP-feat0018-write-access resolvidos — 5ª curadoria)
 
 ## Comunicações ao Usuário — Canal FEAT-0018
 
@@ -199,7 +200,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 
 | Comunicação | Canal | Fase | Tipo FEAT-0018 | Condição |
 |---|---|---|---|---|
-| Rejeição de registro por referência arquivada (AC27) | FEAT-0018 | Fase 2 | `system_event` | FEAT-0018 em prod; RLS de escrita habilitado (GAP-feat0018-write-access) |
+| Rejeição de registro por referência arquivada (AC27) | FEAT-0018 via `fn_upsert_consumo_offline` (SECURITY DEFINER) | Fase 2 | `system_event` | ✅ FEAT-0018 em prod (v1.20.0); escrita via SECURITY DEFINER — policy `notificacoes_insert_admin_only` inalterada (GAP-feat0018-prod e GAP-feat0018-write-access resolvidos) |
 | `OfflineBanner` — offline / sincronizando / erro / iOS | Inline (componente de estado) | Fase 1 | N/A — estado em tempo real | — |
 | `UpdateBanner` — update aguardando | Inline (componente de estado) | Ambas | N/A — estado em tempo real | — |
 | Primeiro acesso offline | Inline (tela de login) | Fase 1 | N/A — usuário não autenticado | — |
@@ -211,7 +212,7 @@ FEAT-0014 (spec); U-5.2; `referencias_favoritas` (banco existente, FEAT-0008); F
 - **Payload:** `title` (≤ 255 chars) + `body` (≤ 255 chars) — texto curto, sem restrições ✓
 - **Persistência:** notificação persiste até 30 dias na tabela `notificacoes` — usuário vê no badge ao abrir o app mesmo após fechar ✓
 - **Agrupamento:** se múltiplos registros rejeitados na mesma sessão de sync, pode-se criar uma notificação por rejeição ou uma sumarizando — a definir na implementação
-- **Mecanismo de escrita:** handler de sync (app layer) chama `supabase.from('notificacoes').insert(...)` com a sessão autenticada do usuário; requer RLS de INSERT habilitado para `user_id = auth.uid()` ou RPC equivalente (GAP-feat0018-write-access — depende das decisões de implementação do FEAT-0018)
+- **Mecanismo de escrita:** notificação emitida internamente pela RPC `fn_upsert_consumo_offline` (SECURITY DEFINER) — o client não chama `notificacoes.insert()` diretamente; sistema é o autor, usuário é o destinatário; policy `notificacoes_insert_admin_only` inalterada (GAP-feat0018-write-access resolvido — 5ª curadoria; ver Scope — Fase 2)
 - **Fallback:** se FEAT-0018 não estiver em prod, op é descartada silenciosamente sem notificação
 
 ## Risks
@@ -281,9 +282,9 @@ for op in pendente_sync (ordem por timestamp):
     stopAll()                      // fila preservada, retry automático
     throw NetworkError
 
-  if isArchivedRefError(result):
+  if isArchivedRefError(result):         // RPC retornou {status: 'archived_ref'}
     removeFromQueue(op)                  // descartado automaticamente
-    insertNotification(op)               // via FEAT-0018 system_event
+    // notificação já emitida pela RPC (SECURITY DEFINER) internamente
     continue
 
   if isSuccess(result):
@@ -363,13 +364,13 @@ Resolvidas pela análise:
 | Logout com dados pendentes — fluxo completo (GAP-logout-pending) | **RESOLVIDO** — fluxo definido na seção Scope | Fluxo completo definido: (1) sem pendências → logout imediato; (2) com pendências + online → tentar sync silencioso → se OK: logout normal; se falha: dialog; (3) com pendências + offline → dialog imediato. Dialog: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente." + [Cancelar] / [Sair mesmo assim]. Sem prazo/countdown — decisão imediata. AC26 atualizado. |
 | Atualização forçada do SW pós-deploy (GAP-forced-update) | **RESOLVIDO — 3ª curadoria** | **Decisão:** forced update em ambas as fases, controlado pelo app layer; sync silencioso antes de atualizar quando há pendentes; offline = update aguarda; ver AC10 e seção Scope — Fase 1. **Pendência remanescente:** schema `pendente_sync` estável entre versões — ver GAP-sync-schema-stability |
 | Painel de dados offline no Perfil (GAP-profile-offline-panel) | **EM ESCOPO — 3ª curadoria** | **Decisão:** incluído no escopo da implementação desde o início (não ideia futura). Painel mostra contagem por store + última sincronização + (Fase 2) pendentes de sync + botão de sync manual. Ver AC28 e seção Scope — Fase 1. |
+| Dependência de prod — FEAT-0018 (GAP-feat0018-prod) | **RESOLVIDO — 5ª curadoria (2026-10-09)** | FEAT-0018 em produção com v1.20.0. Tabela `notificacoes` disponível em prod. Dependência de deploy encerrada. |
+| Escrita em `notificacoes` — mecanismo (GAP-feat0018-write-access) | **RESOLVIDO — 5ª curadoria** | **Decisão:** notificação de archived-ref emitida internamente por `fn_upsert_consumo_offline` (SECURITY DEFINER) — o client não chama `notificacoes.insert()` diretamente; `user_id` derivado de `auth.uid()` dentro da função; conteúdo fixo (template hardcoded, sem campos livres); idempotência via EXISTS check em `notificacoes` por `(user_id, type, content->>'client_uuid')`; policy `notificacoes_insert_admin_only` **inalterada** — canal é o SECURITY DEFINER, não policy mais permissiva. Modelo: notificação originada pelo sistema, usuário é destinatário (não autor). Ver Scope — Fase 2 para assinatura e propriedades completas da RPC. |
 
 **Pendências em Aberto:**
 
 | Gap/Pendência | Natureza | O que precisa ser decidido/feito |
 |---|---|---|
-| GAP-feat0018-prod | Dependência de deploy | FEAT-0018 (Central de Notificações) deve estar em produção antes de ENH-0001 Fase 2 ir ao ar — notificação de archived-ref depende da tabela `notificacoes` em prod |
-| GAP-feat0018-write-access | Decisão técnica (FEAT-0018) | RLS da tabela `notificacoes` deve permitir INSERT pelo client autenticado (`user_id = auth.uid()`) ou via RPC — depende das decisões de implementação do FEAT-0018 |
 | AC14 — Vercel headers | Implementar na Fase 1 + verificar pós-deploy | `vercel.json` atual sem `Cache-Control` para `/sw.js`; adicionar na implementação da Fase 1; validar em produção após o primeiro deploy |
 | AC15, AC16 — iOS | GAP ACEITO — verificação manual futura | Só pode ser validado em dispositivo iOS físico; aceito como gap; não impeditivo para implementação nem para merge |
 
@@ -406,7 +407,7 @@ Resolvidas pela análise:
 - **AC24:** Usuário pode excluir registros dos últimos 7 dias offline — operação entra na fila de sync
 - **AC25:** Ao voltar online: fila `pendente_sync` (ops de criar e excluir — edição offline não está em escopo) processada sequencialmente; `client_uuid` enviado como idempotency key em cada CREATE; erros de rede interrompem toda a fila (stop all + retry automático); archived-ref → op descartada automaticamente + notificação FEAT-0018 + fila continua; dados não removidos da fila antes de confirmação do servidor; ao concluir sem erros de rede: `OfflineBanner` e informativos removidos
 - **AC26:** Ao fazer logout com dados pendentes: (1) se online → sync silencioso tentado; se OK → logout direto sem aviso; se falha → diálogo; (2) se offline → diálogo imediato. Diálogo: "Você possui [N] registro(s) não sincronizado(s). Ao sair, esses dados serão perdidos permanentemente. Deseja continuar?" + [Cancelar] / [Sair mesmo assim]; sem countdown; ao confirmar: limpeza imediata de todos os stores + `supabase.auth.signOut()`
-- **AC27:** Conflito com referência arquivada ao sincronizar: INSERT rejeitado pelo RLS ("Inserir registro apenas com referencia ativa"); handler detecta, remove op da `pendente_sync` automaticamente e insere notificação via FEAT-0018 (`type: system_event`, título: "Registro não sincronizado", corpo: "[Nome do alimento] não pôde ser sincronizado — o alimento não está mais disponível. Você pode registrar novamente usando outro alimento."); demais registros da fila continuam; sem fluxo de correção inline; sem estado de erro na UI para o registro descartado. Dependência: FEAT-0018 em prod (GAP-feat0018-prod)
+- **AC27:** Conflito com referência arquivada ao sincronizar: `fn_upsert_consumo_offline` (SECURITY DEFINER) detecta alimento arquivado, rejeita o INSERT, insere notificação FEAT-0018 internamente (`type: system_event`, corpo: "[Nome do alimento] não pôde ser sincronizado — o alimento não está mais disponível. Você pode registrar novamente usando outro alimento.") e retorna `{status: 'archived_ref'}` ao handler de sync, que remove op da `pendente_sync`; demais registros da fila continuam; sem fluxo de correção inline; sem estado de erro na UI para o registro descartado.
 - **AC28:** Tela de Perfil offline exibe painel "Dados armazenados neste dispositivo": favoritos (N itens), customizados (N itens), histórico (N registros, período: DD/MM–DD/MM), sincronizado em: [data/hora]. Fase 2: painel inclui N operações pendentes de sync + botão [Tentar sincronizar agora] (habilitado apenas quando online)
 
 ## Comportamento Offline por Tela
