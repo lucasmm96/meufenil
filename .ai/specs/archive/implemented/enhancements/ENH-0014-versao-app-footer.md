@@ -1,7 +1,7 @@
 # ENH-0014 — Versão do app exibida no footer
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Versão do app exibida no footer
 **Issue:** #115
 **Created on:** 2026-10-05
