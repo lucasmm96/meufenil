@@ -1,9 +1,10 @@
 # ENH-0001 — PWA offline / service worker
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Issue:** #10
 **Title:** PWA offline / service worker
+**Approved by/on:** Lucas Martins Menezes / 2026-10-09
 
 ## Problem
 
