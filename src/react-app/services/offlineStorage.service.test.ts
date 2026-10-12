@@ -5,7 +5,6 @@ import {
   read,
   clearUser,
   clearDelegado,
-  clearAll,
   getLastSync,
   setLastSync,
   getCounts,
