@@ -126,7 +126,10 @@ Usa apenas breakpoints default do Tailwind; padrões recorrentes: colunas `grid-
 
 - `public/manifest.json`: `display: standalone`, `orientation: portrait-primary`, theme/background `#6366f1`/`#ffffff`, ícones 192/512/maskable, `lang: pt-BR`, categorias health/medical/lifestyle `[CONFIRMED: configuration]`.
 - `index.html`: `link rel=manifest`, `theme-color #6366f1`, apple-touch-icon, favicon, metas OG/Twitter `[CONFIRMED: code]`.
-- **NÃO existe service worker** no repositório (sem cache/offline implementados no código) `[CONFIRMED: ausência — filesystem]`. Vercel pode gerar comportamento de plataforma — não verificável (`UNKNOWN`).
+- Service worker via `vite-plugin-pwa@0.21.1` (Workbox, `registerType: 'prompt'`, `filename: 'sw.js'`): precaching do app shell `[CONFIRMED: code — vite.config.ts, PR #122 ENH-0001 Fase 1]`.
+- Offline somente-leitura (Fase 1): `useOnlineStatus` hook, `OfflineContext`, `offlineStorage.service.ts` (IndexedDB `meufenil-offline` v1, stores: `favoritos`, `customizadas`, `historico`, `perfil`), `OfflineBanner`, `UpdateBanner` `[CONFIRMED: code — PR #122]`.
+- `vercel.json` serve `/sw.js` com `no-cache` e `Service-Worker-Allowed: /` `[CONFIRMED: configuration — PR #122]`.
+- iOS offline não suportado (detecção via user agent) `[CONFIRMED: code — useOnlineStatus.ts]`.
 
 ## Testes de frontend
 
@@ -148,7 +151,7 @@ Avaliação de suficiência: Fase 6.
 - E2 — Camadas e inventários: filesystem + grep de hooks/services/DTOs/skeletons (2026-08-13) `[CONFIRMED: code]`
 - E3 — Padrões visuais: classes recorrentes nas páginas/componentes `[CONFIRMED: code]`
 - E4 — Configurações: `tailwind.config.js`, `index.css`, `public/manifest.json`, `index.html` `[CONFIRMED: configuration]`
-- E5 — Ausências: sem service worker, sem `aria-*`/`role=` (grep), sem tokens customizados `[CONFIRMED: ausência]`
+- E5 — Ausências: sem `aria-*`/`role=` (grep), sem tokens customizados `[CONFIRMED: ausência]`; service worker implementado (ENH-0001 Fase 1 — PR #122)
 
 ## Veja também
 
