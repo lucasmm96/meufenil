@@ -1,13 +1,15 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Activity, BarChart3, FileText, Shield, Heart, Linkedin, Mail } from "lucide-react";
+import { Activity, BarChart3, FileText, Shield, Heart, Linkedin, Mail, WifiOff } from "lucide-react";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useUser } from "@/react-app/hooks/useUser";
+import { useOffline } from "@/react-app/context/OfflineContext";
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { authUser, loadingAuth } = useAuth();
   const { signInWithGoogle } = useUser();
+  const { isOnline } = useOffline();
 
   useEffect(() => {
     if (!loadingAuth && authUser) navigate("/dashboard", { replace: true });
@@ -44,10 +46,17 @@ export default function HomePage() {
             Controle diário de consumo de fenilalanina para pessoas com PKU
           </p>
 
-          <div className="pt-2">
+          <div className="pt-2 space-y-3">
+            {!isOnline && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 max-w-md mx-auto">
+                <WifiOff className="w-4 h-4 flex-shrink-0" />
+                <span>Você está offline. Faça o primeiro acesso online para habilitar as funcionalidades offline.</span>
+              </div>
+            )}
             <button
               onClick={signInWithGoogle}
-              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+              disabled={!isOnline}
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
             >
               Entrar com Google
             </button>
