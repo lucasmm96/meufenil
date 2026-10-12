@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/react-app/lib/supabase";
 import { User } from "@supabase/supabase-js";
+import { clearUser as clearOfflineUser } from "@/react-app/services/offlineStorage.service";
 
 import {
   listarDelegacoes,
@@ -78,6 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!mounted) return;
+        if (!session && authUser?.id) {
+          clearOfflineUser(authUser.id).catch(() => {});
+        }
         setAuthUser(session?.user ?? null);
         setLoadingAuth(false);
       }
@@ -151,12 +155,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sair = useCallback(async () => {
+    if (loginAs?.usuarioAssumidoId) {
+      await clearOfflineUser(loginAs.usuarioAssumidoId).catch(() => {});
+    }
     await sairDoPerfilAssumido();
     sessionStorage.removeItem(SESSION_KEY);
     setLoginAs(null);
-  }, []);
+  }, [loginAs?.usuarioAssumidoId]);
 
   async function signOut() {
+    if (authUser?.id) {
+      await clearOfflineUser(authUser.id).catch(() => {});
+    }
     await supabase.auth.signOut();
     sessionStorage.removeItem(SESSION_KEY);
     setLoginAs(null);
