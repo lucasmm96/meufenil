@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import Layout from "@/react-app/components/Layout";
-import { Trash2, Calendar, Filter, Download } from "lucide-react";
-import { format } from "date-fns";
+import { Trash2, Calendar, Filter, Download, WifiOff } from "lucide-react";
+import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useRegistros } from "@/react-app/hooks/useRegistros";
 import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { LayoutSkeleton, HistoricoSkeleton } from "@skeletons";
 import { useAuth } from "@/react-app/context/AuthContext";
+import { useOffline } from "@/react-app/context/OfflineContext";
 import {
   FormatoExportacao,
   exportarCSV,
@@ -17,6 +18,10 @@ import {
 export default function HistoricoPage() {
   const { ready, usuarioAtivoId } = useAuth();
   const { perfil } = usePerfil(usuarioAtivoId ?? undefined);
+  const { isOnline } = useOffline();
+
+  const offlineDataInicio = format(subDays(new Date(), 6), "yyyy-MM-dd");
+  const offlineDataFim = format(new Date(), "yyyy-MM-dd");
 
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -31,13 +36,14 @@ export default function HistoricoPage() {
     ready && usuarioAtivoId
       ? {
           usuarioId: usuarioAtivoId,
-          dataInicio,
-          dataFim,
+          dataInicio: isOnline ? dataInicio : offlineDataInicio,
+          dataFim: isOnline ? dataFim : offlineDataFim,
         }
       : undefined
   );
 
   const handleDelete = async (id: string) => {
+    if (!isOnline) return;
     if (!confirm("Tem certeza que deseja excluir este registro?")) return;
     await remove(id);
   };
@@ -95,6 +101,14 @@ export default function HistoricoPage() {
           </p>
         </div>
 
+        {!isOnline && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            <WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Exibindo registros armazenados localmente dos últimos 7 dias.</span>
+          </div>
+        )}
+
+        {isOnline && (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg space-y-4">
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-600" />
@@ -145,7 +159,9 @@ export default function HistoricoPage() {
             )}
           </div>
         </div>
+        )}
 
+        {isOnline ? (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg space-y-4">
           <div className="flex items-center gap-2">
             <Download className="w-5 h-5 text-gray-600" />
@@ -185,6 +201,12 @@ export default function HistoricoPage() {
             </p>
           )}
         </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">
+            <Download className="w-4 h-4 flex-shrink-0" />
+            <span>Exportação indisponível no modo offline.</span>
+          </div>
+        )}
 
         {Object.keys(agrupadosPorData).length === 0 ? (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 sm:p-12 shadow-lg text-center space-y-4">
@@ -253,7 +275,9 @@ export default function HistoricoPage() {
 
                           <button
                             onClick={() => handleDelete(r.id)}
-                            className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600"
+                            disabled={!isOnline}
+                            title={!isOnline ? "Exclusão indisponível offline" : undefined}
+                            className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Trash2 className="w-5 h-5" />
                           </button>

@@ -1,5 +1,6 @@
 import Layout from "@/react-app/components/Layout";
-import { Download, TrendingUp, Calendar } from "lucide-react";
+import { Download, TrendingUp, Calendar, WifiOff } from "lucide-react";
+import { useOffline } from "@/react-app/context/OfflineContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -18,6 +19,7 @@ const parseLocalDate = (dateString: string) => {
 export default function EstatisticasPage() {
   const { ready: authReady, loadingAuth } = useAuth();
   const { ready: usuarioReady, usuarioAtivoId } = useUsuarioAtivo();
+  const { isOnline } = useOffline();
   const [periodo, setPeriodo] = useState<PeriodoEstatisticas>("semana");
 
   const podeBuscar = authReady && usuarioReady && !!usuarioAtivoId;
@@ -89,6 +91,7 @@ export default function EstatisticasPage() {
             </p>
           </div>
 
+          {isOnline ? (
           <div className="grid grid-cols-2 sm:flex gap-3">
             <button
               onClick={exportCSV}
@@ -105,7 +108,20 @@ export default function EstatisticasPage() {
               JSON
             </button>
           </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+              <Download className="w-4 h-4 flex-shrink-0" />
+              <span>Exportação indisponível offline</span>
+            </div>
+          )}
         </div>
+
+        {!isOnline && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            <WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Você está offline. Exibindo dados dos últimos 7 dias. O período "Último Mês" pode estar incompleto.</span>
+          </div>
+        )}
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
           <div className="grid grid-cols-2 gap-3">
@@ -120,7 +136,7 @@ export default function EstatisticasPage() {
               Última Semana
             </button>
             <button
-              onClick={() => setPeriodo("mes")}
+              onClick={() => !isOnline && periodo !== "mes" ? undefined : setPeriodo("mes")}
               className={`w-full py-3 rounded-xl font-semibold transition-colors ${
                 periodo === "mes"
                   ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
@@ -128,6 +144,7 @@ export default function EstatisticasPage() {
               }`}
             >
               Último Mês
+              {!isOnline && <span className="block text-xs font-normal opacity-70">dados parciais</span>}
             </button>
           </div>
         </div>

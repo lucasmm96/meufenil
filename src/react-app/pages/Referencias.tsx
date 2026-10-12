@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "@/react-app/components/Layout";
-import { Star, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Edit2, RotateCcw, Filter, X, Globe, User } from "lucide-react";
+import { Star, ArrowUp, ArrowDown, ArrowUpDown, Trash2, Edit2, RotateCcw, Filter, X, Globe, User, WifiOff } from "lucide-react";
 
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useUsuarioAtivo } from "@/react-app/hooks/useUsuarioAtivo";
@@ -10,6 +10,7 @@ import { useLayoutPerfil } from "@/react-app/hooks/useLayoutPerfil";
 import { LayoutSkeleton, ReferenciasSkeleton } from "@skeletons";
 import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
 import { nomeComMarca, normalizarMarca, toTitleCase } from "@/react-app/lib/referencias";
+import { useOffline } from "@/react-app/context/OfflineContext";
 
 interface PrefillCopiaReferencia {
   nome: string;
@@ -22,6 +23,7 @@ export default function ReferenciasPage() {
   const { authUser, ready } = useAuth();
   const { perfil } = useLayoutPerfil(authUser?.id);
   const isAdmin = perfil?.role === "admin";
+  const { isOnline } = useOffline();
 
   const { usuarioAtivoId } = useUsuarioAtivo();
 
@@ -52,10 +54,15 @@ export default function ReferenciasPage() {
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const podeEditarOuRemover = (ref: ReferenciaDTO) => {
+    if (!isOnline) return false;
     if (ref.criado_por === usuarioAtivoId) return true;
     if (isAdmin && ref.is_global) return true;
     return false;
   };
+
+  const referenciasFiltradas = !isOnline
+    ? referencias.filter((r) => r.is_favorita || !r.is_global)
+    : referencias;
 
   const handleOpenCreate = () => {
     setEditingReferencia(null);
@@ -190,7 +197,7 @@ export default function ReferenciasPage() {
     else setOrdenarPor(campo);
   };
 
-  const totalItems = referencias.length;
+  const totalItems = referenciasFiltradas.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -198,7 +205,7 @@ export default function ReferenciasPage() {
   const startIndex = (safeCurrentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
 
-  const referenciasPaginadas = referencias.slice(startIndex, endIndex);
+  const referenciasPaginadas = referenciasFiltradas.slice(startIndex, endIndex);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -226,13 +233,22 @@ export default function ReferenciasPage() {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenCreate}
-            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
-          >
-            + Nova Referência
-          </button>
+          {isOnline && (
+            <button
+              onClick={handleOpenCreate}
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+            >
+              + Nova Referência
+            </button>
+          )}
         </div>
+
+        {!isOnline && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            <WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Você está offline. Exibindo apenas favoritas e customizadas armazenadas localmente.</span>
+          </div>
+        )}
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-lg space-y-4">
 
@@ -363,18 +379,26 @@ export default function ReferenciasPage() {
             </h2>
           </div>
 
-          {referencias.length === 0 ? (
+          {referenciasFiltradas.length === 0 ? (
             <div className="p-8 sm:p-12 text-center">
               <Star className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">
-                Nenhuma referência cadastrada ainda
-              </p>
-              <button
-                onClick={handleOpenCreate}
-                className="mt-4 text-indigo-600 hover:text-indigo-700 font-medium"
-              >
-                Criar primeira referência
-              </button>
+              {!isOnline ? (
+                <p className="text-gray-600">
+                  Nenhuma referência favorita ou customizada armazenada localmente.
+                </p>
+              ) : (
+                <>
+                  <p className="text-gray-600">
+                    Nenhuma referência cadastrada ainda
+                  </p>
+                  <button
+                    onClick={handleOpenCreate}
+                    className="mt-4 text-indigo-600 hover:text-indigo-700 font-medium"
+                  >
+                    Criar primeira referência
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -389,11 +413,11 @@ export default function ReferenciasPage() {
 
                         <button
                           onClick={() => {
-                            if (!r.is_ativa) return;
+                            if (!r.is_ativa || !isOnline) return;
                             toggleFavoritoReferencia(r.id);
                           }}
-                          disabled={!r.is_ativa}
-                          className={`transition-transform ${r.is_ativa ? "hover:scale-110" : "cursor-not-allowed opacity-40"}`}
+                          disabled={!r.is_ativa || !isOnline}
+                          className={`transition-transform ${r.is_ativa && isOnline ? "hover:scale-110" : "cursor-not-allowed opacity-40"}`}
                         >
                           <Star className={`w-5 h-5 ${r.is_favorita ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
                         </button>
@@ -535,11 +559,11 @@ export default function ReferenciasPage() {
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => {
-                                if (!r.is_ativa) return;
+                                if (!r.is_ativa || !isOnline) return;
                                 toggleFavoritoReferencia(r.id);
                               }}
-                              disabled={!r.is_ativa}
-                              className={`transition-transform ${r.is_ativa ? "hover:scale-110" : "cursor-not-allowed opacity-40"}`}
+                              disabled={!r.is_ativa || !isOnline}
+                              className={`transition-transform ${r.is_ativa && isOnline ? "hover:scale-110" : "cursor-not-allowed opacity-40"}`}
                             >
                               <Star className={`w-5 h-5 ${r.is_favorita ? "text-yellow-400 fill-yellow-400" : "text-gray-400"}`} />
                             </button>

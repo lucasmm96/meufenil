@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
-import { User, Save, Shield, Download, Trash2 } from "lucide-react";
+import { User, Save, Shield, Download, Trash2, WifiOff, Database } from "lucide-react";
 import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { supabase } from "@/react-app/lib/supabase";
 import { LayoutSkeleton, PerfilSkeleton } from "@skeletons";
@@ -11,6 +11,9 @@ import { AcessosRecebidosCard } from "@/react-app/components/login-as/AcessosRec
 import { ModalConcederAcesso } from "@/react-app/components/login-as/ModalConcederAcesso";
 
 import { useAuth } from "@/react-app/context/AuthContext";
+import { useOffline } from "@/react-app/context/OfflineContext";
+import { getCounts } from "@/react-app/services/offlineStorage.service";
+import type { OfflineCounts } from "@/react-app/services/offlineStorage.service";
 
 export default function PerfilPage() {
   const navigate = useNavigate();
@@ -29,16 +32,19 @@ export default function PerfilPage() {
     assumir,
   } = useAuth();
 
+  const { isOnline } = useOffline();
+
   const { perfil, loading, saving, salvar } = usePerfil(
     usuarioAtivoId ?? undefined
   );
 
-  const isReadOnly = isDelegado;
+  const isReadOnly = isDelegado || !isOnline;
   const noopAsync = async () => {};
 
   const [nome, setNome] = useState("");
   const [limiteDiario, setLimiteDiario] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [offlineCounts, setOfflineCounts] = useState<OfflineCounts | null>(null);
 
   /* =========================
    * Bootstrap
@@ -53,6 +59,11 @@ export default function PerfilPage() {
   useEffect(() => {
     carregarDelegacoes();
   }, [carregarDelegacoes]);
+
+  useEffect(() => {
+    if (!usuarioAtivoId) return;
+    getCounts(usuarioAtivoId).then(setOfflineCounts).catch(() => {});
+  }, [usuarioAtivoId]);
 
   /* =========================
    * Handlers
@@ -182,10 +193,17 @@ export default function PerfilPage() {
           </p>
         </header>
 
-        {isReadOnly && (
+        {isDelegado && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl text-sm">
             Você está acessando esta conta por meio de um acesso delegado.
             As informações estão disponíveis apenas para consulta.
+          </div>
+        )}
+
+        {!isOnline && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            <WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Você está offline. O perfil está disponível somente para visualização.</span>
           </div>
         )}
 
@@ -266,6 +284,38 @@ export default function PerfilPage() {
             onConceder={conceder}
             loading={false}
           />
+        )}
+
+        {offlineCounts && (
+          <div className="bg-white rounded-2xl p-6 shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <Database className="w-6 h-6 text-indigo-600" />
+              <h2 className="text-xl font-bold">Dados armazenados neste dispositivo</h2>
+            </div>
+            {offlineCounts.lastSync ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  Última sincronização: {offlineCounts.lastSync.toLocaleString("pt-BR")}
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-yellow-500">{offlineCounts.favoritos}</p>
+                    <p className="text-xs text-gray-600 mt-1">Favoritas</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-purple-600">{offlineCounts.customizadas}</p>
+                    <p className="text-xs text-gray-600 mt-1">Customizadas</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-indigo-600">{offlineCounts.historico}</p>
+                    <p className="text-xs text-gray-600 mt-1">Registros (7d)</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Nenhum dado armazenado neste dispositivo ainda.</p>
+            )}
+          </div>
         )}
 
         {!isReadOnly && (
