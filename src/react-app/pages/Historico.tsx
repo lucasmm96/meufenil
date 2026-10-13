@@ -19,8 +19,8 @@ import {
 
 export default function HistoricoPage() {
   const { ready, usuarioAtivoId } = useAuth();
-  const { perfil } = usePerfil(usuarioAtivoId ?? undefined, isOnline);
   const { isOnline } = useOffline();
+  const { perfil } = usePerfil(usuarioAtivoId ?? undefined, isOnline);
 
   const offlineDataInicio = format(subDays(new Date(), 6), "yyyy-MM-dd");
   const offlineDataFim = format(new Date(), "yyyy-MM-dd");
