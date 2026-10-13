@@ -1,7 +1,7 @@
 # FEAT-0018 — Central de Notificações ao Usuário
 
 **Type:** FEAT
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Central de notificações ao usuário
 **Issue:** #116
 **Created on:** 2026-10-05

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "@/react-app/components/Layout";
-import { Activity, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { Activity, Plus, Trash2, TrendingUp, TrendingDown, WifiOff } from "lucide-react";
+import { useOffline } from "@/react-app/context/OfflineContext";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,6 +14,7 @@ import { useUsuarioAtivo } from "@/react-app/hooks/useUsuarioAtivo";
 export default function ExamesPage() {
   const { ready } = useAuth();
   const { usuarioAtivoId } = useUsuarioAtivo();
+  const { isOnline } = useOffline();
 
   const {
     exames,
@@ -76,6 +78,20 @@ export default function ExamesPage() {
       <LayoutSkeleton>
         <ExamesSkeleton />
       </LayoutSkeleton>
+    );
+  }
+
+  if (!isOnline) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+          <WifiOff className="w-12 h-12 text-gray-300" />
+          <h2 className="text-xl font-semibold text-gray-700">Exames PKU indisponíveis offline</h2>
+          <p className="text-gray-500 max-w-sm">
+            Conecte-se à internet para acessar seus exames.
+          </p>
+        </div>
+      </Layout>
     );
   }
 

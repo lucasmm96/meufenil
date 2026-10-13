@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
-import { User, Save, Shield, Download, Trash2 } from "lucide-react";
+import { User, Save, Shield, Download, Trash2, WifiOff, Database } from "lucide-react";
 import { usePerfil } from "@/react-app/hooks/usePerfil";
 import { supabase } from "@/react-app/lib/supabase";
 import { LayoutSkeleton, PerfilSkeleton } from "@skeletons";
@@ -11,6 +11,10 @@ import { AcessosRecebidosCard } from "@/react-app/components/login-as/AcessosRec
 import { ModalConcederAcesso } from "@/react-app/components/login-as/ModalConcederAcesso";
 
 import { useAuth } from "@/react-app/context/AuthContext";
+import { useOffline } from "@/react-app/context/OfflineContext";
+import { getCounts } from "@/react-app/services/offlineStorage.service";
+import type { OfflineCounts } from "@/react-app/services/offlineStorage.service";
+import { processarFilaSync } from "@/react-app/services/sync.service";
 
 export default function PerfilPage() {
   const navigate = useNavigate();
@@ -29,16 +33,21 @@ export default function PerfilPage() {
     assumir,
   } = useAuth();
 
+  const { isOnline } = useOffline();
+
   const { perfil, loading, saving, salvar } = usePerfil(
-    usuarioAtivoId ?? undefined
+    usuarioAtivoId ?? undefined,
+    isOnline
   );
 
-  const isReadOnly = isDelegado;
+  const isReadOnly = isDelegado || !isOnline;
   const noopAsync = async () => {};
 
   const [nome, setNome] = useState("");
   const [limiteDiario, setLimiteDiario] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [offlineCounts, setOfflineCounts] = useState<OfflineCounts | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   /* =========================
    * Bootstrap
@@ -53,6 +62,33 @@ export default function PerfilPage() {
   useEffect(() => {
     carregarDelegacoes();
   }, [carregarDelegacoes]);
+
+  const recarregarCounts = useCallback(() => {
+    if (!usuarioAtivoId) return;
+    getCounts(usuarioAtivoId).then(setOfflineCounts).catch(() => {});
+  }, [usuarioAtivoId]);
+
+  useEffect(() => {
+    recarregarCounts();
+  }, [recarregarCounts]);
+
+  const handleSync = async () => {
+    if (!usuarioAtivoId || !isOnline) return;
+    setSyncing(true);
+    try {
+      const result = await processarFilaSync(usuarioAtivoId);
+      recarregarCounts();
+      if (result.discardedCount > 0) {
+        alert(`Sincronização concluída. ${result.syncedCount} registro(s) sincronizado(s). ${result.discardedCount} descartado(s) pois o alimento foi arquivado.`);
+      } else {
+        alert(`Sincronização concluída. ${result.syncedCount} registro(s) sincronizado(s).`);
+      }
+    } catch {
+      alert("Erro ao sincronizar. Verifique sua conexão e tente novamente.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   /* =========================
    * Handlers
@@ -182,10 +218,17 @@ export default function PerfilPage() {
           </p>
         </header>
 
-        {isReadOnly && (
+        {isDelegado && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl text-sm">
             Você está acessando esta conta por meio de um acesso delegado.
             As informações estão disponíveis apenas para consulta.
+          </div>
+        )}
+
+        {!isOnline && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            <WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Você está offline. O perfil está disponível somente para visualização.</span>
           </div>
         )}
 
@@ -266,6 +309,72 @@ export default function PerfilPage() {
             onConceder={conceder}
             loading={false}
           />
+        )}
+
+        {offlineCounts && (
+          <div className="bg-white rounded-2xl p-6 shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <Database className="w-6 h-6 text-indigo-600" />
+              <h2 className="text-xl font-bold">Dados armazenados neste dispositivo</h2>
+            </div>
+            {offlineCounts.lastSync ? (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  Última sincronização: {offlineCounts.lastSync.toLocaleString("pt-BR")}
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-yellow-500">{offlineCounts.favoritos}</p>
+                    <p className="text-xs text-gray-600 mt-1">Favoritas</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-purple-600">{offlineCounts.customizadas}</p>
+                    <p className="text-xs text-gray-600 mt-1">Customizadas</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-indigo-600">{offlineCounts.historico}</p>
+                    <p className="text-xs text-gray-600 mt-1">Registros (7d)</p>
+                  </div>
+                </div>
+                {offlineCounts.pendingCount > 0 && (
+                  <div className="mt-2 bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-orange-800">
+                      <span className="font-semibold">{offlineCounts.pendingCount}</span> registro(s) pendente(s) de sincronização
+                    </p>
+                    {!isDelegado && (
+                      <button
+                        onClick={handleSync}
+                        disabled={!isOnline || syncing}
+                        className="flex-shrink-0 text-sm px-3 py-1.5 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {syncing ? "Sincronizando…" : "Sincronizar agora"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">Nenhum dado armazenado neste dispositivo ainda.</p>
+                {offlineCounts.pendingCount > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-orange-800">
+                      <span className="font-semibold">{offlineCounts.pendingCount}</span> registro(s) pendente(s) de sincronização
+                    </p>
+                    {!isDelegado && (
+                      <button
+                        onClick={handleSync}
+                        disabled={!isOnline || syncing}
+                        className="flex-shrink-0 text-sm px-3 py-1.5 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {syncing ? "Sincronizando…" : "Sincronizar agora"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {!isReadOnly && (

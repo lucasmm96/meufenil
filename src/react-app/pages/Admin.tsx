@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type JSX } from "react";
 import Layout from "@/react-app/components/Layout";
+import { useOffline } from "@/react-app/context/OfflineContext";
 import { inserirNotificacao } from "@/react-app/services/notificacoes.service";
 import {
   Users,
@@ -99,6 +100,7 @@ function isFresh(value?: string | null, maxHours = 36) {
 
 export default function Admin() {
   const { authUser } = useAuth();
+  const { isOnline } = useOffline();
   const { perfilUsuario, usuarios, estatisticasDB, loading, toggleRole, toggleRoleId, toggleRoleError } = useAdmin(authUser?.id);
 
   const isAdmin = perfilUsuario?.role === "admin";
@@ -179,6 +181,18 @@ export default function Admin() {
       <LayoutSkeleton>
         <AdminSkeleton />
       </LayoutSkeleton>
+    );
+  }
+
+  if (!isOnline) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+          <Shield className="w-12 h-12 text-gray-300" />
+          <h2 className="text-xl font-semibold text-gray-700">Painel administrativo indisponível offline</h2>
+          <p className="text-gray-500 max-w-sm">Conecte-se à internet para acessar o painel admin.</p>
+        </div>
+      </Layout>
     );
   }
 

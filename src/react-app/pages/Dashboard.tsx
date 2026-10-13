@@ -4,7 +4,8 @@ import ConsentimentoLGPD from "@/react-app/components/ConsentimentoLGPD";
 import AdicionarRegistro from "@/react-app/components/AdicionarRegistro";
 import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
 import { useReferencias } from "@/react-app/hooks/useReferencias";
-import { Activity, TrendingUp, AlertCircle, Plus } from "lucide-react";
+import { useOffline } from "@/react-app/context/OfflineContext";
+import { Activity, TrendingUp, AlertCircle, Plus, WifiOff } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,12 +22,13 @@ const parseLocalDate = (dateString: string) => {
 
 export default function DashboardPage() {
   const { ready, usuarioAtivoId } = useAuth();
+  const { isOnline } = useOffline();
 
   const {
     data: dashboard,
     loading,
     reload,
-  } = useDashboard(usuarioAtivoId ?? undefined);
+  } = useDashboard(usuarioAtivoId ?? undefined, isOnline);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
@@ -107,19 +109,26 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:flex gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => setShowCriarModal(true)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border-2 border-indigo-600 text-indigo-600 px-4 sm:px-6 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Criar Alimento</span>
-            </button>
+            {isOnline && (
+              <button
+                onClick={() => setShowCriarModal(true)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white border-2 border-indigo-600 text-indigo-600 px-4 sm:px-6 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Criar Alimento</span>
+              </button>
+            )}
 
             <button
               onClick={() => setShowAddModal(true)}
               className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
             >
-              Adicionar Registro
+              {isOnline ? "Adicionar Registro" : (
+                <span className="flex items-center gap-2 justify-center">
+                  <WifiOff className="w-4 h-4" />
+                  Adicionar Registro
+                </span>
+              )}
             </button>
           </div>
         </div>
