@@ -16,6 +16,7 @@ Bem-vindo ao **MeuFenil**! Este guia explica, em linguagem simples, como usar o 
 - [Delegação de acesso para nutricionistas e cuidadores](#delegacao-de-acesso-para-nutricionistas-e-cuidadores)
 - [Consentimento LGPD e privacidade](#consentimento-lgpd-e-privacidade)
 - [Instalação como aplicativo (PWA)](#instalacao-como-aplicativo-pwa)
+- [Uso offline](#uso-offline)
 - [Perguntas Frequentes](#perguntas-frequentes)
 
 ## Primeiro acesso e entrada no aplicativo
@@ -70,6 +71,8 @@ Na página **Histórico** você vê todos os seus registros de consumo, agrupado
 - Cada dia mostra o **total consumido** e a lista de alimentos com peso e fenilalanina.
 - Para filtrar por período, use os campos **Data Início** e **Data Fim** e toque em **"Aplicar filtros"**. Para voltar a ver tudo, toque em **"Limpar filtros"**.
 - Para apagar um registro, toque no ícone de lixeira e confirme a exclusão.
+
+Se você estiver **sem conexão**, o Histórico exibe os registros salvos localmente nos últimos 7 dias. Registros excluídos offline ficam marcados com a etiqueta **"Pendente"** e são removidos do servidor quando a conexão voltar. A seção **"Aguardando sincronização"** (em laranja) lista os registros criados offline ainda não enviados ao servidor.
 
 **Exportar o histórico:**
 
@@ -172,9 +175,32 @@ O MeuFenil pode ser **instalado** no seu celular ou computador, como um aplicati
 - **No iPhone (iOS):** no Safari, toque no botão de compartilhar → **"Adicionar à Tela de Início"**.
 - **No computador:** o navegador oferece um botão de instalação na barra de endereço.
 
-Depois de instalado, o aplicativo abre em tela cheia, com ícone próprio, como um app nativo.
+Depois de instalado, o aplicativo abre em tela cheia, com ícone próprio, como um app nativo. O MeuFenil também suporta **uso offline** — veja a seção [Uso offline](#uso-offline) para entender o que está disponível sem conexão.
 
-> **Sobre o uso offline:** a instalação facilita o acesso rápido, mas o MeuFenil atualmente **precisa de conexão com a internet** para funcionar (o modo offline ainda não está disponível).
+## Uso offline
+
+A partir da v1.21.0, o MeuFenil suporta uso básico **sem conexão à internet**:
+
+**O que você pode fazer offline:**
+
+- **Adicionar registros de consumo:** o registro é salvo localmente e enviado ao servidor assim que a conexão for restabelecida.
+- **Excluir registros:** a exclusão é enfileirada localmente e executada no servidor na reconexão.
+- **Consultar o histórico:** são exibidos os registros dos **últimos 7 dias** salvos no aparelho.
+
+**Como funciona:**
+
+1. Quando você está offline, o aplicativo detecta automaticamente a ausência de conexão e exibe um aviso âmbar no topo das telas afetadas.
+2. Registros criados e exclusões realizadas offline ficam armazenados localmente no aparelho (IndexedDB).
+3. A tela **Histórico** mostra uma seção **"Aguardando sincronização"** com os registros ainda não enviados ao servidor.
+4. Ao voltar online, o aplicativo sincroniza automaticamente todos os registros pendentes — sem nenhuma ação necessária de sua parte.
+
+**O que não está disponível offline:**
+
+- Filtros por período no Histórico (offline exibe sempre os últimos 7 dias).
+- Exportação de histórico (CSV, JSON, PDF).
+- Visualização de Estatísticas, Referências, Exames e Perfil em tempo real.
+
+> **Nota:** ao sair da conta (logout) enquanto offline, os registros pendentes ainda não sincronizados são descartados do aparelho — certifique-se de estar online antes de sair se tiver registros pendentes importantes.
 
 ## Perguntas Frequentes
 
