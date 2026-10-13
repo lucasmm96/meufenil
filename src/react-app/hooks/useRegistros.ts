@@ -4,6 +4,7 @@ import {
   deleteRegistro,
   RegistroDTO,
 } from "@/react-app/services/registros.service";
+import { read } from "@/react-app/services/offlineStorage.service";
 import { logger } from "@/react-app/lib/logger";
 
 export interface UseRegistrosParams {
@@ -12,7 +13,7 @@ export interface UseRegistrosParams {
   dataFim?: string;
 }
 
-export function useRegistros(params?: UseRegistrosParams) {
+export function useRegistros(params?: UseRegistrosParams, isOnline: boolean = true) {
   const [data, setData] = useState<RegistroDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,18 +26,29 @@ export function useRegistros(params?: UseRegistrosParams) {
 
     try {
       setLoading(true);
-      const registros = await getRegistros(
-        params.usuarioId,
-        params.dataInicio,
-        params.dataFim
-      );
-      setData(registros);
+      if (!isOnline) {
+        const cached = await read('historico', params.usuarioId);
+        const all = (Array.isArray(cached) ? cached : []) as RegistroDTO[];
+        const filtered = all.filter((r) => {
+          if (params.dataInicio && r.data < params.dataInicio) return false;
+          if (params.dataFim && r.data > params.dataFim) return false;
+          return true;
+        });
+        setData(filtered);
+      } else {
+        const registros = await getRegistros(
+          params.usuarioId,
+          params.dataInicio,
+          params.dataFim
+        );
+        setData(registros);
+      }
     } catch (err) {
       logger.error("Erro ao carregar registros", err);
     } finally {
       setLoading(false);
     }
-  }, [params?.usuarioId, params?.dataInicio, params?.dataFim]);
+  }, [params?.usuarioId, params?.dataInicio, params?.dataFim, isOnline]);
 
   const remove = useCallback(
     async (id: string) => {

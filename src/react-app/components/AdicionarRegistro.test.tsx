@@ -12,6 +12,14 @@ vi.mock("@/react-app/context/AuthContext", () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock("@/react-app/context/OfflineContext", () => ({
+  useOffline: () => ({ isOnline: true }),
+}));
+
+vi.mock("@/react-app/services/offlineStorage.service", () => ({
+  writePending: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/react-app/hooks/useReferencias", () => ({
   useReferencias: vi.fn(),
 }));

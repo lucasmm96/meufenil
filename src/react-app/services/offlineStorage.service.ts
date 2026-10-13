@@ -1,9 +1,10 @@
 export type OfflineStore = 'favoritos' | 'customizadas' | 'historico' | 'perfil';
 
 const DB_NAME = 'meufenil-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const DATA_STORE = 'offline-data';
 const META_STORE = 'offline-meta';
+const PENDING_STORE = 'pending-ops';
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -15,6 +16,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(PENDING_STORE)) {
+        db.createObjectStore(PENDING_STORE, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -52,17 +56,103 @@ export async function read(store: OfflineStore, userId: string): Promise<unknown
 
 const ALL_STORES: OfflineStore[] = ['favoritos', 'customizadas', 'historico', 'perfil'];
 
-export async function clearUser(userId: string): Promise<void> {
+export interface PendingOp {
+  id: string;
+  userId: string;
+  type: 'create' | 'delete';
+  payload: {
+    alimento_id?: string;
+    nome_alimento?: string;
+    quantidade?: number;
+    data?: string;
+    hora?: string;
+    fenil_mg?: number;
+    registro_id?: string;
+  };
+  timestamp: string;
+  retries: number;
+}
+
+export async function writePending(
+  userId: string,
+  op: Omit<PendingOp, 'userId' | 'timestamp' | 'retries'>
+): Promise<void> {
+  const db = await openDB();
+  const full: PendingOp = { ...op, userId, timestamp: new Date().toISOString(), retries: 0 };
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, 'readwrite');
+    const os = tx.objectStore(PENDING_STORE);
+    const req = os.put(full);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function readPending(userId: string): Promise<PendingOp[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction([DATA_STORE, META_STORE], 'readwrite');
+    const tx = db.transaction(PENDING_STORE, 'readonly');
+    const os = tx.objectStore(PENDING_STORE);
+    const req = os.getAll();
+    req.onsuccess = () => {
+      const all = (req.result as PendingOp[]).filter((op) => op.userId === userId);
+      resolve(all.sort((a, b) => a.timestamp.localeCompare(b.timestamp)));
+    };
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function removePending(userId: string, opId: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PENDING_STORE, 'readwrite');
+    const os = tx.objectStore(PENDING_STORE);
+    const getReq = os.get(opId);
+    getReq.onsuccess = () => {
+      if (getReq.result?.userId !== userId) { resolve(); return; }
+      const delReq = os.delete(opId);
+      delReq.onsuccess = () => resolve();
+      delReq.onerror = () => reject(delReq.error);
+    };
+    getReq.onerror = () => reject(getReq.error);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function getPendingCount(userId: string): Promise<number> {
+  const ops = await readPending(userId);
+  return ops.length;
+}
+
+export async function clearPending(userId: string): Promise<void> {
+  const ops = await readPending(userId);
+  for (const op of ops) {
+    await removePending(userId, op.id);
+  }
+}
+
+export async function clearUser(userId: string): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([DATA_STORE, META_STORE, PENDING_STORE], 'readwrite');
     const dataOs = tx.objectStore(DATA_STORE);
     const metaOs = tx.objectStore(META_STORE);
+    const pendingOs = tx.objectStore(PENDING_STORE);
 
     for (const store of ALL_STORES) {
       dataOs.delete(dataKey(store, userId));
     }
     metaOs.delete(`lastsync:${userId}`);
+
+    const getAllReq = pendingOs.getAll();
+    getAllReq.onsuccess = () => {
+      const userOps = (getAllReq.result as PendingOp[]).filter((op) => op.userId === userId);
+      for (const op of userOps) {
+        pendingOs.delete(op.id);
+      }
+    };
 
     tx.oncomplete = () => { db.close(); resolve(); };
     tx.onerror = () => reject(tx.error);
@@ -116,14 +206,16 @@ export interface OfflineCounts {
   historicoInicio?: string;
   historicoFim?: string;
   lastSync: Date | null;
+  pendingCount: number;
 }
 
 export async function getCounts(userId: string): Promise<OfflineCounts> {
-  const [favs, custs, hist, lastSync] = await Promise.all([
+  const [favs, custs, hist, lastSync, pending] = await Promise.all([
     read('favoritos', userId),
     read('customizadas', userId),
     read('historico', userId),
     getLastSync(userId),
+    readPending(userId),
   ]);
 
   const favsArr = Array.isArray(favs) ? favs : [];
@@ -142,5 +234,6 @@ export async function getCounts(userId: string): Promise<OfflineCounts> {
     historicoInicio: dates[0],
     historicoFim: dates[dates.length - 1],
     lastSync,
+    pendingCount: pending.length,
   };
 }

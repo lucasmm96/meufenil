@@ -8,6 +8,7 @@ import {
   toggleFavoritoReferencia as toggleFavoritoReferenciaService,
   ReferenciaDTO,
 } from "@/react-app/services/referencias.service";
+import { read, write } from "@/react-app/services/offlineStorage.service";
 import { AppError } from "@/react-app/lib/errors";
 import { logger } from "@/react-app/lib/logger";
 
@@ -15,7 +16,7 @@ interface UseReferenciasOptions {
   defaultOrder?: "nome" | "nome_desc" | "fenil" | "fenil_desc";
 }
 
-export function useReferencias(usuarioId?: string, options?: UseReferenciasOptions) {
+export function useReferencias(usuarioId?: string, options?: UseReferenciasOptions, isOnline: boolean = true) {
   const [data, setData] = useState<ReferenciaDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
@@ -32,16 +33,39 @@ export function useReferencias(usuarioId?: string, options?: UseReferenciasOptio
     setError(null);
 
     try {
-      const refs = await getReferencias({
-        usuarioId,
-        search: searchTerm,
-        orderBy: ordenarPor,
-        showInativas,
-        onlyFavoritas,
-        onlyCustomizadas,
-      });
+      if (!isOnline) {
+        const [favoritosRaw, customizadasRaw] = await Promise.all([
+          read('favoritos', usuarioId),
+          read('customizadas', usuarioId),
+        ]);
+        const favoritos = (Array.isArray(favoritosRaw) ? favoritosRaw : []) as ReferenciaDTO[];
+        const customizadas = (Array.isArray(customizadasRaw) ? customizadasRaw : []) as ReferenciaDTO[];
+        const seen = new Set<string>();
+        const combined: ReferenciaDTO[] = [];
+        for (const ref of [...favoritos, ...customizadas]) {
+          if (!seen.has(ref.id)) {
+            seen.add(ref.id);
+            combined.push(ref);
+          }
+        }
+        setData(combined);
+      } else {
+        const refs = await getReferencias({
+          usuarioId,
+          search: searchTerm,
+          orderBy: ordenarPor,
+          showInativas,
+          onlyFavoritas,
+          onlyCustomizadas,
+        });
 
-      setData(refs);
+        setData(refs);
+
+        const favoritas = refs.filter((r) => r.is_favorita);
+        const customizadasWrite = refs.filter((r) => r.criado_por === usuarioId);
+        await write('favoritos', usuarioId, favoritas).catch(() => {});
+        await write('customizadas', usuarioId, customizadasWrite).catch(() => {});
+      }
     } catch (err) {
       const appError =
         err instanceof AppError
@@ -53,7 +77,7 @@ export function useReferencias(usuarioId?: string, options?: UseReferenciasOptio
     } finally {
       setLoading(false);
     }
-  }, [usuarioId, searchTerm, ordenarPor, showInativas, onlyFavoritas, onlyCustomizadas]);
+  }, [usuarioId, searchTerm, ordenarPor, showInativas, onlyFavoritas, onlyCustomizadas, isOnline]);
 
 
   useEffect(() => {

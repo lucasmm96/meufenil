@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Layout from "@/react-app/components/Layout";
-import { Trash2, Calendar, Filter, Download, WifiOff } from "lucide-react";
+import { Trash2, Calendar, Filter, Download, WifiOff, Clock } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useRegistros } from "@/react-app/hooks/useRegistros";
 import { usePerfil } from "@/react-app/hooks/usePerfil";
+import { writePending, readPending } from "@/react-app/services/offlineStorage.service";
+import type { PendingOp } from "@/react-app/services/offlineStorage.service";
 import { LayoutSkeleton, HistoricoSkeleton } from "@skeletons";
 import { useAuth } from "@/react-app/context/AuthContext";
 import { useOffline } from "@/react-app/context/OfflineContext";
@@ -17,8 +19,8 @@ import {
 
 export default function HistoricoPage() {
   const { ready, usuarioAtivoId } = useAuth();
-  const { perfil } = usePerfil(usuarioAtivoId ?? undefined);
   const { isOnline } = useOffline();
+  const { perfil } = usePerfil(usuarioAtivoId ?? undefined, isOnline);
 
   const offlineDataInicio = format(subDays(new Date(), 6), "yyyy-MM-dd");
   const offlineDataFim = format(new Date(), "yyyy-MM-dd");
@@ -31,6 +33,8 @@ export default function HistoricoPage() {
 
   const [formato, setFormato] = useState<FormatoExportacao>("csv");
   const [exportando, setExportando] = useState(false);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+  const [pendingOps, setPendingOps] = useState<PendingOp[]>([]);
 
   const { data: registros = [], loading, remove } = useRegistros(
     ready && usuarioAtivoId
@@ -39,13 +43,29 @@ export default function HistoricoPage() {
           dataInicio: isOnline ? dataInicio : offlineDataInicio,
           dataFim: isOnline ? dataFim : offlineDataFim,
         }
-      : undefined
+      : undefined,
+    isOnline
   );
 
-  const handleDelete = async (id: string) => {
-    if (!isOnline) return;
-    if (!confirm("Tem certeza que deseja excluir este registro?")) return;
-    await remove(id);
+  useEffect(() => {
+    if (!usuarioAtivoId) return;
+    readPending(usuarioAtivoId).then(setPendingOps).catch(() => {});
+  }, [usuarioAtivoId]);
+
+  const handleDelete = async (id: string, nomeAlimento?: string, data?: string) => {
+    if (isOnline) {
+      if (!confirm("Tem certeza que deseja excluir este registro?")) return;
+      await remove(id);
+    } else {
+      if (!confirm("Este registro será excluído quando você voltar online. Confirmar?")) return;
+      if (!usuarioAtivoId) return;
+      await writePending(usuarioAtivoId, {
+        id,
+        type: 'delete',
+        payload: { registro_id: id, nome_alimento: nomeAlimento, data },
+      });
+      setPendingDeletes((prev) => new Set([...prev, id]));
+    }
   };
 
   const aplicarFiltros = () => {
@@ -73,13 +93,23 @@ export default function HistoricoPage() {
     }
   };
 
+  const registrosFiltrados = useMemo(
+    () => registros.filter((r) => !pendingDeletes.has(r.id)),
+    [registros, pendingDeletes]
+  );
+
   const agrupadosPorData = useMemo(() => {
-    return registros.reduce<Record<string, typeof registros>>((acc, r) => {
+    return registrosFiltrados.reduce<Record<string, typeof registrosFiltrados>>((acc, r) => {
       if (!acc[r.data]) acc[r.data] = [];
       acc[r.data].push(r);
       return acc;
     }, {});
-  }, [registros]);
+  }, [registrosFiltrados]);
+
+  const pendingCreates = useMemo(
+    () => pendingOps.filter((op) => op.type === 'create'),
+    [pendingOps]
+  );
 
   if (!ready || loading) {
     return (
@@ -208,7 +238,31 @@ export default function HistoricoPage() {
           </div>
         )}
 
-        {Object.keys(agrupadosPorData).length === 0 ? (
+        {pendingCreates.length > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 sm:p-6 space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-orange-600" />
+              <h2 className="text-base font-semibold text-orange-900">Aguardando sincronização</h2>
+            </div>
+            <div className="space-y-2">
+              {pendingCreates.map((op) => (
+                <div key={op.id} className="flex items-center justify-between gap-3 bg-white border border-orange-100 p-3 rounded-xl">
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <p className="font-medium text-gray-900 text-sm">{op.payload.nome_alimento ?? "Alimento"}</p>
+                    <p className="text-xs text-gray-500">
+                      {op.payload.quantidade}g • {op.payload.fenil_mg?.toFixed(1) ?? "—"} mg • {op.payload.data}
+                    </p>
+                  </div>
+                  <span className="flex-shrink-0 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">
+                    Pendente
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {Object.keys(agrupadosPorData).length === 0 && pendingCreates.length === 0 ? (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 sm:p-12 shadow-lg text-center space-y-4">
             <Calendar className="w-14 h-14 text-gray-300 mx-auto" />
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
@@ -218,7 +272,7 @@ export default function HistoricoPage() {
               Comece adicionando seus primeiros registros no Dashboard
             </p>
           </div>
-        ) : (
+        ) : Object.keys(agrupadosPorData).length === 0 ? null : (
           <div className="space-y-6">
             {Object.entries(agrupadosPorData)
               .sort(([a], [b]) => b.localeCompare(a))
@@ -274,10 +328,8 @@ export default function HistoricoPage() {
                           </div>
 
                           <button
-                            onClick={() => handleDelete(r.id)}
-                            disabled={!isOnline}
-                            title={!isOnline ? "Exclusão indisponível offline" : undefined}
-                            className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                            onClick={() => handleDelete(r.id, r.nome_alimento, r.data)}
+                            className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-50 text-red-600"
                           >
                             <Trash2 className="w-5 h-5" />
                           </button>

@@ -16,6 +16,10 @@ vi.mock("@/react-app/context/AuthContext", () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock("@/react-app/context/OfflineContext", () => ({
+  useOffline: () => ({ isOnline: true }),
+}));
+
 vi.mock("@/react-app/hooks/useAdmin", () => ({
   useAdmin: vi.fn(),
 }));
