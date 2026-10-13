@@ -3,11 +3,12 @@ import {
   getUsuarioPerfil,
   atualizarUsuarioPerfil,
 } from "@/react-app/services/usuarios.service";
+import { read, write } from "@/react-app/services/offlineStorage.service";
 import { UsuarioDTO } from "@/react-app/services/dtos/usuarios.dto";
 import { AppError } from "@/react-app/lib/errors";
 import { logger } from "@/react-app/lib/logger";
 
-export function usePerfil(usuarioId?: string) {
+export function usePerfil(usuarioId?: string, isOnline: boolean = true) {
   const [perfil, setPerfil] = useState<UsuarioDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,8 +24,14 @@ export function usePerfil(usuarioId?: string) {
       setLoading(true);
       setError(null);
 
-      const data = await getUsuarioPerfil(usuarioId);
-      setPerfil(data);
+      if (!isOnline) {
+        const cached = await read('perfil', usuarioId);
+        setPerfil(cached ? (cached as UsuarioDTO) : null);
+      } else {
+        const data = await getUsuarioPerfil(usuarioId);
+        setPerfil(data);
+        await write('perfil', usuarioId, data).catch(() => {});
+      }
     } catch (err) {
       const appError =
         err instanceof AppError
@@ -41,7 +48,7 @@ export function usePerfil(usuarioId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [usuarioId]);
+  }, [usuarioId, isOnline]);
 
   useEffect(() => {
     load();
