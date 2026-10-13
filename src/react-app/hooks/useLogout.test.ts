@@ -24,6 +24,23 @@ vi.mock("@/react-app/lib/logger", () => ({
   },
 }));
 
+// 🔹 mocks de contexto e serviços adicionados para AC26
+vi.mock("@/react-app/context/AuthContext", () => ({
+  useAuth: () => ({ usuarioAtivoId: null, authUser: null }),
+}));
+
+vi.mock("@/react-app/context/OfflineContext", () => ({
+  useOffline: () => ({ isOnline: true }),
+}));
+
+vi.mock("@/react-app/services/offlineStorage.service", () => ({
+  getPendingCount: vi.fn().mockResolvedValue(0),
+}));
+
+vi.mock("@/react-app/services/sync.service", () => ({
+  processarFilaSync: vi.fn().mockResolvedValue({ success: true, syncedCount: 0, discardedCount: 0 }),
+}));
+
 describe("useLogout", () => {
   beforeEach(() => {
     vi.clearAllMocks();

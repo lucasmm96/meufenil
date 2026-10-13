@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { X, Search, Plus, Star } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { useAuth } from "@/react-app/context/AuthContext";
+import { useOffline } from "@/react-app/context/OfflineContext";
 import { useReferencias } from "@/react-app/hooks/useReferencias";
 import { useCreateRegistro } from "@/react-app/hooks/useCreateRegistro";
 import type { ReferenciaDTO } from "@/react-app/services/referencias.service";
+import { writePending } from "@/react-app/services/offlineStorage.service";
 import ModalReferencia, { type DadosModalReferencia } from "@/react-app/components/ModalReferencia";
 import { nomeComMarca } from "@/react-app/lib/referencias";
 
@@ -18,6 +20,7 @@ export default function AdicionarRegistro({
   onSuccess,
 }: AdicionarRegistroProps) {
   const { ready, usuarioAtivoId, timezone } = useAuth();
+  const { isOnline } = useOffline();
 
   const [search, setSearch] = useState("");
   const [selectedReferencia, setSelectedReferencia] = useState<ReferenciaDTO | null>(null);
@@ -34,7 +37,7 @@ export default function AdicionarRegistro({
     loading: referenciasLoading,
     search: searchReferencias,
     create: createReferencia,
-  } = useReferencias(usuarioAtivoId!, { defaultOrder: "nome" });
+  } = useReferencias(usuarioAtivoId!, { defaultOrder: "nome" }, isOnline);
 
   const registro = useCreateRegistro();
 
@@ -88,22 +91,39 @@ export default function AdicionarRegistro({
     e.preventDefault();
     if (!usuarioAtivoId || !selectedReferencia || !pesoG || !data || !timezone) return;
 
-    const fenil_mg =
-      (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
+    const fenil_mg = (selectedReferencia.fenil_mg_por_100g * Number(pesoG)) / 100;
 
-    const dataTimestamp = formatInTimeZone(
-      new Date(`${data}T00:00:00`),
-      timezone,
-      "yyyy-MM-dd'T'HH:mm:ssXXX"
-    );
+    if (isOnline) {
+      const dataTimestamp = formatInTimeZone(
+        new Date(`${data}T00:00:00`),
+        timezone,
+        "yyyy-MM-dd'T'HH:mm:ssXXX"
+      );
 
-    await registro.create({
-      usuarioId: usuarioAtivoId,
-      referenciaId: selectedReferencia.id,
-      data: dataTimestamp,
-      peso_g: Number(pesoG),
-      fenil_mg,
-    });
+      await registro.create({
+        usuarioId: usuarioAtivoId,
+        referenciaId: selectedReferencia.id,
+        data: dataTimestamp,
+        peso_g: Number(pesoG),
+        fenil_mg,
+      });
+    } else {
+      const clientUuid = crypto.randomUUID();
+      const hora = formatInTimeZone(new Date(), timezone, "HH:mm:ss");
+
+      await writePending(usuarioAtivoId, {
+        id: clientUuid,
+        type: 'create',
+        payload: {
+          alimento_id: selectedReferencia.id,
+          nome_alimento: nomeComMarca(selectedReferencia.nome, selectedReferencia.marca),
+          quantidade: Number(pesoG),
+          data,
+          hora,
+          fenil_mg,
+        },
+      });
+    }
 
     onSuccess();
   }
@@ -260,14 +280,16 @@ export default function AdicionarRegistro({
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => setShowModalReferencia(true)}
-                className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2"
-              >
-                <Plus className="w-4 h-4" />
-                Criar novo alimento
-              </button>
+              {isOnline && (
+                <button
+                  type="button"
+                  onClick={() => setShowModalReferencia(true)}
+                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium py-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Criar novo alimento
+                </button>
+              )}
             </div>
 
             <div className="space-y-2">

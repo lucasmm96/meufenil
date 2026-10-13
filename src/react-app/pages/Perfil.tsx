@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/react-app/components/Layout";
 import { User, Save, Shield, Download, Trash2, WifiOff, Database } from "lucide-react";
@@ -14,6 +14,7 @@ import { useAuth } from "@/react-app/context/AuthContext";
 import { useOffline } from "@/react-app/context/OfflineContext";
 import { getCounts } from "@/react-app/services/offlineStorage.service";
 import type { OfflineCounts } from "@/react-app/services/offlineStorage.service";
+import { processarFilaSync } from "@/react-app/services/sync.service";
 
 export default function PerfilPage() {
   const navigate = useNavigate();
@@ -35,7 +36,8 @@ export default function PerfilPage() {
   const { isOnline } = useOffline();
 
   const { perfil, loading, saving, salvar } = usePerfil(
-    usuarioAtivoId ?? undefined
+    usuarioAtivoId ?? undefined,
+    isOnline
   );
 
   const isReadOnly = isDelegado || !isOnline;
@@ -45,6 +47,7 @@ export default function PerfilPage() {
   const [limiteDiario, setLimiteDiario] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [offlineCounts, setOfflineCounts] = useState<OfflineCounts | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   /* =========================
    * Bootstrap
@@ -60,10 +63,32 @@ export default function PerfilPage() {
     carregarDelegacoes();
   }, [carregarDelegacoes]);
 
-  useEffect(() => {
+  const recarregarCounts = useCallback(() => {
     if (!usuarioAtivoId) return;
     getCounts(usuarioAtivoId).then(setOfflineCounts).catch(() => {});
   }, [usuarioAtivoId]);
+
+  useEffect(() => {
+    recarregarCounts();
+  }, [recarregarCounts]);
+
+  const handleSync = async () => {
+    if (!usuarioAtivoId || !isOnline) return;
+    setSyncing(true);
+    try {
+      const result = await processarFilaSync(usuarioAtivoId);
+      recarregarCounts();
+      if (result.discardedCount > 0) {
+        alert(`Sincronização concluída. ${result.syncedCount} registro(s) sincronizado(s). ${result.discardedCount} descartado(s) pois o alimento foi arquivado.`);
+      } else {
+        alert(`Sincronização concluída. ${result.syncedCount} registro(s) sincronizado(s).`);
+      }
+    } catch {
+      alert("Erro ao sincronizar. Verifique sua conexão e tente novamente.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   /* =========================
    * Handlers
@@ -311,9 +336,43 @@ export default function PerfilPage() {
                     <p className="text-xs text-gray-600 mt-1">Registros (7d)</p>
                   </div>
                 </div>
+                {offlineCounts.pendingCount > 0 && (
+                  <div className="mt-2 bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-orange-800">
+                      <span className="font-semibold">{offlineCounts.pendingCount}</span> registro(s) pendente(s) de sincronização
+                    </p>
+                    {!isDelegado && (
+                      <button
+                        onClick={handleSync}
+                        disabled={!isOnline || syncing}
+                        className="flex-shrink-0 text-sm px-3 py-1.5 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {syncing ? "Sincronizando…" : "Sincronizar agora"}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">Nenhum dado armazenado neste dispositivo ainda.</p>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">Nenhum dado armazenado neste dispositivo ainda.</p>
+                {offlineCounts.pendingCount > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-orange-800">
+                      <span className="font-semibold">{offlineCounts.pendingCount}</span> registro(s) pendente(s) de sincronização
+                    </p>
+                    {!isDelegado && (
+                      <button
+                        onClick={handleSync}
+                        disabled={!isOnline || syncing}
+                        className="flex-shrink-0 text-sm px-3 py-1.5 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {syncing ? "Sincronizando…" : "Sincronizar agora"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

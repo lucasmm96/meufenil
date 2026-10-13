@@ -41,7 +41,7 @@ export default function ReferenciasPage() {
     setOrdenarPor,
     toggleFavoritoReferencia,
     searchTerm,
-  } = useReferencias(usuarioAtivoId ?? undefined);
+  } = useReferencias(usuarioAtivoId ?? undefined, undefined, isOnline);
 
   const [showModal, setShowModal] = useState(false);
   const [editingReferencia, setEditingReferencia] = useState<ReferenciaDTO | null>(null);

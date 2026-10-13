@@ -1,11 +1,12 @@
 # ENH-0001 — PWA offline / service worker
 
 **Type:** ENH
-**Status:** ACCEPTED (Fase 1 IMPLEMENTED — Fase 2 pendente decisão)
+**Status:** ACCEPTED (Fase 1 IMPLEMENTED — Fase 2 IMPLEMENTED, pendente PR/merge)
 **Issue:** #10
 **Title:** PWA offline / service worker
 **Approved by/on:** Lucas Martins Menezes / 2026-10-09
 **Implemented Through (Fase 1):** PR #122 (squash merge, development, 2026-10-12)
+**Implemented Through (Fase 2):** branch `spec/ENH-0001-fase2`, 2026-10-12 — AC22, AC24, AC25 (sync), AC26 (logout), AC28 (Fase 2)
 
 ## Problem
 

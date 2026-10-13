@@ -28,7 +28,7 @@ export default function DashboardPage() {
     data: dashboard,
     loading,
     reload,
-  } = useDashboard(usuarioAtivoId ?? undefined);
+  } = useDashboard(usuarioAtivoId ?? undefined, isOnline);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCriarModal, setShowCriarModal] = useState(false);
@@ -120,10 +120,8 @@ export default function DashboardPage() {
             )}
 
             <button
-              onClick={() => isOnline && setShowAddModal(true)}
-              disabled={!isOnline}
-              title={!isOnline ? "Criação de medições requer conexão." : undefined}
-              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+              onClick={() => setShowAddModal(true)}
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
             >
               {isOnline ? "Adicionar Registro" : (
                 <span className="flex items-center gap-2 justify-center">
