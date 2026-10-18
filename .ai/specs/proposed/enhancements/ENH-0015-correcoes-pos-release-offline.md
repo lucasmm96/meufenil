@@ -1,7 +1,7 @@
 # ENH-0015 — Correções pós-release da implementação offline (ENH-0001)
 
 **Type:** ENH
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Title:** Correções pós-release da implementação offline (ENH-0001)
 **Issue:** #125
 **Created on:** 2026-10-18
@@ -112,13 +112,13 @@ N/A — sem decisão arquitetural nova. Singleton IDB é refactoring interno do 
 - **C2 — Alternativa:** manter Estatísticas indisponível offline e exibir mensagem em vez de dados. Rejeita: viola AC12 explícito de ENH-0001.
 - **C3-A — Alternativa:** manter `openDB()` por operação e não implementar singleton. Aceita como alternativa se o custo de manutenção do singleton for alto — a correção C3-D (mensagem de estado vazio) é a de maior valor perceptível de P3.
 
-**Decision:** TBD — a escolha entre alternativas é humana e obrigatória para ACCEPTED/IMPLEMENTED.
+**Decision:** ACCEPTED — 2026-10-18. C1: timeout 5s; mensagem loadingTooLong em LayoutSkeleton (AuthContext exporta AuthContext; LayoutSkeleton usa useContext). C3-A: extraído como DEBT separado — apenas C3-D implementado nesta spec. C3-B: gate de idempotência via `syncingRef` (ref-based, sem delay temporal). C2: path offline em `useEstatisticas` com `isOnline` param; ambos os períodos filtram 7 dias offline.
 
 ## Open Questions
 
-1. **Timeout C1:** 5 segundos é o valor correto ou preferível reduzir para 3s em mobile? Trade-off: menor espera vs. risco de falso negativo em conexões lentas.
-2. **C3-A — Singleton IDB:** implementar agora como parte desta ENH ou extrair para DEBT separado? (A correção tem risco de edge case em `onversionchange`.)
-3. **Mensagem de loading C1:** o aviso após 3s de loading deve ser exibido na `LayoutSkeleton` (componente compartilhado) ou em cada página individualmente?
+1. **Timeout C1:** ~~5 segundos é o valor correto ou preferível reduzir para 3s em mobile?~~ **Decidido: 5s.** (2026-10-18)
+2. **C3-A — Singleton IDB:** ~~implementar agora como parte desta ENH ou extrair para DEBT separado?~~ **Decidido: DEBT separado.** (2026-10-18)
+3. **Mensagem de loading C1:** ~~o aviso após 3s de loading deve ser exibido na `LayoutSkeleton` (componente compartilhado) ou em cada página individualmente?~~ **Decidido: LayoutSkeleton.** (2026-10-18)
 
 ## Post-Deploy Steps
 

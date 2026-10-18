@@ -29,6 +29,7 @@ export default function AdicionarRegistro({
   const [data, setData] = useState("");
   const [showModalReferencia, setShowModalReferencia] = useState(false);
   const [creatingReferencia, setCreatingReferencia] = useState(false);
+  const [offlineSelectionWarning, setOfflineSelectionWarning] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +60,21 @@ export default function AdicionarRegistro({
 
     return () => clearTimeout(t);
   }, [search, searchReferencias]);
+
+  useEffect(() => {
+    if (!isOnline && selectedReferencia) {
+      const disponivel = referencias.some((r) => r.id === selectedReferencia.id);
+      if (!disponivel) {
+        setSelectedReferencia(null);
+        setSearch("");
+        searchReferencias("");
+        setOfflineSelectionWarning(true);
+      }
+    }
+    if (isOnline) {
+      setOfflineSelectionWarning(false);
+    }
+  }, [isOnline, referencias, selectedReferencia, searchReferencias]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -278,6 +294,12 @@ export default function AdicionarRegistro({
                     <X className="w-4 h-4" />
                   </button>
                 </div>
+              )}
+
+              {offlineSelectionWarning && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  O alimento selecionado não está disponível offline. Selecione um de seus favoritos.
+                </p>
               )}
 
               {isOnline && (
