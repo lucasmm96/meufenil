@@ -185,7 +185,8 @@ A partir da v1.21.0, o MeuFenil suporta uso básico **sem conexão à internet**
 
 - **Adicionar registros de consumo:** o registro é salvo localmente e enviado ao servidor assim que a conexão for restabelecida.
 - **Excluir registros:** a exclusão é enfileirada localmente e executada no servidor na reconexão.
-- **Consultar o histórico:** são exibidos os registros dos **últimos 7 dias** salvos no aparelho.
+- **Consultar o histórico:** são exibidos os registros dos **últimos 7 dias** salvos no aparelho. Se não houver dados locais, uma mensagem informa: *"Sem dados offline disponíveis — acesse online para sincronizar"*.
+- **Visualizar Estatísticas** (desde v1.22.0): são exibidos os dados dos **últimos 7 dias** disponíveis no aparelho. O toggle "Último Mês" também usa os 7 dias disponíveis e exibe um aviso de dados parciais. A exportação (CSV/JSON) permanece desabilitada offline.
 
 **Como funciona:**
 
@@ -197,8 +198,16 @@ A partir da v1.21.0, o MeuFenil suporta uso básico **sem conexão à internet**
 **O que não está disponível offline:**
 
 - Filtros por período no Histórico (offline exibe sempre os últimos 7 dias).
-- Exportação de histórico (CSV, JSON, PDF).
-- Visualização de Estatísticas, Referências, Exames e Perfil em tempo real.
+- Exportação de histórico e estatísticas (CSV, JSON, PDF).
+- Visualização de Referências, Exames e Perfil em tempo real.
+
+**Uso com sessão expirada e sem conexão (desde v1.22.0):**
+
+Se o seu token de sessão tiver expirado (mais de 1 hora sem usar o aplicativo) e você abrir o app sem internet, a tela de login é exibida em até 5 segundos — o app nunca ficará carregando indefinidamente. Uma mensagem contextual aparece após alguns segundos explicando a situação.
+
+**Selecionar alimento ao ficar offline (desde v1.22.0):**
+
+Se você abrir o modal de registro com a lista completa de alimentos e a conexão cair enquanto um alimento não-favorito estiver selecionado, a seleção é limpa automaticamente com um aviso: *"O alimento selecionado não está disponível offline. Selecione um de seus favoritos."* Alimentos favoritos selecionados são mantidos normalmente.
 
 > **Nota:** ao sair da conta (logout) enquanto offline, os registros pendentes ainda não sincronizados são descartados do aparelho — certifique-se de estar online antes de sair se tiver registros pendentes importantes.
 
