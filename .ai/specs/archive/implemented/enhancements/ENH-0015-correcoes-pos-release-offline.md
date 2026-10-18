@@ -1,10 +1,11 @@
 # ENH-0015 — Correções pós-release da implementação offline (ENH-0001)
 
 **Type:** ENH
-**Status:** ACCEPTED
+**Status:** IMPLEMENTED
 **Title:** Correções pós-release da implementação offline (ENH-0001)
 **Issue:** #125
 **Created on:** 2026-10-18
+**Implemented Through:** PR #126 (merge, development, 2026-10-18)
 
 ## Problem
 
