@@ -29,14 +29,33 @@ export default function EstatisticasPage() {
       ? {
           usuarioId: usuarioAtivoId,
           periodo,
+          isOnline,
         }
       : undefined
   );
 
-  if (loadingAuth || !podeBuscar || loading || !data) {
+  if (loadingAuth || !podeBuscar || loading) {
     return (
       <LayoutSkeleton>
         <EstatisticasSkeleton />
+      </LayoutSkeleton>
+    );
+  }
+
+  if (!data) {
+    return (
+      <LayoutSkeleton>
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 sm:p-12 shadow-lg text-center space-y-4">
+          <TrendingUp className="w-14 h-14 text-gray-300 mx-auto" />
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
+            {isOnline ? "Sem dados disponíveis" : "Sem dados offline disponíveis"}
+          </h3>
+          <p className="text-gray-600">
+            {isOnline
+              ? "Adicione registros para visualizar suas estatísticas."
+              : "Acesse online para sincronizar seus dados."}
+          </p>
+        </div>
       </LayoutSkeleton>
     );
   }

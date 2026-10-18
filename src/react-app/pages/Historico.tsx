@@ -266,10 +266,12 @@ export default function HistoricoPage() {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 sm:p-12 shadow-lg text-center space-y-4">
             <Calendar className="w-14 h-14 text-gray-300 mx-auto" />
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
-              Nenhum registro encontrado
+              {isOnline ? "Nenhum registro encontrado" : "Sem dados offline disponíveis"}
             </h3>
             <p className="text-gray-600">
-              Comece adicionando seus primeiros registros no Dashboard
+              {isOnline
+                ? "Comece adicionando seus primeiros registros no Dashboard"
+                : "Acesse online para sincronizar seus registros."}
             </p>
           </div>
         ) : Object.keys(agrupadosPorData).length === 0 ? null : (
