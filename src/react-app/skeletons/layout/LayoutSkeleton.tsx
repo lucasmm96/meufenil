@@ -1,13 +1,11 @@
-import { useContext } from "react";
-import { AuthContext } from "@/react-app/context/AuthContext";
 import { WifiOff } from "lucide-react";
+import { useAuth } from "@/react-app/context/AuthContext";
 import { HeaderSkeleton } from "./HeaderSkeleton";
 import { NavSkeleton } from "./NavSkeleton";
 import { FooterSkeleton } from "./FooterSkeleton";
 
 export function LayoutSkeleton({ children }: { children: React.ReactNode }) {
-  const auth = useContext(AuthContext);
-  const loadingTooLong = auth?.loadingTooLong ?? false;
+  const { loadingTooLong } = useAuth();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
