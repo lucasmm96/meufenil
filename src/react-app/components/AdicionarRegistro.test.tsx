@@ -13,7 +13,7 @@ vi.mock("@/react-app/context/AuthContext", () => ({
 }));
 
 vi.mock("@/react-app/context/OfflineContext", () => ({
-  useOffline: () => ({ isOnline: true }),
+  useOffline: vi.fn(() => ({ isOnline: true })),
 }));
 
 vi.mock("@/react-app/services/offlineStorage.service", () => ({
@@ -29,6 +29,7 @@ vi.mock("@/react-app/hooks/useCreateRegistro", () => ({
 }));
 
 import { useAuth } from "@/react-app/context/AuthContext";
+import { useOffline } from "@/react-app/context/OfflineContext";
 import { useReferencias } from "@/react-app/hooks/useReferencias";
 import { useCreateRegistro } from "@/react-app/hooks/useCreateRegistro";
 
@@ -54,6 +55,7 @@ const refBanana = {
 
 describe("AdicionarRegistro component", () => {
   const useAuthMock = useAuth as unknown as ReturnType<typeof vi.fn>;
+  const useOfflineMock = useOffline as unknown as ReturnType<typeof vi.fn>;
   const useReferenciasMock = useReferencias as unknown as ReturnType<typeof vi.fn>;
   const useCreateRegistroMock = useCreateRegistro as unknown as ReturnType<typeof vi.fn>;
   let onClose: ReturnType<typeof vi.fn>;
@@ -105,6 +107,7 @@ describe("AdicionarRegistro component", () => {
     onClose = vi.fn();
     onSuccess = vi.fn();
     setupAuth();
+    useOfflineMock.mockReturnValue({ isOnline: true });
     setupReferencias();
     setupRegistro();
   });
@@ -275,6 +278,54 @@ describe("AdicionarRegistro component", () => {
     expect(search).toHaveBeenCalledWith("");
     expect(screen.getByText("Pera")).toBeTruthy();
     expect(screen.getByText(/20.00 mg de fenilalanina por 100g/)).toBeTruthy();
+  });
+
+  describe("C4 — validação de seleção offline (ENH-0015)", () => {
+    it("exibe aviso e limpa seleção ao ir offline com alimento não-favorito", async () => {
+      setupReferencias({ data: [refMaca, refBanana] });
+      const { rerender } = renderComponent();
+
+      fireEvent.focus(screen.getByPlaceholderText("Buscar alimento..."));
+      fireEvent.click(screen.getByRole("button", { name: /Maçã/ }));
+      expect(screen.getByText("Maçã")).toBeTruthy();
+
+      // vai offline: lista reduzida a apenas favoritos
+      setupReferencias({ data: [refBanana] });
+      useOfflineMock.mockReturnValue({ isOnline: false });
+      rerender(
+        <AdicionarRegistro
+          onClose={onClose as unknown as () => void}
+          onSuccess={onSuccess as unknown as () => void}
+        />
+      );
+
+      await waitFor(() =>
+        expect(screen.getByText(/não está disponível offline/)).toBeTruthy()
+      );
+      expect(screen.queryByText("Maçã")).toBeNull();
+    });
+
+    it("mantém seleção ao ir offline com favorito selecionado", async () => {
+      setupReferencias({ data: [refMaca, refBanana] });
+      const { rerender } = renderComponent();
+
+      fireEvent.focus(screen.getByPlaceholderText("Buscar alimento..."));
+      fireEvent.click(screen.getByRole("button", { name: /Banana/ }));
+      expect(screen.getByText("Banana")).toBeTruthy();
+
+      // vai offline: lista reduzida mas favorita ainda está disponível
+      setupReferencias({ data: [refBanana] });
+      useOfflineMock.mockReturnValue({ isOnline: false });
+      rerender(
+        <AdicionarRegistro
+          onClose={onClose as unknown as () => void}
+          onSuccess={onSuccess as unknown as () => void}
+        />
+      );
+
+      await waitFor(() => expect(screen.queryByText(/não está disponível offline/)).toBeNull());
+      expect(screen.getByText("Banana")).toBeTruthy();
+    });
   });
 
   it("cria o registro com a fenilalanina calculada e chama onSuccess", async () => {

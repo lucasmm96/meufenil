@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useRef, ReactNode } from 'react';
 import { format, subDays } from 'date-fns';
 import { useOnlineStatus } from '@/react-app/hooks/useOnlineStatus';
 import { write, setLastSync } from '@/react-app/services/offlineStorage.service';
@@ -27,34 +27,41 @@ interface OfflineProviderProps {
 }
 
 export function OfflineProvider({ children, userId }: OfflineProviderProps) {
+  const syncingRef = useRef(false);
+
   const onSync = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || syncingRef.current) return;
+    syncingRef.current = true;
 
-    // Sync pending ops before repopulating stores
-    await processarFilaSync(userId).catch(() => {});
+    try {
+      // Sync pending ops before repopulating stores
+      await processarFilaSync(userId).catch(() => {});
 
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const sevenDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
 
-    const [refs, registros, perfil] = await Promise.allSettled([
-      getReferencias({ usuarioId: userId, search: '', orderBy: 'nome', showInativas: false }),
-      getRegistros(userId, sevenDaysAgo, today),
-      getUsuarioPerfil(userId),
-    ]);
+      const [refs, registros, perfil] = await Promise.allSettled([
+        getReferencias({ usuarioId: userId, search: '', orderBy: 'nome', showInativas: false }),
+        getRegistros(userId, sevenDaysAgo, today),
+        getUsuarioPerfil(userId),
+      ]);
 
-    if (refs.status === 'fulfilled') {
-      const favoritas = refs.value.filter((r) => r.is_favorita);
-      const customizadas = refs.value.filter((r) => r.criado_por === userId);
-      await write('favoritos', userId, favoritas).catch(() => {});
-      await write('customizadas', userId, customizadas).catch(() => {});
+      if (refs.status === 'fulfilled') {
+        const favoritas = refs.value.filter((r) => r.is_favorita);
+        const customizadas = refs.value.filter((r) => r.criado_por === userId);
+        await write('favoritos', userId, favoritas).catch(() => {});
+        await write('customizadas', userId, customizadas).catch(() => {});
+      }
+      if (registros.status === 'fulfilled') {
+        await write('historico', userId, registros.value).catch(() => {});
+      }
+      if (perfil.status === 'fulfilled') {
+        await write('perfil', userId, perfil.value).catch(() => {});
+      }
+      await setLastSync(userId, new Date()).catch(() => {});
+    } finally {
+      syncingRef.current = false;
     }
-    if (registros.status === 'fulfilled') {
-      await write('historico', userId, registros.value).catch(() => {});
-    }
-    if (perfil.status === 'fulfilled') {
-      await write('perfil', userId, perfil.value).catch(() => {});
-    }
-    await setLastSync(userId, new Date()).catch(() => {});
   }, [userId]);
 
   const { isOnline, isSyncing, syncError, isIos } = useOnlineStatus(onSync);

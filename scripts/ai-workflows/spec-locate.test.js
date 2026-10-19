@@ -58,7 +58,8 @@ describe('spec-locate — busca por prefixo (sem número)', () => {
   })
 
   it('retorna specs de todas as áreas (proposed + archive) para prefixo', () => {
-    const result = spawnSync('node', [SCRIPT, 'enh'], { encoding: 'utf8' })
+    // 'enh' não é mais válido pós-ENH-0015: todos os ENH estão em archive/; 'debt' tem DEBT-0007 em proposed + DEBT-* em archive
+    const result = spawnSync('node', [SCRIPT, 'debt'], { encoding: 'utf8' })
     const parsed = JSON.parse(result.stdout)
     const areas = [...new Set(parsed.matches.map((m) => m.area))]
     expect(areas.length).toBeGreaterThan(1)

@@ -28,6 +28,7 @@ type LoginAsSession = {
 interface AuthContextType {
   authUser: User | null;
   loadingAuth: boolean;
+  loadingTooLong: boolean;
   ready: boolean;
 
   usuarioAtivoId: string | null;
@@ -52,6 +53,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [loadingTooLong, setLoadingTooLong] = useState(false);
 
   const [loginAs, setLoginAs] = useState<LoginAsSession | null>(null);
 
@@ -67,11 +69,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     async function initAuth() {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
+      const longLoadTimer = setTimeout(() => {
+        if (mounted) setLoadingTooLong(true);
+      }, 3000);
 
-      setAuthUser(data.session?.user ?? null);
-      setLoadingAuth(false);
+      try {
+        const result = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        ]);
+        if (!mounted) return;
+        setAuthUser(result === null ? null : (result.data.session?.user ?? null));
+      } catch {
+        if (!mounted) return;
+        setAuthUser(null);
+      } finally {
+        clearTimeout(longLoadTimer);
+        if (mounted) {
+          setLoadingTooLong(false);
+          setLoadingAuth(false);
+        }
+      }
     }
 
     initAuth();
@@ -178,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         authUser,
         loadingAuth,
+        loadingTooLong,
         ready,
 
         usuarioAtivoId,
